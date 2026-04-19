@@ -1828,8 +1828,7 @@ static i32 clks_syscall_usc_find_allowed_path(const char *path) {
     }
 
     for (i = 0U; i < CLKS_SYSCALL_USC_MAX_ALLOWED_APPS; i++) {
-        if (clks_syscall_usc_allowed_used[i] == CLKS_TRUE &&
-            clks_strcmp(clks_syscall_usc_allowed_path[i], path) == 0) {
+        if (clks_syscall_usc_allowed_used[i] == CLKS_TRUE && clks_strcmp(clks_syscall_usc_allowed_path[i], path) == 0) {
             return (i32)i;
         }
     }
@@ -1851,7 +1850,8 @@ static void clks_syscall_usc_remember_path(const char *path) {
     for (i = 0U; i < CLKS_SYSCALL_USC_MAX_ALLOWED_APPS; i++) {
         if (clks_syscall_usc_allowed_used[i] == CLKS_FALSE) {
             clks_syscall_usc_allowed_used[i] = CLKS_TRUE;
-            clks_syscall_usc_copy_path(clks_syscall_usc_allowed_path[i], sizeof(clks_syscall_usc_allowed_path[i]), path);
+            clks_syscall_usc_copy_path(clks_syscall_usc_allowed_path[i], sizeof(clks_syscall_usc_allowed_path[i]),
+                                       path);
             return;
         }
     }
