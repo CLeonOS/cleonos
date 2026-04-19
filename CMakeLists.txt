@@ -320,8 +320,6 @@ endif()
 
 set(KERNEL_SOURCE_DIRS
     "${CMAKE_SOURCE_DIR}/clks/kernel"
-    "${CMAKE_SOURCE_DIR}/clks/lib"
-    "${CMAKE_SOURCE_DIR}/clks/drivers"
     "${CMAKE_SOURCE_DIR}/clks/arch/${CLKS_ARCH}"
 )
 
