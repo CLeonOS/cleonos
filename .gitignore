@@ -2,7 +2,6 @@ build/
 build-cmake*/
 *.iso
 *.tar
-limine/
 
 # CMake generated files
 CMakeCache.txt
