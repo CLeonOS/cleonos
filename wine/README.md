@@ -37,13 +37,17 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 ## 支持
 
 - ELF64 (x86_64) PT_LOAD 段装载
-- CLeonOS `int 0x80` syscall 0..60
+- CLeonOS `int 0x80` syscall 0..80（含 `FD_*`、`PROC_*`、`STATS_*`、`EXEC_PATHV_IO`）
 - TTY 输出与键盘输入队列
 - rootfs 文件/目录访问（`FS_*`）
 - `/temp` 写入限制（`FS_MKDIR/WRITE/APPEND/REMOVE`）
 - `EXEC_PATH/EXEC_PATHV` 执行 ELF（带深度限制）
+- `EXEC_PATHV_IO`（支持 stdio fd 继承/重定向）
 - `SPAWN_PATH/SPAWN_PATHV/WAITPID/EXIT/SLEEP_TICKS/YIELD`
 - 进程 `argv/env` 查询（`PROC_ARGC/PROC_ARGV/PROC_ENVC/PROC_ENV`）
+- 进程枚举与快照（`PROC_COUNT/PROC_PID_AT/PROC_SNAPSHOT/PROC_KILL`）
+- syscall 统计（`STATS_TOTAL/STATS_ID_COUNT/STATS_RECENT_*`）
+- 文件描述符（`FD_OPEN/FD_READ/FD_WRITE/FD_CLOSE/FD_DUP`）
 - 异常退出状态编码与故障元信息（`PROC_LAST_SIGNAL/PROC_FAULT_*`）
 
 ## 参数

@@ -4,193 +4,256 @@
       "key": "CLEONOS_CLKS_ENABLE_AUDIO",
       "title": "Audio Driver Init",
       "description": "Initialize kernel audio subsystem during boot.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_MOUSE",
       "title": "PS/2 Mouse Input",
       "description": "Initialize kernel PS/2 mouse input subsystem.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_DESKTOP",
       "title": "TTY2 Desktop",
       "description": "Enable desktop compositor tick/update path on TTY2.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_MOUSE"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER",
       "title": "Driver Manager",
       "description": "Initialize kernel ELF driver manager.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KELF",
       "title": "KELF Executor",
       "description": "Enable kernel ELF app dispatcher and kelfd task.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER && CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT",
+      "imply": [
+        "CLEONOS_CLKS_ENABLE_ELFRUNNER_PROBE",
+        "CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE"
+      ]
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC",
       "title": "Auto Enter User Shell",
       "description": "Auto-exec /shell/shell.elf after kernel boot.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USRD_TASK && CLEONOS_CLKS_ENABLE_KEYBOARD",
+      "select": [
+        "CLEONOS_CLKS_ENABLE_USRD_TASK",
+        "CLEONOS_CLKS_ENABLE_KEYBOARD"
+      ],
+      "imply": [
+        "CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE",
+        "CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG"
+      ]
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_HEAP_SELFTEST",
       "title": "Heap Selftest",
       "description": "Run kmalloc/kfree selftest during kernel boot.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_EXTERNAL_PSF",
       "title": "Load External PSF Font",
       "description": "Load /system/tty.psf and apply it to framebuffer TTY.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KEYBOARD",
       "title": "PS/2 Keyboard Input",
       "description": "Initialize PS/2 keyboard input subsystem.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "imply": [
+        "CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY",
+        "CLEONOS_CLKS_ENABLE_KBD_CTRL_SHORTCUTS"
+      ]
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_ELFRUNNER_PROBE",
       "title": "ELFRUNNER Probe",
       "description": "Probe kernel ELF runtime metadata after ELFRUNNER init.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT && CLEONOS_CLKS_ENABLE_KELF"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KLOGD_TASK",
       "title": "Scheduler Task: klogd",
       "description": "Enable periodic klogd maintenance task.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KWORKER_TASK",
       "title": "Scheduler Task: kworker",
       "description": "Enable periodic kernel worker service-heartbeat task.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USRD_TASK",
       "title": "Scheduler Task: usrd",
       "description": "Enable user/runtime dispatch task (shell tick, tty tick, exec tick).",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_BOOT_VIDEO_LOG",
       "title": "Boot Video Geometry Logs",
       "description": "Print framebuffer width/height/pitch/bpp logs at boot.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_PMM_STATS_LOG",
       "title": "PMM Stats Logs",
       "description": "Print PMM managed/free/used/dropped pages at boot.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_HEAP_STATS_LOG",
       "title": "Heap Stats Logs",
       "description": "Print heap total/free bytes at boot.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_FS_ROOT_LOG",
       "title": "FS Root Children Log",
       "description": "Print root directory children count during FS init.",
-      "default": true
+      "type": "tristate",
+      "default": "y",
+      "depends_on": "CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK",
       "title": "FS /SYSTEM Sanity Check",
       "description": "Require /system directory check during boot.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT",
       "title": "ELFRUNNER Init",
       "description": "Initialize ELFRUNNER framework in kernel boot path.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SYSCALL_TICK_QUERY",
       "title": "SYSCALL Tick Query",
       "description": "Query timer ticks via syscall and log result during boot.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_PROCFS"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_TTY_READY_LOG",
       "title": "TTY Ready Logs",
       "description": "Print TTY count/active/cursor ready logs.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG",
       "title": "Idle Loop Debug Log",
       "description": "Print debug log before entering kernel idle loop.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_PROCFS",
       "title": "Virtual /proc",
       "description": "Enable virtual procfs paths (/proc, /proc/list, /proc/self, /proc/<pid>) in syscall FS layer.",
+      "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG",
       "title": "EXEC Serial Logs",
       "description": "Print EXEC run/return/path logs to serial output.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY",
       "title": "Keyboard TTY Switch Hotkey",
       "description": "Enable ALT+F1..F4 keyboard hotkey for active TTY switching.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_CTRL_SHORTCUTS",
       "title": "Keyboard Ctrl Shortcuts",
       "description": "Enable Ctrl+A/C/V shortcuts for input selection/copy/paste.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD",
+      "imply": [
+        "CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY"
+      ]
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_FORCE_STOP_HOTKEY",
       "title": "Keyboard Force-Stop Hotkey",
       "description": "Enable Ctrl+Alt+C force-stop for current running user process.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD && CLEONOS_CLKS_ENABLE_PROCFS"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE",
       "title": "User Init Script Probe",
       "description": "Probe and log /shell/init.cmd presence during userland init.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE",
       "title": "User System App Probe",
       "description": "Probe /system/elfrunner.elf and /system/memc.elf during userland init.",
-      "default": true
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_KELF"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG",
       "title": "Scheduler Task Count Log",
       "description": "Print scheduler task count after scheduler initialization.",
-      "default": true
+      "type": "tristate",
+      "default": "y",
+      "depends_on": "CLEONOS_CLKS_ENABLE_KLOGD_TASK || CLEONOS_CLKS_ENABLE_KWORKER_TASK || CLEONOS_CLKS_ENABLE_USRD_TASK"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_INTERRUPT_READY_LOG",
       "title": "Interrupt Ready Log",
       "description": "Print IDT/PIC initialized log after interrupt setup.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG",
       "title": "Shell Mode Log",
       "description": "Print whether boot default mode is user shell or kernel shell.",
-      "default": true
+      "type": "tristate",
+      "default": "y"
     }
   ]
 }

@@ -21,7 +21,7 @@ import sys
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
     import curses
@@ -51,21 +51,239 @@ class OptionItem:
     key: str
     title: str
     description: str
-    default: bool
+    kind: str
+    default: int
+    depends_on: str
+    selects: Tuple[str, ...]
+    implies: Tuple[str, ...]
+
+
+@dataclass
+class EvalResult:
+    effective: Dict[str, int]
+    visible: Dict[str, bool]
+    min_required: Dict[str, int]
+    max_selectable: Dict[str, int]
+    selected_by: Dict[str, List[str]]
+    implied_by: Dict[str, List[str]]
+    depends_symbols: Dict[str, List[str]]
+
+
+TRI_N = 0
+TRI_M = 1
+TRI_Y = 2
+
+
+def tri_char(value: int) -> str:
+    if value >= TRI_Y:
+        return "y"
+    if value >= TRI_M:
+        return "m"
+    return "n"
+
+
+def tri_text(value: int) -> str:
+    ch = tri_char(value)
+    if ch == "y":
+        return "Y"
+    if ch == "m":
+        return "M"
+    return "N"
+
+
+def normalize_kind(raw: object) -> str:
+    text = str(raw or "bool").strip().lower()
+    if text in {"tristate", "tri"}:
+        return "tristate"
+    return "bool"
+
+
+def _tri_from_bool(value: bool) -> int:
+    return TRI_Y if value else TRI_N
+
+
+def normalize_tri(raw: object, default: int, kind: str) -> int:
+    if isinstance(raw, bool):
+        value = TRI_Y if raw else TRI_N
+    elif isinstance(raw, (int, float)):
+        iv = int(raw)
+        if iv <= 0:
+            value = TRI_N
+        elif iv == 1:
+            value = TRI_M
+        else:
+            value = TRI_Y
+    elif isinstance(raw, str):
+        text = raw.strip().lower()
+        if text in {"1", "on", "true", "yes", "y"}:
+            value = TRI_Y
+        elif text in {"m", "mod", "module"}:
+            value = TRI_M
+        elif text in {"0", "off", "false", "no", "n"}:
+            value = TRI_N
+        else:
+            value = default
+    else:
+        value = default
+
+    if kind == "bool":
+        return TRI_Y if value == TRI_Y else TRI_N
+    if value < TRI_N:
+        return TRI_N
+    if value > TRI_Y:
+        return TRI_Y
+    return value
+
+
+def _tokenize_dep_expr(expr: str) -> List[str]:
+    tokens: List[str] = []
+    i = 0
+    n = len(expr)
+
+    while i < n:
+        ch = expr[i]
+        if ch.isspace():
+            i += 1
+            continue
+        if ch in "()!":
+            tokens.append(ch)
+            i += 1
+            continue
+        if i + 1 < n:
+            pair = expr[i : i + 2]
+            if pair in {"&&", "||"}:
+                tokens.append(pair)
+                i += 2
+                continue
+        m = re.match(r"[A-Za-z_][A-Za-z0-9_]*", expr[i:])
+        if m:
+            tok = m.group(0)
+            tokens.append(tok)
+            i += len(tok)
+            continue
+        raise RuntimeError(f"invalid token in depends expression: {expr!r}")
+    return tokens
+
+
+class _DepExprParser:
+    def __init__(self, tokens: List[str], resolver: Callable[[str], int]):
+        self.tokens = tokens
+        self.pos = 0
+        self.resolver = resolver
+
+    def _peek(self) -> Optional[str]:
+        if self.pos >= len(self.tokens):
+            return None
+        return self.tokens[self.pos]
+
+    def _take(self) -> str:
+        if self.pos >= len(self.tokens):
+            raise RuntimeError("unexpected end of expression")
+        tok = self.tokens[self.pos]
+        self.pos += 1
+        return tok
+
+    def parse(self) -> int:
+        value = self._parse_or()
+        if self._peek() is not None:
+            raise RuntimeError("unexpected token in expression")
+        return value
+
+    def _parse_or(self) -> int:
+        value = self._parse_and()
+        while self._peek() == "||":
+            self._take()
+            value = max(value, self._parse_and())
+        return value
+
+    def _parse_and(self) -> int:
+        value = self._parse_unary()
+        while self._peek() == "&&":
+            self._take()
+            value = min(value, self._parse_unary())
+        return value
+
+    def _parse_unary(self) -> int:
+        tok = self._peek()
+        if tok == "!":
+            self._take()
+            value = self._parse_unary()
+            if value == TRI_Y:
+                return TRI_N
+            if value == TRI_N:
+                return TRI_Y
+            return TRI_M
+        return self._parse_primary()
+
+    def _parse_primary(self) -> int:
+        tok = self._take()
+        if tok == "(":
+            value = self._parse_or()
+            if self._take() != ")":
+                raise RuntimeError("missing ')' in expression")
+            return value
+
+        lowered = tok.lower()
+        if lowered == "y":
+            return TRI_Y
+        if lowered == "m":
+            return TRI_M
+        if lowered == "n":
+            return TRI_N
+        return self.resolver(tok)
+
+
+def eval_dep_expr(expr: str, resolver: Callable[[str], int]) -> int:
+    text = (expr or "").strip()
+    if not text:
+        return TRI_Y
+    tokens = _tokenize_dep_expr(text)
+    parser = _DepExprParser(tokens, resolver)
+    return parser.parse()
+
+
+def extract_dep_symbols(expr: str) -> List[str]:
+    text = (expr or "").strip()
+    if not text:
+        return []
+
+    out: List[str] = []
+    seen: Set[str] = set()
+    for tok in _tokenize_dep_expr(text):
+        if tok in {"&&", "||", "!", "(", ")"}:
+            continue
+        low = tok.lower()
+        if low in {"y", "m", "n"}:
+            continue
+        if tok in seen:
+            continue
+        seen.add(tok)
+        out.append(tok)
+    return out
 
 
 def normalize_bool(raw: object, default: bool) -> bool:
-    if isinstance(raw, bool):
-        return raw
-    if isinstance(raw, (int, float)):
-        return raw != 0
+    tri_default = TRI_Y if default else TRI_N
+    return normalize_tri(raw, tri_default, "bool") == TRI_Y
+
+
+def _normalize_key_list(raw: object) -> Tuple[str, ...]:
+    items: List[str] = []
+
     if isinstance(raw, str):
-        text = raw.strip().lower()
-        if text in {"1", "on", "true", "yes", "y"}:
-            return True
-        if text in {"0", "off", "false", "no", "n"}:
-            return False
-    return default
+        source = re.split(r"[,\s]+", raw.strip())
+    elif isinstance(raw, (list, tuple)):
+        source = [str(x) for x in raw]
+    else:
+        return ()
+
+    for item in source:
+        token = str(item).strip()
+        if not token:
+            continue
+        items.append(token)
+
+    return tuple(items)
 
 
 def sanitize_token(name: str) -> str:
@@ -89,10 +307,25 @@ def load_clks_options() -> List[OptionItem]:
         key = str(entry.get("key", "")).strip()
         title = str(entry.get("title", key)).strip()
         description = str(entry.get("description", "")).strip()
-        default = normalize_bool(entry.get("default", True), True)
+        kind = normalize_kind(entry.get("type", "bool"))
+        default = normalize_tri(entry.get("default", TRI_Y), TRI_Y, kind)
+        depends_on = str(entry.get("depends_on", entry.get("depends", ""))).strip()
+        selects = _normalize_key_list(entry.get("select", entry.get("selects", ())))
+        implies = _normalize_key_list(entry.get("imply", entry.get("implies", ())))
         if not key:
             continue
-        options.append(OptionItem(key=key, title=title, description=description, default=default))
+        options.append(
+            OptionItem(
+                key=key,
+                title=title,
+                description=description,
+                kind=kind,
+                default=default,
+                depends_on=depends_on,
+                selects=selects,
+                implies=implies,
+            )
+        )
 
     if not options:
         raise RuntimeError(f"no CLKS feature options in {CLKS_FEATURES_PATH}")
@@ -135,12 +368,23 @@ def discover_user_apps() -> List[OptionItem]:
         key = f"CLEONOS_USER_APP_{sanitize_token(app)}"
         title = f"{app}.elf [{section}]"
         description = f"Build and package user app '{app}' into ramdisk/{section}."
-        options.append(OptionItem(key=key, title=title, description=description, default=True))
+        options.append(
+            OptionItem(
+                key=key,
+                title=title,
+                description=description,
+                kind="bool",
+                default=TRI_Y,
+                depends_on="",
+                selects=(),
+                implies=(),
+            )
+        )
 
     return options
 
 
-def load_previous_values() -> Dict[str, bool]:
+def load_previous_values() -> Dict[str, int]:
     if not CONFIG_JSON_PATH.exists():
         return {}
     try:
@@ -151,54 +395,62 @@ def load_previous_values() -> Dict[str, bool]:
     if not isinstance(raw, dict):
         return {}
 
-    out: Dict[str, bool] = {}
+    out: Dict[str, int] = {}
     for key, value in raw.items():
         if not isinstance(key, str):
             continue
-        out[key] = normalize_bool(value, False)
+        out[key] = normalize_tri(value, TRI_N, "tristate")
     return out
 
 
-def init_values(options: Iterable[OptionItem], previous: Dict[str, bool], use_defaults: bool) -> Dict[str, bool]:
-    values: Dict[str, bool] = {}
+def init_values(options: Iterable[OptionItem], previous: Dict[str, int], use_defaults: bool) -> Dict[str, int]:
+    values: Dict[str, int] = {}
     for item in options:
         if not use_defaults and item.key in previous:
-            values[item.key] = previous[item.key]
+            values[item.key] = normalize_tri(previous[item.key], item.default, item.kind)
         else:
             values[item.key] = item.default
     return values
 
 
-def _set_option_if_exists(values: Dict[str, bool], key: str, enabled: bool) -> None:
+def _build_index(options: Iterable[OptionItem]) -> Dict[str, OptionItem]:
+    return {item.key: item for item in options}
+
+
+def _set_option_if_exists(values: Dict[str, int], option_index: Dict[str, OptionItem], key: str, level: int) -> None:
     if key in values:
-        values[key] = enabled
+        item = option_index.get(key)
+        if item is None:
+            return
+        values[key] = normalize_tri(level, item.default, item.kind)
 
 
-def _set_all_options(values: Dict[str, bool], options: List[OptionItem], enabled: bool) -> None:
+def _set_all_options(values: Dict[str, int], options: List[OptionItem], level: int) -> None:
     for item in options:
-        values[item.key] = enabled
+        values[item.key] = normalize_tri(level, item.default, item.kind)
 
 
-def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> None:
+def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> None:
+    option_index = _build_index(clks_options + user_options)
     preset_name = preset.strip().lower()
 
     if preset_name == "full":
-        _set_all_options(values, clks_options, True)
-        _set_all_options(values, user_options, True)
+        _set_all_options(values, clks_options, TRI_Y)
+        _set_all_options(values, user_options, TRI_Y)
         return
 
     if preset_name == "dev":
-        _set_all_options(values, clks_options, True)
-        _set_all_options(values, user_options, True)
-        _set_option_if_exists(values, "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC", False)
-        _set_option_if_exists(values, "CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG", True)
-        _set_option_if_exists(values, "CLEONOS_CLKS_ENABLE_PROCFS", True)
-        _set_option_if_exists(values, "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG", True)
+        _set_all_options(values, clks_options, TRI_Y)
+        _set_all_options(values, user_options, TRI_Y)
+        _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC", TRI_N)
+        _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG", TRI_Y)
+        _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_PROCFS", TRI_Y)
+        _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG", TRI_Y)
         return
 
     if preset_name == "minimal":
-        _set_all_options(values, clks_options, True)
-        _set_all_options(values, user_options, False)
+        _set_all_options(values, clks_options, TRI_Y)
+        _set_all_options(values, user_options, TRI_N)
 
         clks_disable = [
             "CLEONOS_CLKS_ENABLE_AUDIO",
@@ -222,7 +474,7 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
             "CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG",
         ]
         for key in clks_disable:
-            _set_option_if_exists(values, key, False)
+            _set_option_if_exists(values, option_index, key, TRI_N)
 
         clks_enable = [
             "CLEONOS_CLKS_ENABLE_KEYBOARD",
@@ -240,7 +492,7 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
             "CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG",
         ]
         for key in clks_enable:
-            _set_option_if_exists(values, key, True)
+            _set_option_if_exists(values, option_index, key, TRI_Y)
 
         user_enable_tokens = [
             "SHELL",
@@ -265,24 +517,271 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
             "TTYDRV",
         ]
         for token in user_enable_tokens:
-            _set_option_if_exists(values, f"CLEONOS_USER_APP_{token}", True)
+            _set_option_if_exists(values, option_index, f"CLEONOS_USER_APP_{token}", TRI_Y)
         return
 
     raise RuntimeError(f"unknown preset: {preset}")
 
 
-def print_section(title: str, options: List[OptionItem], values: Dict[str, bool]) -> None:
+def _allowed_values(item: OptionItem, min_required: int, max_selectable: int) -> List[int]:
+    upper = normalize_tri(max_selectable, TRI_N, item.kind)
+    lower = normalize_tri(min_required, TRI_N, item.kind)
+    if lower > upper:
+        lower = upper
+
+    if item.kind == "tristate":
+        base = [TRI_N, TRI_M, TRI_Y]
+    else:
+        base = [TRI_N, TRI_Y]
+    values = [v for v in base if lower <= v <= upper]
+    if values:
+        return values
+    return [lower]
+
+
+def _choose_select_level(src_value: int, dst_kind: str, is_imply: bool) -> int:
+    if src_value <= TRI_N:
+        return TRI_N
+    if dst_kind == "bool":
+        if is_imply:
+            return TRI_Y if src_value == TRI_Y else TRI_N
+        return TRI_Y
+    return src_value
+
+
+def evaluate_config(options: List[OptionItem], values: Dict[str, int]) -> EvalResult:
+    option_index = _build_index(options)
+    depends_symbols = {item.key: extract_dep_symbols(item.depends_on) for item in options}
+
+    effective: Dict[str, int] = {}
+    for item in options:
+        effective[item.key] = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+
+    visible = {item.key: True for item in options}
+    min_required = {item.key: TRI_N for item in options}
+    max_selectable = {item.key: TRI_Y for item in options}
+    selected_by = {item.key: [] for item in options}
+    implied_by = {item.key: [] for item in options}
+
+    max_rounds = max(1, len(options) * 8)
+    for _ in range(max_rounds):
+        dep_value: Dict[str, int] = {}
+        for item in options:
+            def _resolver(symbol: str) -> int:
+                return effective.get(symbol, TRI_N)
+
+            try:
+                dep_value[item.key] = normalize_tri(eval_dep_expr(item.depends_on, _resolver), TRI_Y, "tristate")
+            except Exception:
+                dep_value[item.key] = TRI_N
+
+        new_visible: Dict[str, bool] = {}
+        new_max: Dict[str, int] = {}
+        for item in options:
+            dep = dep_value[item.key]
+            new_visible[item.key] = dep > TRI_N
+            if item.kind == "bool":
+                new_max[item.key] = TRI_Y if dep == TRI_Y else TRI_N
+            else:
+                new_max[item.key] = dep
+
+        new_min = {item.key: TRI_N for item in options}
+        new_selected_by = {item.key: [] for item in options}
+        new_implied_by = {item.key: [] for item in options}
+
+        for src in options:
+            src_value = effective[src.key]
+            if src_value <= TRI_N:
+                continue
+
+            for dst_key in src.selects:
+                dst = option_index.get(dst_key)
+                if dst is None:
+                    continue
+                level = _choose_select_level(src_value, dst.kind, is_imply=False)
+                if level > new_min[dst_key]:
+                    new_min[dst_key] = level
+                new_selected_by[dst_key].append(f"{src.key}={tri_char(src_value)}")
+
+            for dst_key in src.implies:
+                dst = option_index.get(dst_key)
+                if dst is None:
+                    continue
+                new_implied_by[dst_key].append(f"{src.key}={tri_char(src_value)}")
+
+        changed = False
+        next_effective: Dict[str, int] = {}
+        for item in options:
+            req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+            upper = normalize_tri(new_max[item.key], TRI_N, item.kind)
+            lower = normalize_tri(new_min[item.key], TRI_N, item.kind)
+            if lower > upper:
+                lower = upper
+            eff = req
+            if eff < lower:
+                eff = lower
+            if eff > upper:
+                eff = upper
+            eff = normalize_tri(eff, item.default, item.kind)
+            next_effective[item.key] = eff
+            if eff != effective[item.key]:
+                changed = True
+
+        effective = next_effective
+        visible = new_visible
+        min_required = new_min
+        max_selectable = new_max
+        selected_by = new_selected_by
+        implied_by = new_implied_by
+        if not changed:
+            break
+
+    for key in selected_by:
+        selected_by[key].sort()
+        implied_by[key].sort()
+
+    return EvalResult(
+        effective=effective,
+        visible=visible,
+        min_required=min_required,
+        max_selectable=max_selectable,
+        selected_by=selected_by,
+        implied_by=implied_by,
+        depends_symbols=depends_symbols,
+    )
+
+
+def _option_on(value: int) -> bool:
+    return value > TRI_N
+
+
+def _set_all(values: Dict[str, int], options: List[OptionItem], level: int) -> None:
+    for item in options:
+        values[item.key] = normalize_tri(level, item.default, item.kind)
+
+
+def _set_option_value(values: Dict[str, int], item: OptionItem, level: int) -> None:
+    values[item.key] = normalize_tri(level, item.default, item.kind)
+
+
+def _cycle_option_value(values: Dict[str, int], item: OptionItem, evaluation: EvalResult, step: int = 1) -> None:
+    allowed = _allowed_values(item, evaluation.min_required[item.key], evaluation.max_selectable[item.key])
+    if not allowed:
+        return
+    current = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+    if current not in allowed:
+        current = evaluation.effective.get(item.key, item.default)
+        if current not in allowed:
+            current = allowed[0]
+    pos = allowed.index(current)
+    values[item.key] = allowed[(pos + step) % len(allowed)]
+
+
+def _detail_lines(item: OptionItem, values: Dict[str, int], ev: EvalResult) -> List[str]:
+    req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+    eff = ev.effective.get(item.key, item.default)
+    visible = ev.visible.get(item.key, True)
+    floor_val = ev.min_required.get(item.key, TRI_N)
+    ceil_val = ev.max_selectable.get(item.key, TRI_Y)
+    allowed = ",".join(tri_char(v) for v in _allowed_values(item, floor_val, ceil_val))
+
+    lines = [
+        f"kind: {item.kind}",
+        f"requested: {tri_char(req)}",
+        f"effective: {tri_char(eff)}",
+        f"visible: {'yes' if visible else 'no'}",
+        f"allowed: {allowed}",
+        f"depends: {item.depends_on or '<none>'}",
+    ]
+
+    symbols = ev.depends_symbols.get(item.key, [])
+    if symbols:
+        parts = [f"{sym}={tri_char(ev.effective.get(sym, TRI_N))}" for sym in symbols]
+        lines.append("depends values: " + ", ".join(parts))
+    else:
+        lines.append("depends values: <none>")
+
+    sel = ev.selected_by.get(item.key, [])
+    imp = ev.implied_by.get(item.key, [])
+    lines.append("selected by: " + (", ".join(sel) if sel else "<none>"))
+    lines.append("implied by: " + (", ".join(imp) if imp else "<none>"))
+    return lines
+
+
+def _tri_word(value: int) -> str:
+    if value >= TRI_Y:
+        return "Enabled"
+    if value >= TRI_M:
+        return "Module"
+    return "Disabled"
+
+
+def _detail_lines_human(item: OptionItem, values: Dict[str, int], ev: EvalResult) -> List[str]:
+    req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+    eff = ev.effective.get(item.key, item.default)
+    visible = ev.visible.get(item.key, True)
+    floor_val = ev.min_required.get(item.key, TRI_N)
+    ceil_val = ev.max_selectable.get(item.key, TRI_Y)
+    allowed_vals = _allowed_values(item, floor_val, ceil_val)
+
+    symbols = ev.depends_symbols.get(item.key, [])
+    if symbols:
+        dep_values = ", ".join(f"{sym}={tri_char(ev.effective.get(sym, TRI_N))}" for sym in symbols)
+    else:
+        dep_values = "<none>"
+
+    selected_chain = ", ".join(ev.selected_by.get(item.key, [])) or "<none>"
+    implied_chain = ", ".join(ev.implied_by.get(item.key, [])) or "<none>"
+    allowed_text = "/".join(f"{tri_char(v)}({_tri_word(v)})" for v in allowed_vals)
+
+    return [
+        "State:",
+        f"  Running now   : {tri_char(eff)} ({_tri_word(eff)})",
+        f"  Your choice   : {tri_char(req)} ({_tri_word(req)})",
+        f"  Type          : {item.kind}",
+        f"  Visible       : {'yes' if visible else 'no'}",
+        f"  Allowed now   : {allowed_text}",
+        "Why:",
+        f"  depends on    : {item.depends_on or '<none>'}",
+        f"  depends value : {dep_values}",
+        f"  selected by   : {selected_chain}",
+        f"  implied by    : {implied_chain}",
+        "Notes:",
+        "  [a/b] in list means [effective/requested].",
+        f"  {item.description}",
+    ]
+
+
+def print_section(title: str, section_options: List[OptionItem], all_options: List[OptionItem], values: Dict[str, int]) -> None:
+    ev = evaluate_config(all_options, values)
     print()
     print(f"== {title} ==")
-    for idx, item in enumerate(options, start=1):
-        mark = "x" if values.get(item.key, item.default) else " "
-        print(f"{idx:3d}. [{mark}] {item.title}")
-    print("Commands: <number> toggle, a enable-all, n disable-all, i <n> info, b back")
+    for idx, item in enumerate(section_options, start=1):
+        req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+        eff = ev.effective.get(item.key, item.default)
+        visible = ev.visible.get(item.key, True)
+        floor_val = ev.min_required.get(item.key, TRI_N)
+        ceil_val = ev.max_selectable.get(item.key, TRI_Y)
+        locked = len(_allowed_values(item, floor_val, ceil_val)) <= 1
+        flags: List[str] = []
+        if not visible:
+            flags.append("hidden")
+        if locked:
+            flags.append("locked")
+        if ev.selected_by.get(item.key):
+            flags.append("selected")
+        if ev.implied_by.get(item.key):
+            flags.append("implied")
+        flag_text = f" ({', '.join(flags)})" if flags else ""
+        print(f"{idx:3d}. [{tri_char(eff)}|{tri_char(req)}] {item.title}{flag_text}")
+    print("Commands: <number> cycle, a all->y, n all->n, m all->m, i <n> info, b back")
+    print("Legend: [effective|requested], states: y/m/n")
 
 
-def section_loop(title: str, options: List[OptionItem], values: Dict[str, bool]) -> None:
+def section_loop(title: str, section_options: List[OptionItem], all_options: List[OptionItem], values: Dict[str, int]) -> None:
     while True:
-        print_section(title, options, values)
+        ev = evaluate_config(all_options, values)
+        print_section(title, section_options, all_options, values)
         raw = input(f"{title}> ").strip()
         if not raw:
             continue
@@ -291,24 +790,28 @@ def section_loop(title: str, options: List[OptionItem], values: Dict[str, bool])
         if lower in {"b", "back", "q", "quit"}:
             return
         if lower in {"a", "all", "on"}:
-            for item in options:
-                values[item.key] = True
+            for item in section_options:
+                _set_option_value(values, item, TRI_Y)
             continue
         if lower in {"n", "none", "off"}:
-            for item in options:
-                values[item.key] = False
+            for item in section_options:
+                _set_option_value(values, item, TRI_N)
+            continue
+        if lower in {"m", "mod", "module"}:
+            for item in section_options:
+                _set_option_value(values, item, TRI_M)
             continue
         if lower.startswith("i "):
             token = lower[2:].strip()
             if token.isdigit():
                 idx = int(token)
-                if 1 <= idx <= len(options):
-                    item = options[idx - 1]
-                    state = "ON" if values.get(item.key, item.default) else "OFF"
+                if 1 <= idx <= len(section_options):
+                    item = section_options[idx - 1]
                     print()
                     print(f"[{idx}] {item.title}")
                     print(f"key: {item.key}")
-                    print(f"state: {state}")
+                    for line in _detail_lines(item, values, ev):
+                        print(line)
                     print(f"desc: {item.description}")
                     continue
             print("invalid info index")
@@ -316,9 +819,9 @@ def section_loop(title: str, options: List[OptionItem], values: Dict[str, bool])
 
         if raw.isdigit():
             idx = int(raw)
-            if 1 <= idx <= len(options):
-                item = options[idx - 1]
-                values[item.key] = not values.get(item.key, item.default)
+            if 1 <= idx <= len(section_options):
+                item = section_options[idx - 1]
+                _cycle_option_value(values, item, ev)
             else:
                 print("invalid index")
             continue
@@ -476,13 +979,23 @@ def _draw_progress_bar(
     _safe_addnstr(stdscr, y, x + bar_w + 1, f"{enabled_count:>3}/{total_count:<3}", off_attr | curses.A_BOLD)
 
 
-def _option_enabled(values: Dict[str, bool], item: OptionItem) -> bool:
-    return values.get(item.key, item.default)
+def _option_enabled(ev: EvalResult, item: OptionItem) -> bool:
+    return ev.effective.get(item.key, item.default) > TRI_N
 
 
-def _set_all(values: Dict[str, bool], options: List[OptionItem], enabled: bool) -> None:
-    for item in options:
-        values[item.key] = enabled
+def _option_flags(item: OptionItem, ev: EvalResult) -> str:
+    flags: List[str] = []
+    if not ev.visible.get(item.key, True):
+        flags.append("hidden")
+    if len(_allowed_values(item, ev.min_required.get(item.key, TRI_N), ev.max_selectable.get(item.key, TRI_Y))) <= 1:
+        flags.append("locked")
+    if ev.selected_by.get(item.key):
+        flags.append("selected")
+    if ev.implied_by.get(item.key):
+        flags.append("implied")
+    if not flags:
+        return "-"
+    return ",".join(flags)
 
 
 def _draw_scrollbar(stdscr, y: int, x: int, height: int, total: int, top: int, visible: int, track_attr: int, thumb_attr: int) -> None:
@@ -508,11 +1021,19 @@ def _draw_scrollbar(stdscr, y: int, x: int, height: int, total: int, top: int, v
         _safe_addch(stdscr, y + thumb_y + r, x, "#", thumb_attr)
 
 
-def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: List[OptionItem], values: Dict[str, bool]) -> None:
+def _run_ncurses_section(
+    stdscr,
+    theme: Dict[str, int],
+    title: str,
+    section_options: List[OptionItem],
+    all_options: List[OptionItem],
+    values: Dict[str, int],
+) -> None:
     selected = 0
     top = 0
 
     while True:
+        ev = evaluate_config(all_options, values)
         stdscr.erase()
         h, w = stdscr.getmaxyx()
 
@@ -541,12 +1062,13 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
         detail_box_w = w - left_w
 
         _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} ", theme["header"])
-        enabled_count = sum(1 for item in options if _option_enabled(values, item))
+        enabled_count = sum(1 for item in section_options if _option_enabled(ev, item))
+        module_count = sum(1 for item in section_options if ev.effective.get(item.key, TRI_N) == TRI_M)
         _safe_addnstr(
             stdscr,
             1,
             0,
-            f" {enabled_count}/{len(options)} enabled  |  Arrow/jk move  Space toggle  a/n all  PgUp/PgDn  Enter/ESC back ",
+            f" on:{enabled_count} mod:{module_count} total:{len(section_options)}  |  Space cycle  a/n/m all  Enter/ESC back ",
             theme["subtitle"],
         )
 
@@ -561,8 +1083,8 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
 
         if selected < 0:
             selected = 0
-        if selected >= len(options):
-            selected = max(0, len(options) - 1)
+        if selected >= len(section_options):
+            selected = max(0, len(section_options) - 1)
 
         if selected < top:
             top = selected
@@ -573,14 +1095,17 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
 
         for row in range(visible):
             idx = top + row
-            if idx >= len(options):
+            if idx >= len(section_options):
                 break
-            item = options[idx]
-            enabled = _option_enabled(values, item)
-            mark = "x" if enabled else " "
+            item = section_options[idx]
+            req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+            eff = ev.effective.get(item.key, item.default)
+            flags = _option_flags(item, ev)
             prefix = ">" if idx == selected else " "
-            line = f"{prefix} {idx + 1:03d} [{mark}] {item.title}"
-            base_attr = theme["enabled"] if enabled else theme["disabled"]
+            line = f"{prefix} {idx + 1:03d} [{tri_char(eff)}|{tri_char(req)}] {item.title}"
+            if flags != "-":
+                line += f" [{flags}]"
+            base_attr = theme["enabled"] if eff > TRI_N else theme["disabled"]
             attr = theme["selected"] if idx == selected else base_attr
             _safe_addnstr(stdscr, list_inner_y + row, list_inner_x, line, attr)
 
@@ -589,22 +1114,24 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
             list_inner_y,
             list_box_x + list_box_w - 2,
             list_inner_h,
-            len(options),
+            len(section_options),
             top,
             visible,
             theme["scroll_track"],
             theme["scroll_thumb"],
         )
 
-        if options:
-            cur = options[selected]
+        if section_options:
+            cur = section_options[selected]
             detail_inner_y = detail_box_y + 1
             detail_inner_x = detail_box_x + 2
             detail_inner_w = detail_box_w - 4
             detail_inner_h = detail_box_h - 2
 
-            state_text = "ENABLED" if _option_enabled(values, cur) else "DISABLED"
-            state_attr = theme["status_ok"] if _option_enabled(values, cur) else theme["status_warn"]
+            eff = ev.effective.get(cur.key, cur.default)
+            req = normalize_tri(values.get(cur.key, cur.default), cur.default, cur.kind)
+            state_text = f"effective={tri_char(eff)} requested={tri_char(req)} kind={cur.kind}"
+            state_attr = theme["status_ok"] if eff > TRI_N else theme["status_warn"]
 
             _safe_addnstr(stdscr, detail_inner_y + 0, detail_inner_x, cur.title, theme["value_label"])
             _safe_addnstr(stdscr, detail_inner_y + 1, detail_inner_x, cur.key, theme["value_key"])
@@ -613,7 +1140,7 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
                 stdscr,
                 detail_inner_y + 3,
                 detail_inner_x,
-                f"Item: {selected + 1}/{len(options)}",
+                f"Item: {selected + 1}/{len(section_options)}  flags: {_option_flags(cur, ev)}",
                 theme["value_label"],
             )
             _draw_progress_bar(
@@ -622,19 +1149,30 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
                 detail_inner_x,
                 max(12, detail_inner_w),
                 enabled_count,
-                max(1, len(options)),
+                max(1, len(section_options)),
                 theme["progress_on"],
                 theme["progress_off"],
             )
 
             desc_title_y = detail_inner_y + 6
-            _safe_addnstr(stdscr, desc_title_y, detail_inner_x, "Description:", theme["value_label"])
-            wrapped = textwrap.wrap(cur.description, max(12, detail_inner_w))
+            _safe_addnstr(stdscr, desc_title_y, detail_inner_x, "Details:", theme["value_label"])
+            raw_lines = _detail_lines_human(cur, values, ev)
+            wrapped_lines: List[str] = []
+            wrap_width = max(12, detail_inner_w)
+            for raw_line in raw_lines:
+                if not raw_line:
+                    wrapped_lines.append("")
+                    continue
+                chunks = textwrap.wrap(raw_line, wrap_width)
+                if chunks:
+                    wrapped_lines.extend(chunks)
+                else:
+                    wrapped_lines.append(raw_line)
             max_desc_lines = max(1, detail_inner_h - 8)
-            for i, part in enumerate(wrapped[:max_desc_lines]):
+            for i, part in enumerate(wrapped_lines[:max_desc_lines]):
                 _safe_addnstr(stdscr, desc_title_y + 1 + i, detail_inner_x, part, 0)
 
-        _safe_addnstr(stdscr, h - 1, 0, " Space:toggle  a:all-on  n:all-off  Enter/ESC:back ", theme["help"])
+        _safe_addnstr(stdscr, h - 1, 0, " Space:cycle  a:all-y  n:all-n  m:all-m  Enter/ESC:back ", theme["help"])
 
         stdscr.refresh()
         key = stdscr.getch()
@@ -657,23 +1195,27 @@ def _run_ncurses_section(stdscr, theme: Dict[str, int], title: str, options: Lis
             selected = 0
             continue
         if key == curses.KEY_END:
-            selected = max(0, len(options) - 1)
+            selected = max(0, len(section_options) - 1)
             continue
         if key == ord(" "):
-            if options:
-                item = options[selected]
-                values[item.key] = not _option_enabled(values, item)
+            if section_options:
+                item = section_options[selected]
+                _cycle_option_value(values, item, ev)
             continue
         if key in (ord("a"), ord("A")):
-            _set_all(values, options, True)
+            _set_all(values, section_options, TRI_Y)
             continue
         if key in (ord("n"), ord("N")):
-            _set_all(values, options, False)
+            _set_all(values, section_options, TRI_N)
+            continue
+        if key in (ord("m"), ord("M")):
+            _set_all(values, section_options, TRI_M)
             continue
 
 
-def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> bool:
+def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     theme = _curses_theme()
+    all_options = clks_options + user_options
     try:
         curses.curs_set(0)
     except Exception:
@@ -685,8 +1227,9 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         stdscr.erase()
         h, w = stdscr.getmaxyx()
 
-        clks_on = sum(1 for item in clks_options if _option_enabled(values, item))
-        user_on = sum(1 for item in user_options if _option_enabled(values, item))
+        ev = evaluate_config(all_options, values)
+        clks_on = sum(1 for item in clks_options if _option_enabled(ev, item))
+        user_on = sum(1 for item in user_options if _option_enabled(ev, item))
         total_items = len(clks_options) + len(user_options)
         total_on = clks_on + user_on
 
@@ -745,9 +1288,9 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             continue
         if key in (curses.KEY_ENTER, 10, 13):
             if selected == 0:
-                _run_ncurses_section(stdscr, theme, "CLKS", clks_options, values)
+                _run_ncurses_section(stdscr, theme, "CLKS", clks_options, all_options, values)
             elif selected == 1:
-                _run_ncurses_section(stdscr, theme, "USER", user_options, values)
+                _run_ncurses_section(stdscr, theme, "USER", user_options, all_options, values)
             elif selected == 2:
                 return True
             else:
@@ -755,7 +1298,7 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             continue
 
 
-def interactive_menu_ncurses(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> bool:
+def interactive_menu_ncurses(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     if curses is None:
         raise RuntimeError("python curses module unavailable (install python3-curses / ncurses)")
     if "TERM" not in os.environ or not os.environ["TERM"]:
@@ -763,7 +1306,7 @@ def interactive_menu_ncurses(clks_options: List[OptionItem], user_options: List[
     return bool(curses.wrapper(lambda stdscr: _run_ncurses_main(stdscr, clks_options, user_options, values)))
 
 
-def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> bool:
+def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     if QtWidgets is None or QtCore is None:
         raise RuntimeError("python PySide unavailable (install PySide6, or use --plain)")
 
@@ -777,12 +1320,9 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
         app = QtWidgets.QApplication(["menuconfig-gui"])
         owns_app = True
 
-    qt_checked = getattr(QtCore.Qt, "Checked", QtCore.Qt.CheckState.Checked)
-    qt_unchecked = getattr(QtCore.Qt, "Unchecked", QtCore.Qt.CheckState.Unchecked)
     qt_horizontal = getattr(QtCore.Qt, "Horizontal", QtCore.Qt.Orientation.Horizontal)
     qt_item_enabled = getattr(QtCore.Qt, "ItemIsEnabled", QtCore.Qt.ItemFlag.ItemIsEnabled)
     qt_item_selectable = getattr(QtCore.Qt, "ItemIsSelectable", QtCore.Qt.ItemFlag.ItemIsSelectable)
-    qt_item_checkable = getattr(QtCore.Qt, "ItemIsUserCheckable", QtCore.Qt.ItemFlag.ItemIsUserCheckable)
 
     resize_to_contents = getattr(
         QtWidgets.QHeaderView,
@@ -833,14 +1373,16 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
 
     tabs = QtWidgets.QTabWidget()
     root_layout.addWidget(tabs, 1)
+    all_options = clks_options + user_options
 
     def update_summary() -> None:
-        clks_on = sum(1 for item in clks_options if values.get(item.key, item.default))
-        user_on = sum(1 for item in user_options if values.get(item.key, item.default))
+        ev = evaluate_config(all_options, values)
+        clks_on = sum(1 for item in clks_options if ev.effective.get(item.key, item.default) > TRI_N)
+        user_on = sum(1 for item in user_options if ev.effective.get(item.key, item.default) > TRI_N)
         total = len(clks_options) + len(user_options)
         summary_label.setText(
-            f"CLKS: {clks_on}/{len(clks_options)} enabled    "
-            f"User: {user_on}/{len(user_options)} enabled    "
+            f"CLKS: {clks_on}/{len(clks_options)} on    "
+            f"User: {user_on}/{len(user_options)} on    "
             f"Total: {clks_on + user_on}/{total}"
         )
 
@@ -862,11 +1404,17 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             toolbar.addWidget(title_label)
             toolbar.addStretch(1)
 
-            toggle_btn = QtWidgets.QPushButton("Toggle Selected")
-            enable_all_btn = QtWidgets.QPushButton("Enable All")
-            disable_all_btn = QtWidgets.QPushButton("Disable All")
+            toggle_btn = QtWidgets.QPushButton("Cycle Selected")
+            set_y_btn = QtWidgets.QPushButton("Set Y")
+            set_m_btn = QtWidgets.QPushButton("Set M")
+            set_n_btn = QtWidgets.QPushButton("Set N")
+            enable_all_btn = QtWidgets.QPushButton("All Y")
+            disable_all_btn = QtWidgets.QPushButton("All N")
             toolbar.addWidget(enable_all_btn)
             toolbar.addWidget(disable_all_btn)
+            toolbar.addWidget(set_m_btn)
+            toolbar.addWidget(set_y_btn)
+            toolbar.addWidget(set_n_btn)
             toolbar.addWidget(toggle_btn)
             layout.addLayout(toolbar)
 
@@ -876,11 +1424,12 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             left = QtWidgets.QWidget()
             left_layout = QtWidgets.QVBoxLayout(left)
             left_layout.setContentsMargins(0, 0, 0, 0)
-            self.table = QtWidgets.QTableWidget(len(options), 2)
-            self.table.setHorizontalHeaderLabels(["On", "Option"])
+            self.table = QtWidgets.QTableWidget(len(options), 3)
+            self.table.setHorizontalHeaderLabels(["Value", "Option", "Status"])
             self.table.verticalHeader().setVisible(False)
             self.table.horizontalHeader().setSectionResizeMode(0, resize_to_contents)
             self.table.horizontalHeader().setSectionResizeMode(1, stretch_mode)
+            self.table.horizontalHeader().setSectionResizeMode(2, resize_to_contents)
             self.table.setSelectionBehavior(select_rows)
             self.table.setSelectionMode(extended_selection)
             self.table.setAlternatingRowColors(True)
@@ -902,10 +1451,13 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             splitter.setStretchFactor(1, 2)
 
             toggle_btn.clicked.connect(self.toggle_selected)
+            set_y_btn.clicked.connect(lambda: self.set_selected(TRI_Y))
+            set_m_btn.clicked.connect(lambda: self.set_selected(TRI_M))
+            set_n_btn.clicked.connect(lambda: self.set_selected(TRI_N))
             enable_all_btn.clicked.connect(self.enable_all)
             disable_all_btn.clicked.connect(self.disable_all)
             self.table.itemSelectionChanged.connect(self._on_selection_changed)
-            self.table.itemChanged.connect(self._on_item_changed)
+            self.table.itemDoubleClicked.connect(self._on_item_activated)
 
             self.refresh(keep_selection=False)
             if self.options:
@@ -935,10 +1487,14 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
                 return
 
             item = self.options[row]
-            enabled = values.get(item.key, item.default)
-            self.state_label.setText(f"State: {'ENABLED' if enabled else 'DISABLED'}")
+            ev = evaluate_config(all_options, values)
+            eff = ev.effective.get(item.key, item.default)
+            req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+            self.state_label.setText(
+                f"State: eff={tri_char(eff)} req={tri_char(req)} kind={item.kind} flags={_option_flags(item, ev)}"
+            )
             self.key_label.setText(f"Key: {item.key}")
-            self.detail_text.setPlainText(f"{item.title}\n\n{item.description}")
+            self.detail_text.setPlainText("\n".join([item.title, ""] + _detail_lines(item, values, ev) + ["", item.description]))
 
         def _on_selection_changed(self) -> None:
             rows = self._selected_rows()
@@ -950,44 +1506,37 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             if len(rows) > 1:
                 self.state_label.setText(f"State: {len(rows)} items selected")
                 self.key_label.setText("Key: <multiple>")
-                self.detail_text.setPlainText("Multiple options selected.\nUse Toggle Selected to flip all selected entries.")
+                self.detail_text.setPlainText("Multiple options selected.\nUse Cycle/Set buttons to update selected entries.")
                 return
 
             self._show_detail(-1)
 
-        def _on_item_changed(self, changed_item) -> None:
+        def _on_item_activated(self, changed_item) -> None:
             if self._updating or changed_item is None:
                 return
-
-            if changed_item.column() != 0:
-                return
-
             row = changed_item.row()
-
             if row < 0 or row >= len(self.options):
                 return
-
-            self.options[row]
-            values[self.options[row].key] = changed_item.checkState() == qt_checked
-            self._on_selection_changed()
-            update_summary()
+            ev = evaluate_config(all_options, values)
+            _cycle_option_value(values, self.options[row], ev)
+            self.refresh(keep_selection=True)
 
         def refresh(self, keep_selection: bool = True) -> None:
             prev_rows = self._selected_rows() if keep_selection else []
             self._updating = True
 
             self.table.setRowCount(len(self.options))
+            ev = evaluate_config(all_options, values)
 
             for row, item in enumerate(self.options):
-                enabled = values.get(item.key, item.default)
-                check_item = self.table.item(row, 0)
-
-                if check_item is None:
-                    check_item = QtWidgets.QTableWidgetItem("")
-                    check_item.setFlags(qt_item_enabled | qt_item_selectable | qt_item_checkable)
-                    self.table.setItem(row, 0, check_item)
-
-                check_item.setCheckState(qt_checked if enabled else qt_unchecked)
+                req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
+                eff = ev.effective.get(item.key, item.default)
+                value_item = self.table.item(row, 0)
+                if value_item is None:
+                    value_item = QtWidgets.QTableWidgetItem("")
+                    value_item.setFlags(qt_item_enabled | qt_item_selectable)
+                    self.table.setItem(row, 0, value_item)
+                value_item.setText(f"{tri_char(eff)} (req:{tri_char(req)})")
 
                 title_item = self.table.item(row, 1)
                 if title_item is None:
@@ -996,6 +1545,13 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
                     self.table.setItem(row, 1, title_item)
                 else:
                     title_item.setText(item.title)
+
+                status_item = self.table.item(row, 2)
+                if status_item is None:
+                    status_item = QtWidgets.QTableWidgetItem("")
+                    status_item.setFlags(qt_item_enabled | qt_item_selectable)
+                    self.table.setItem(row, 2, status_item)
+                status_item.setText(_option_flags(item, ev))
 
             self._updating = False
 
@@ -1013,39 +1569,30 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             if not rows:
                 return
 
-            self._updating = True
             for row in rows:
                 item = self.options[row]
-                new_state = not values.get(item.key, item.default)
-                values[item.key] = new_state
-                check_item = self.table.item(row, 0)
-                if check_item is not None:
-                    check_item.setCheckState(qt_checked if new_state else qt_unchecked)
-            self._updating = False
-            self._on_selection_changed()
-            update_summary()
+                ev = evaluate_config(all_options, values)
+                _cycle_option_value(values, item, ev)
+            self.refresh(keep_selection=True)
+
+        def set_selected(self, state: int) -> None:
+            rows = self._selected_rows()
+            if not rows:
+                return
+            for row in rows:
+                item = self.options[row]
+                _set_option_value(values, item, state)
+            self.refresh(keep_selection=True)
 
         def enable_all(self) -> None:
-            self._updating = True
-            for row, item in enumerate(self.options):
-                values[item.key] = True
-                check_item = self.table.item(row, 0)
-                if check_item is not None:
-                    check_item.setCheckState(qt_checked)
-            self._updating = False
-            self._on_selection_changed()
-            update_summary()
+            for item in self.options:
+                _set_option_value(values, item, TRI_Y)
+            self.refresh(keep_selection=False)
 
         def disable_all(self) -> None:
-            self._updating = True
-            for row, item in enumerate(self.options):
-                values[item.key] = False
-                check_item = self.table.item(row, 0)
-                if check_item is not None:
-                    check_item.setCheckState(qt_unchecked)
-            self._updating = False
-            self._on_selection_changed()
-            update_summary()
+            for item in self.options:
+                _set_option_value(values, item, TRI_N)
+            self.refresh(keep_selection=False)
 
     clks_panel = _SectionPanel("CLKS Features", clks_options)
     user_panel = _SectionPanel("User Apps", user_options)
@@ -1054,7 +1601,7 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     update_summary()
 
     footer = QtWidgets.QHBoxLayout()
-    footer.addWidget(QtWidgets.QLabel("Tip: select rows and click Toggle Selected."))
+    footer.addWidget(QtWidgets.QLabel("Tip: double-click a row to cycle, or use Set/Cycle buttons."))
     footer.addStretch(1)
 
     save_btn = QtWidgets.QPushButton("Save and Exit")
@@ -1082,11 +1629,18 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     return result["save"]
 
 
-def write_outputs(all_values: Dict[str, bool], ordered_options: List[OptionItem]) -> None:
+def write_outputs(all_values: Dict[str, int], ordered_options: List[OptionItem]) -> None:
     MENUCONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    ordered_keys = [item.key for item in ordered_options]
-    output_values: Dict[str, bool] = {key: all_values[key] for key in ordered_keys if key in all_values}
+    output_values: Dict[str, object] = {}
+    for item in ordered_options:
+        if item.key not in all_values:
+            continue
+        value = normalize_tri(all_values[item.key], item.default, item.kind)
+        if item.kind == "bool":
+            output_values[item.key] = value == TRI_Y
+        else:
+            output_values[item.key] = tri_char(value)
 
     CONFIG_JSON_PATH.write_text(
         json.dumps(output_values, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
@@ -1099,32 +1653,46 @@ def write_outputs(all_values: Dict[str, bool], ordered_options: List[OptionItem]
         'set(CLEONOS_MENUCONFIG_LOADED ON CACHE BOOL "CLeonOS menuconfig loaded" FORCE)',
     ]
     for item in ordered_options:
-        value = "ON" if all_values.get(item.key, item.default) else "OFF"
-        lines.append(f'set({item.key} {value} CACHE BOOL "{item.title}" FORCE)')
+        value = normalize_tri(all_values.get(item.key, item.default), item.default, item.kind)
+        if item.kind == "bool":
+            cmake_value = "ON" if value == TRI_Y else "OFF"
+            lines.append(f'set({item.key} {cmake_value} CACHE BOOL "{item.title}" FORCE)')
+        else:
+            cmake_value = tri_char(value).upper()
+            lines.append(f'set({item.key} "{cmake_value}" CACHE STRING "{item.title}" FORCE)')
+            lines.append(
+                f'set({item.key}_IS_ENABLED {"ON" if value > TRI_N else "OFF"} '
+                f'CACHE BOOL "{item.title} enabled(y|m)" FORCE)'
+            )
 
     CONFIG_CMAKE_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def show_summary(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> None:
-    clks_on = sum(1 for item in clks_options if values.get(item.key, item.default))
-    user_on = sum(1 for item in user_options if values.get(item.key, item.default))
+def show_summary(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> None:
+    all_options = clks_options + user_options
+    ev = evaluate_config(all_options, values)
+    clks_on = sum(1 for item in clks_options if ev.effective.get(item.key, item.default) > TRI_N)
+    user_on = sum(1 for item in user_options if ev.effective.get(item.key, item.default) > TRI_N)
+    clks_m = sum(1 for item in clks_options if ev.effective.get(item.key, item.default) == TRI_M)
+    user_m = sum(1 for item in user_options if ev.effective.get(item.key, item.default) == TRI_M)
     print()
     print("========== CLeonOS menuconfig ==========")
-    print(f"1) CLKS features : {clks_on}/{len(clks_options)} enabled")
-    print(f"2) User features : {user_on}/{len(user_options)} enabled")
+    print(f"1) CLKS features : on={clks_on} m={clks_m} total={len(clks_options)}")
+    print(f"2) User features : on={user_on} m={user_m} total={len(user_options)}")
     print("s) Save and exit")
     print("q) Quit without saving")
 
 
-def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, bool]) -> bool:
+def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
+    all_options = clks_options + user_options
     while True:
         show_summary(clks_options, user_options, values)
         choice = input("Select> ").strip().lower()
         if choice == "1":
-            section_loop("CLKS", clks_options, values)
+            section_loop("CLKS", clks_options, all_options, values)
             continue
         if choice == "2":
-            section_loop("USER", user_options, values)
+            section_loop("USER", user_options, all_options, values)
             continue
         if choice in {"s", "save"}:
             return True
@@ -1133,15 +1701,19 @@ def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionIt
         print("unknown selection")
 
 
-def parse_set_overrides(values: Dict[str, bool], kv_pairs: List[str]) -> None:
+def parse_set_overrides(values: Dict[str, int], option_index: Dict[str, OptionItem], kv_pairs: List[str]) -> None:
     for pair in kv_pairs:
         if "=" not in pair:
-            raise RuntimeError(f"invalid --set entry: {pair!r}, expected KEY=ON|OFF")
+            raise RuntimeError(f"invalid --set entry: {pair!r}, expected KEY=Y|M|N")
         key, raw = pair.split("=", 1)
         key = key.strip()
         if not key:
             raise RuntimeError(f"invalid --set entry: {pair!r}, empty key")
-        values[key] = normalize_bool(raw, False)
+        item = option_index.get(key)
+        if item is None:
+            values[key] = normalize_tri(raw, TRI_N, "tristate")
+        else:
+            values[key] = normalize_tri(raw, item.default, item.kind)
 
 
 def parse_args() -> argparse.Namespace:
@@ -1159,7 +1731,7 @@ def parse_args() -> argparse.Namespace:
         "--set",
         action="append",
         default=[],
-        metavar="KEY=ON|OFF",
+        metavar="KEY=Y|M|N",
         help="override one option before save (can be repeated)",
     )
     return parser.parse_args()
@@ -1181,7 +1753,8 @@ def main() -> int:
     if args.preset:
         apply_preset(args.preset, clks_options, user_options, values)
 
-    parse_set_overrides(values, args.set)
+    option_index = _build_index(all_options)
+    parse_set_overrides(values, option_index, args.set)
 
     should_save = args.non_interactive
     if not args.non_interactive:
@@ -1199,7 +1772,8 @@ def main() -> int:
         print("menuconfig: no changes saved")
         return 0
 
-    write_outputs(values, all_options)
+    final_eval = evaluate_config(all_options, values)
+    write_outputs(final_eval.effective, all_options)
     print(f"menuconfig: wrote {CONFIG_JSON_PATH}")
     print(f"menuconfig: wrote {CONFIG_CMAKE_PATH}")
     return 0

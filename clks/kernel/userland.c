@@ -53,6 +53,7 @@ static clks_bool clks_userland_probe_elf(const char *path, const char *tag) {
     return CLKS_TRUE;
 }
 
+#if CLKS_CFG_USER_INIT_SCRIPT_PROBE
 static void clks_userland_probe_init_script(void) {
     const void *data;
     u64 size = 0ULL;
@@ -67,6 +68,7 @@ static void clks_userland_probe_init_script(void) {
     clks_log(CLKS_LOG_INFO, "USER", "INIT SCRIPT READY /SHELL/INIT.CMD");
     clks_log_hex(CLKS_LOG_INFO, "USER", "INIT_SCRIPT_SIZE", size);
 }
+#endif
 
 static clks_bool clks_userland_request_shell_exec(void) {
     u64 status = (u64)-1;
