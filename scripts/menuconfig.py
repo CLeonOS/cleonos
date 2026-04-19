@@ -56,6 +56,7 @@ class OptionItem:
     depends_on: str
     selects: Tuple[str, ...]
     implies: Tuple[str, ...]
+    group: str
 
 
 @dataclass
@@ -312,6 +313,7 @@ def load_clks_options() -> List[OptionItem]:
         depends_on = str(entry.get("depends_on", entry.get("depends", ""))).strip()
         selects = _normalize_key_list(entry.get("select", entry.get("selects", ())))
         implies = _normalize_key_list(entry.get("imply", entry.get("implies", ())))
+        group = str(entry.get("group", entry.get("menu", "General"))).strip() or "General"
         if not key:
             continue
         options.append(
@@ -324,6 +326,7 @@ def load_clks_options() -> List[OptionItem]:
                 depends_on=depends_on,
                 selects=selects,
                 implies=implies,
+                group=group,
             )
         )
 
@@ -378,6 +381,7 @@ def discover_user_apps() -> List[OptionItem]:
                 depends_on="",
                 selects=(),
                 implies=(),
+                group=section,
             )
         )
 
@@ -415,6 +419,27 @@ def init_values(options: Iterable[OptionItem], previous: Dict[str, int], use_def
 
 def _build_index(options: Iterable[OptionItem]) -> Dict[str, OptionItem]:
     return {item.key: item for item in options}
+
+
+def _grouped_options(options: List[OptionItem]) -> List[Tuple[str, List[OptionItem]]]:
+    groups: Dict[str, List[OptionItem]] = {}
+    ordered_names: List[str] = []
+
+    for item in options:
+        name = (item.group or "General").strip() or "General"
+        if name not in groups:
+            groups[name] = []
+            ordered_names.append(name)
+        groups[name].append(item)
+
+    out: List[Tuple[str, List[OptionItem]]] = []
+    for name in ordered_names:
+        out.append((name, groups[name]))
+    return out
+
+
+def _group_enabled_count(group_options: List[OptionItem], ev: EvalResult) -> int:
+    return sum(1 for item in group_options if ev.effective.get(item.key, item.default) > TRI_N)
 
 
 def _set_option_if_exists(values: Dict[str, int], option_index: Dict[str, OptionItem], key: str, level: int) -> None:
@@ -829,6 +854,47 @@ def section_loop(title: str, section_options: List[OptionItem], all_options: Lis
         print("unknown command")
 
 
+def grouped_section_loop(
+    title: str,
+    section_options: List[OptionItem],
+    all_options: List[OptionItem],
+    values: Dict[str, int],
+) -> None:
+    groups = _grouped_options(section_options)
+
+    if len(groups) <= 1:
+        section_loop(title, section_options, all_options, values)
+        return
+
+    while True:
+        ev = evaluate_config(all_options, values)
+        print()
+        print(f"== {title} / Groups ==")
+        print(f"  0. All ({_group_enabled_count(section_options, ev)}/{len(section_options)} enabled)")
+        for idx, (name, opts) in enumerate(groups, start=1):
+            print(f"{idx:3d}. {name} ({_group_enabled_count(opts, ev)}/{len(opts)} enabled)")
+        print("Commands: <number> open, b back")
+
+        raw = input(f"{title}/groups> ").strip().lower()
+        if not raw:
+            continue
+        if raw in {"b", "back", "q", "quit"}:
+            return
+        if not raw.isdigit():
+            print("invalid selection")
+            continue
+
+        idx = int(raw)
+        if idx == 0:
+            section_loop(title, section_options, all_options, values)
+            continue
+        if 1 <= idx <= len(groups):
+            group_name, group_items = groups[idx - 1]
+            section_loop(f"{title}/{group_name}", group_items, all_options, values)
+            continue
+        print("invalid selection")
+
+
 def _safe_addnstr(stdscr, y: int, x: int, text: str, attr: int = 0) -> None:
     h, w = stdscr.getmaxyx()
     if y < 0 or y >= h or x >= w:
@@ -1213,6 +1279,75 @@ def _run_ncurses_section(
             continue
 
 
+def _run_ncurses_grouped_section(
+    stdscr,
+    theme: Dict[str, int],
+    title: str,
+    section_options: List[OptionItem],
+    all_options: List[OptionItem],
+    values: Dict[str, int],
+) -> None:
+    groups = _grouped_options(section_options)
+    if len(groups) <= 1:
+        _run_ncurses_section(stdscr, theme, title, section_options, all_options, values)
+        return
+
+    selected = 0
+
+    while True:
+        ev = evaluate_config(all_options, values)
+        stdscr.erase()
+        h, w = stdscr.getmaxyx()
+        items: List[Tuple[str, List[OptionItem]]] = [("All", section_options)] + groups
+
+        if h < 12 or w < 56:
+            _safe_addnstr(stdscr, 0, 0, "Terminal too small for grouped view (need >= 56x12).", theme["status_warn"])
+            _safe_addnstr(stdscr, 2, 0, "Resize terminal then press any key, or ESC to go back.")
+            key = stdscr.getch()
+            if key in (27,):
+                return
+            continue
+
+        _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} / Groups ", theme["header"])
+        _safe_addnstr(stdscr, 1, 0, " Enter: open group  ESC: back ", theme["subtitle"])
+
+        _draw_box(stdscr, 2, 0, h - 4, w, "CLKS Groups", theme["panel_border"], theme["panel_title"])
+
+        if selected < 0:
+            selected = 0
+        if selected >= len(items):
+            selected = len(items) - 1
+
+        for i, (name, opts) in enumerate(items):
+            row = 4 + i
+            if row >= h - 2:
+                break
+            on_count = _group_enabled_count(opts, ev)
+            line = f"{'>' if i == selected else ' '} {i:02d}  {name}  ({on_count}/{len(opts)} enabled)"
+            attr = theme["selected"] if i == selected else theme["value_label"]
+            _safe_addnstr(stdscr, row, 2, line, attr)
+
+        _safe_addnstr(stdscr, h - 1, 0, " Arrows/jk move  Enter open  ESC back ", theme["help"])
+        stdscr.refresh()
+        key = stdscr.getch()
+
+        if key in (27, ord("q"), ord("Q"), curses.KEY_LEFT):
+            return
+        if key in (curses.KEY_UP, ord("k"), ord("K")):
+            selected = (selected - 1) % len(items)
+            continue
+        if key in (curses.KEY_DOWN, ord("j"), ord("J")):
+            selected = (selected + 1) % len(items)
+            continue
+        if key in (curses.KEY_ENTER, 10, 13):
+            name, opts = items[selected]
+            if name == "All":
+                _run_ncurses_section(stdscr, theme, title, opts, all_options, values)
+            else:
+                _run_ncurses_section(stdscr, theme, f"{title}/{name}", opts, all_options, values)
+            continue
+
+
 def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     theme = _curses_theme()
     all_options = clks_options + user_options
@@ -1288,7 +1423,7 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             continue
         if key in (curses.KEY_ENTER, 10, 13):
             if selected == 0:
-                _run_ncurses_section(stdscr, theme, "CLKS", clks_options, all_options, values)
+                _run_ncurses_grouped_section(stdscr, theme, "CLKS", clks_options, all_options, values)
             elif selected == 1:
                 _run_ncurses_section(stdscr, theme, "USER", user_options, all_options, values)
             elif selected == 2:
@@ -1594,7 +1729,20 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
                 _set_option_value(values, item, TRI_N)
             self.refresh(keep_selection=False)
 
-    clks_panel = _SectionPanel("CLKS Features", clks_options)
+    clks_groups = _grouped_options(clks_options)
+    if len(clks_groups) <= 1:
+        clks_panel = _SectionPanel("CLKS Features", clks_options)
+    else:
+        clks_panel = QtWidgets.QWidget()
+        clks_layout = QtWidgets.QVBoxLayout(clks_panel)
+        clks_layout.setContentsMargins(0, 0, 0, 0)
+        clks_layout.setSpacing(6)
+        clks_tabs = QtWidgets.QTabWidget()
+        clks_layout.addWidget(clks_tabs, 1)
+        clks_tabs.addTab(_SectionPanel("CLKS Features / All", clks_options), "All")
+        for group_name, group_items in clks_groups:
+            clks_tabs.addTab(_SectionPanel(f"CLKS Features / {group_name}", group_items), group_name)
+
     user_panel = _SectionPanel("User Apps", user_options)
     tabs.addTab(clks_panel, "CLKS")
     tabs.addTab(user_panel, "USER")
@@ -1689,7 +1837,7 @@ def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionIt
         show_summary(clks_options, user_options, values)
         choice = input("Select> ").strip().lower()
         if choice == "1":
-            section_loop("CLKS", clks_options, all_options, values)
+            grouped_section_loop("CLKS", clks_options, all_options, values)
             continue
         if choice == "2":
             section_loop("USER", user_options, all_options, values)

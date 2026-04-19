@@ -191,6 +191,123 @@
       "default": "y"
     },
     {
+      "key": "CLEONOS_CLKS_ENABLE_USC",
+      "title": "UserSafeController (USC)",
+      "description": "Prompt before dangerous user syscalls and remember per-app approval for current boot.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_MKDIR",
+      "title": "Intercept FS_MKDIR",
+      "description": "USC prompt for syscall FS_MKDIR.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_WRITE",
+      "title": "Intercept FS_WRITE",
+      "description": "USC prompt for syscall FS_WRITE.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_APPEND",
+      "title": "Intercept FS_APPEND",
+      "description": "USC prompt for syscall FS_APPEND.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_REMOVE",
+      "title": "Intercept FS_REMOVE",
+      "description": "USC prompt for syscall FS_REMOVE.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATH",
+      "title": "Intercept EXEC_PATH",
+      "description": "USC prompt for syscall EXEC_PATH.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV",
+      "title": "Intercept EXEC_PATHV",
+      "description": "USC prompt for syscall EXEC_PATHV.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV_IO",
+      "title": "Intercept EXEC_PATHV_IO",
+      "description": "USC prompt for syscall EXEC_PATHV_IO.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATH",
+      "title": "Intercept SPAWN_PATH",
+      "description": "USC prompt for syscall SPAWN_PATH.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATHV",
+      "title": "Intercept SPAWN_PATHV",
+      "description": "USC prompt for syscall SPAWN_PATHV.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_PROC_KILL",
+      "title": "Intercept PROC_KILL",
+      "description": "USC prompt for syscall PROC_KILL.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_SHUTDOWN",
+      "title": "Intercept SHUTDOWN",
+      "description": "USC prompt for syscall SHUTDOWN.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USC_SC_RESTART",
+      "title": "Intercept RESTART",
+      "description": "USC prompt for syscall RESTART.",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USC",
+      "group": "USC Syscall Policy"
+    },
+    {
       "key": "CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY",
       "title": "Keyboard TTY Switch Hotkey",
       "description": "Enable ALT+F1..F4 keyboard hotkey for active TTY switching.",

@@ -34,9 +34,62 @@
 #define CLKS_SYSCALL_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
 #define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_EXEC_PATHV_IO
 #define CLKS_SYSCALL_STATS_RING_SIZE 256U
+#define CLKS_SYSCALL_USC_MAX_ALLOWED_APPS 64U
 
 #ifndef CLKS_CFG_PROCFS
 #define CLKS_CFG_PROCFS 1
+#endif
+
+#ifndef CLKS_CFG_USC
+#define CLKS_CFG_USC 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_FS_MKDIR
+#define CLKS_CFG_USC_SC_FS_MKDIR 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_FS_WRITE
+#define CLKS_CFG_USC_SC_FS_WRITE 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_FS_APPEND
+#define CLKS_CFG_USC_SC_FS_APPEND 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_FS_REMOVE
+#define CLKS_CFG_USC_SC_FS_REMOVE 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_EXEC_PATH
+#define CLKS_CFG_USC_SC_EXEC_PATH 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_EXEC_PATHV
+#define CLKS_CFG_USC_SC_EXEC_PATHV 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_EXEC_PATHV_IO
+#define CLKS_CFG_USC_SC_EXEC_PATHV_IO 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_SPAWN_PATH
+#define CLKS_CFG_USC_SC_SPAWN_PATH 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_SPAWN_PATHV
+#define CLKS_CFG_USC_SC_SPAWN_PATHV 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_PROC_KILL
+#define CLKS_CFG_USC_SC_PROC_KILL 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_SHUTDOWN
+#define CLKS_CFG_USC_SC_SHUTDOWN 1
+#endif
+
+#ifndef CLKS_CFG_USC_SC_RESTART
+#define CLKS_CFG_USC_SC_RESTART 1
 #endif
 
 struct clks_syscall_frame {
@@ -92,6 +145,10 @@ static u64 clks_syscall_stats_recent_id_count[CLKS_SYSCALL_STATS_MAX_ID + 1ULL];
 static u16 clks_syscall_stats_recent_ring[CLKS_SYSCALL_STATS_RING_SIZE];
 static u32 clks_syscall_stats_recent_head = 0U;
 static u32 clks_syscall_stats_recent_size = 0U;
+#if CLKS_CFG_USC != 0
+static clks_bool clks_syscall_usc_allowed_used[CLKS_SYSCALL_USC_MAX_ALLOWED_APPS];
+static char clks_syscall_usc_allowed_path[CLKS_SYSCALL_USC_MAX_ALLOWED_APPS][CLKS_EXEC_PROC_PATH_MAX];
+#endif
 
 #if defined(CLKS_ARCH_X86_64)
 static inline void clks_syscall_outb(u16 port, u8 value) {
@@ -1641,6 +1698,264 @@ static void clks_syscall_serial_write_hex64(u64 value) {
     }
 }
 
+#if CLKS_CFG_USC != 0
+static void clks_syscall_usc_sleep_until_input(void) {
+#if defined(CLKS_ARCH_X86_64)
+    u64 flags = 0ULL;
+
+    __asm__ volatile("pushfq; popq %0" : "=r"(flags) : : "memory");
+
+    if ((flags & (1ULL << 9)) != 0ULL) {
+        __asm__ volatile("hlt" : : : "memory");
+    } else {
+        __asm__ volatile("sti; hlt; cli" : : : "memory");
+    }
+#elif defined(CLKS_ARCH_AARCH64)
+    clks_cpu_pause();
+#endif
+}
+
+static const char *clks_syscall_usc_syscall_name(u64 id) {
+    switch (id) {
+    case CLKS_SYSCALL_FS_MKDIR:
+        return "FS_MKDIR";
+    case CLKS_SYSCALL_FS_WRITE:
+        return "FS_WRITE";
+    case CLKS_SYSCALL_FS_APPEND:
+        return "FS_APPEND";
+    case CLKS_SYSCALL_FS_REMOVE:
+        return "FS_REMOVE";
+    case CLKS_SYSCALL_EXEC_PATH:
+        return "EXEC_PATH";
+    case CLKS_SYSCALL_EXEC_PATHV:
+        return "EXEC_PATHV";
+    case CLKS_SYSCALL_EXEC_PATHV_IO:
+        return "EXEC_PATHV_IO";
+    case CLKS_SYSCALL_SPAWN_PATH:
+        return "SPAWN_PATH";
+    case CLKS_SYSCALL_SPAWN_PATHV:
+        return "SPAWN_PATHV";
+    case CLKS_SYSCALL_PROC_KILL:
+        return "PROC_KILL";
+    case CLKS_SYSCALL_SHUTDOWN:
+        return "SHUTDOWN";
+    case CLKS_SYSCALL_RESTART:
+        return "RESTART";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static clks_bool clks_syscall_usc_is_dangerous(u64 id) {
+    switch (id) {
+    case CLKS_SYSCALL_FS_MKDIR:
+        return (CLKS_CFG_USC_SC_FS_MKDIR != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_FS_WRITE:
+        return (CLKS_CFG_USC_SC_FS_WRITE != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_FS_APPEND:
+        return (CLKS_CFG_USC_SC_FS_APPEND != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_FS_REMOVE:
+        return (CLKS_CFG_USC_SC_FS_REMOVE != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_EXEC_PATH:
+        return (CLKS_CFG_USC_SC_EXEC_PATH != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_EXEC_PATHV:
+        return (CLKS_CFG_USC_SC_EXEC_PATHV != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_EXEC_PATHV_IO:
+        return (CLKS_CFG_USC_SC_EXEC_PATHV_IO != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_SPAWN_PATH:
+        return (CLKS_CFG_USC_SC_SPAWN_PATH != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_SPAWN_PATHV:
+        return (CLKS_CFG_USC_SC_SPAWN_PATHV != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_PROC_KILL:
+        return (CLKS_CFG_USC_SC_PROC_KILL != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_SHUTDOWN:
+        return (CLKS_CFG_USC_SC_SHUTDOWN != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_RESTART:
+        return (CLKS_CFG_USC_SC_RESTART != 0) ? CLKS_TRUE : CLKS_FALSE;
+    default:
+        return CLKS_FALSE;
+    }
+}
+
+static void clks_syscall_usc_copy_path(char *dst, usize dst_size, const char *src) {
+    usize i = 0U;
+
+    if (dst == CLKS_NULL || dst_size == 0U) {
+        return;
+    }
+
+    if (src == CLKS_NULL) {
+        dst[0] = '\0';
+        return;
+    }
+
+    while (src[i] != '\0' && i + 1U < dst_size) {
+        dst[i] = src[i];
+        i++;
+    }
+
+    dst[i] = '\0';
+}
+
+static clks_bool clks_syscall_usc_current_app_path(char *out_path, usize out_size) {
+    u64 pid;
+    struct clks_exec_proc_snapshot snap;
+
+    if (out_path == CLKS_NULL || out_size == 0U) {
+        return CLKS_FALSE;
+    }
+
+    out_path[0] = '\0';
+    pid = clks_exec_current_pid();
+
+    if (pid == 0ULL) {
+        return CLKS_FALSE;
+    }
+
+    if (clks_exec_proc_snapshot(pid, &snap) == CLKS_FALSE || snap.path[0] == '\0') {
+        return CLKS_FALSE;
+    }
+
+    clks_syscall_usc_copy_path(out_path, out_size, snap.path);
+    return CLKS_TRUE;
+}
+
+static i32 clks_syscall_usc_find_allowed_path(const char *path) {
+    u32 i;
+
+    if (path == CLKS_NULL || path[0] == '\0') {
+        return -1;
+    }
+
+    for (i = 0U; i < CLKS_SYSCALL_USC_MAX_ALLOWED_APPS; i++) {
+        if (clks_syscall_usc_allowed_used[i] == CLKS_TRUE &&
+            clks_strcmp(clks_syscall_usc_allowed_path[i], path) == 0) {
+            return (i32)i;
+        }
+    }
+
+    return -1;
+}
+
+static void clks_syscall_usc_remember_path(const char *path) {
+    u32 i;
+
+    if (path == CLKS_NULL || path[0] == '\0') {
+        return;
+    }
+
+    if (clks_syscall_usc_find_allowed_path(path) >= 0) {
+        return;
+    }
+
+    for (i = 0U; i < CLKS_SYSCALL_USC_MAX_ALLOWED_APPS; i++) {
+        if (clks_syscall_usc_allowed_used[i] == CLKS_FALSE) {
+            clks_syscall_usc_allowed_used[i] = CLKS_TRUE;
+            clks_syscall_usc_copy_path(clks_syscall_usc_allowed_path[i], sizeof(clks_syscall_usc_allowed_path[i]), path);
+            return;
+        }
+    }
+}
+
+static void clks_syscall_usc_emit_text_line(const char *label, const char *value) {
+    char message[320];
+    usize pos = 0U;
+
+    message[0] = '\0';
+    pos = clks_syscall_procfs_append_text(message, sizeof(message), pos, label);
+    pos = clks_syscall_procfs_append_text(message, sizeof(message), pos, ": ");
+    pos = clks_syscall_procfs_append_text(message, sizeof(message), pos, value);
+    (void)pos;
+    clks_log(CLKS_LOG_WARN, "USC", message);
+}
+
+static void clks_syscall_usc_emit_hex_line(const char *label, u64 value) {
+    clks_log_hex(CLKS_LOG_WARN, "USC", label, value);
+}
+
+static clks_bool clks_syscall_usc_prompt_allow(const char *app_path, u64 id, u64 arg0, u64 arg1, u64 arg2) {
+    const char *name = clks_syscall_usc_syscall_name(id);
+    u32 tty_index = clks_exec_current_tty();
+
+#if !defined(CLKS_CFG_KEYBOARD) || (CLKS_CFG_KEYBOARD == 0)
+    (void)tty_index;
+    clks_syscall_usc_emit_text_line("BLOCK", "keyboard disabled, cannot prompt");
+    return CLKS_FALSE;
+#else
+    clks_syscall_usc_emit_text_line("DANGEROUS_SYSCALL", "REQUEST DETECTED");
+    clks_syscall_usc_emit_text_line("APP", app_path);
+    clks_syscall_usc_emit_hex_line("SYSCALL_ID", id);
+    clks_syscall_usc_emit_text_line("SYSCALL_NAME", name);
+    clks_syscall_usc_emit_hex_line("ARG0", arg0);
+    clks_syscall_usc_emit_hex_line("ARG1", arg1);
+    clks_syscall_usc_emit_hex_line("ARG2", arg2);
+    clks_log(CLKS_LOG_WARN, "USC", "CONFIRM: Allow this app permanently? [y/N]");
+    clks_tty_write("[WARN][USC] Allow this app permanently? [y/N]: ");
+    clks_serial_write("[WARN][USC] Allow this app permanently? [y/N]: ");
+
+    while (1) {
+        char ch = '\0';
+
+        if (clks_keyboard_pop_char_for_tty(tty_index, &ch) == CLKS_TRUE) {
+            if (ch == 'y' || ch == 'Y') {
+                clks_tty_write("y\n");
+                clks_serial_write("y\n");
+                return CLKS_TRUE;
+            }
+
+            if (ch == 'n' || ch == 'N' || ch == '\n' || ch == '\r' || ch == 27) {
+                clks_tty_write("n\n");
+                clks_serial_write("n\n");
+                return CLKS_FALSE;
+            }
+
+            continue;
+        }
+
+        clks_syscall_usc_sleep_until_input();
+    }
+#endif
+}
+#endif
+
+static clks_bool clks_syscall_usc_check(u64 id, u64 arg0, u64 arg1, u64 arg2) {
+#if CLKS_CFG_USC == 0
+    (void)id;
+    (void)arg0;
+    (void)arg1;
+    (void)arg2;
+    return CLKS_TRUE;
+#else
+    char app_path[CLKS_EXEC_PROC_PATH_MAX];
+
+    if (clks_syscall_usc_is_dangerous(id) == CLKS_FALSE) {
+        return CLKS_TRUE;
+    }
+
+    if (clks_exec_is_running() == CLKS_FALSE || clks_exec_current_path_is_user() == CLKS_FALSE) {
+        return CLKS_TRUE;
+    }
+
+    if (clks_syscall_usc_current_app_path(app_path, sizeof(app_path)) == CLKS_FALSE) {
+        clks_syscall_usc_emit_text_line("BLOCK", "cannot resolve current app path");
+        return CLKS_FALSE;
+    }
+
+    if (clks_syscall_usc_find_allowed_path(app_path) >= 0) {
+        return CLKS_TRUE;
+    }
+
+    if (clks_syscall_usc_prompt_allow(app_path, id, arg0, arg1, arg2) == CLKS_TRUE) {
+        clks_syscall_usc_remember_path(app_path);
+        clks_syscall_usc_emit_text_line("ALLOW", app_path);
+        return CLKS_TRUE;
+    }
+
+    clks_syscall_usc_emit_text_line("DENY", app_path);
+    return CLKS_FALSE;
+#endif
+}
+
 static void clks_syscall_stats_reset(void) {
     clks_syscall_stats_total = 0ULL;
     clks_memset(clks_syscall_stats_id_count, 0, sizeof(clks_syscall_stats_id_count));
@@ -1754,6 +2069,10 @@ void clks_syscall_init(void) {
     clks_syscall_symbols_checked = CLKS_FALSE;
     clks_syscall_symbols_data = CLKS_NULL;
     clks_syscall_symbols_size = 0ULL;
+#if CLKS_CFG_USC != 0
+    clks_memset(clks_syscall_usc_allowed_used, 0, sizeof(clks_syscall_usc_allowed_used));
+    clks_memset(clks_syscall_usc_allowed_path, 0, sizeof(clks_syscall_usc_allowed_path));
+#endif
     clks_syscall_stats_reset();
     clks_log(CLKS_LOG_INFO, "SYSCALL", "INT80 FRAMEWORK ONLINE");
 }
@@ -1772,6 +2091,10 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
     id = frame->rax;
     clks_syscall_stats_record(id);
     clks_syscall_trace_user_program(id);
+
+    if (clks_syscall_usc_check(id, frame->rbx, frame->rcx, frame->rdx) == CLKS_FALSE) {
+        return (u64)-1;
+    }
 
     switch (id) {
     case CLKS_SYSCALL_LOG_WRITE:
