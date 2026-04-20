@@ -196,6 +196,42 @@ static clio_size_t clio_i64_to_dec(long long value, char *out, clio_size_t out_s
     return offset + len;
 }
 
+static int clio_is_digit(char ch) {
+    return (ch >= '0' && ch <= '9') ? 1 : 0;
+}
+
+static int clio_emit_repeat(struct clio_sink *sink, char ch, clio_size_t count) {
+    while (count > 0UL) {
+        if (clio_sink_emit(sink, &ch, 1UL) == 0) {
+            return 0;
+        }
+        count--;
+    }
+
+    return 1;
+}
+
+static int clio_emit_with_width(struct clio_sink *sink, const char *text, clio_size_t text_len, int left_align,
+                                char pad_char, clio_size_t width) {
+    if (left_align == 0 && width > text_len) {
+        if (clio_emit_repeat(sink, pad_char, width - text_len) == 0) {
+            return 0;
+        }
+    }
+
+    if (text_len > 0UL && clio_sink_emit(sink, text, text_len) == 0) {
+        return 0;
+    }
+
+    if (left_align != 0 && width > text_len) {
+        if (clio_emit_repeat(sink, ' ', width - text_len) == 0) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int clio_vformat(struct clio_sink *sink, const char *fmt, va_list args) {
     const char *cursor = fmt;
 
@@ -223,10 +259,43 @@ static int clio_vformat(struct clio_sink *sink, const char *fmt, va_list args) {
         }
 
         {
+            int left_align = 0;
+            int zero_pad = 0;
+            clio_size_t width = 0UL;
+            int has_precision = 0;
+            clio_size_t precision = 0UL;
             int length_mode = 0; /* 0: default, 1: l, 2: ll, 3: z */
             char spec = *cursor;
-            char number_buf[64];
-            clio_size_t out_len = 0UL;
+            char number_buf[96];
+
+            while (spec == '-' || spec == '0') {
+                if (spec == '-') {
+                    left_align = 1;
+                } else if (spec == '0') {
+                    zero_pad = 1;
+                }
+                cursor++;
+                spec = *cursor;
+            }
+
+            while (clio_is_digit(spec) != 0) {
+                width = (width * 10UL) + (clio_size_t)(unsigned long)(spec - '0');
+                cursor++;
+                spec = *cursor;
+            }
+
+            if (spec == '.') {
+                has_precision = 1;
+                precision = 0UL;
+                cursor++;
+                spec = *cursor;
+
+                while (clio_is_digit(spec) != 0) {
+                    precision = (precision * 10UL) + (clio_size_t)(unsigned long)(spec - '0');
+                    cursor++;
+                    spec = *cursor;
+                }
+            }
 
             if (spec == 'l') {
                 cursor++;
@@ -250,24 +319,36 @@ static int clio_vformat(struct clio_sink *sink, const char *fmt, va_list args) {
 
             if (spec == 's') {
                 const char *text = va_arg(args, const char *);
+                clio_size_t text_len;
 
                 if (text == (const char *)0) {
                     text = "(null)";
                 }
 
-                out_len = clio_strlen(text);
+                text_len = clio_strlen(text);
+                if (has_precision != 0 && precision < text_len) {
+                    text_len = precision;
+                }
 
-                if (clio_sink_emit(sink, text, out_len) == 0) {
+                if (clio_emit_with_width(sink, text, text_len, left_align, ' ', width) == 0) {
                     return EOF;
                 }
             } else if (spec == 'c') {
                 char out = (char)va_arg(args, int);
+                char out_buf[1];
 
-                if (clio_sink_emit(sink, &out, 1UL) == 0) {
+                out_buf[0] = out;
+                if (clio_emit_with_width(sink, out_buf, 1UL, left_align, ' ', width) == 0) {
                     return EOF;
                 }
             } else if (spec == 'd' || spec == 'i') {
                 long long value;
+                char sign_char = '\0';
+                const char *digits = number_buf;
+                clio_size_t digits_len;
+                clio_size_t leading_zeros = 0UL;
+                clio_size_t core_len;
+                int sign_emitted = 0;
 
                 if (length_mode == 2) {
                     value = va_arg(args, long long);
@@ -279,14 +360,72 @@ static int clio_vformat(struct clio_sink *sink, const char *fmt, va_list args) {
                     value = (long long)va_arg(args, int);
                 }
 
-                out_len = clio_i64_to_dec(value, number_buf, (clio_size_t)sizeof(number_buf));
-                if (out_len == 0UL || clio_sink_emit(sink, number_buf, out_len) == 0) {
+                digits_len = clio_i64_to_dec(value, number_buf, (clio_size_t)sizeof(number_buf));
+                if (digits_len == 0UL) {
                     return EOF;
+                }
+
+                if (number_buf[0] == '-') {
+                    sign_char = '-';
+                    digits = number_buf + 1;
+                    digits_len--;
+                }
+
+                if (has_precision != 0 && precision == 0UL && value == 0LL) {
+                    digits_len = 0UL;
+                }
+
+                if (has_precision != 0 && precision > digits_len) {
+                    leading_zeros = precision - digits_len;
+                }
+
+                core_len = digits_len + leading_zeros + ((sign_char != '\0') ? 1UL : 0UL);
+
+                if (left_align == 0 && width > core_len) {
+                    if (zero_pad != 0 && has_precision == 0) {
+                        if (sign_char != '\0') {
+                            if (clio_sink_emit(sink, &sign_char, 1UL) == 0) {
+                                return EOF;
+                            }
+                            sign_emitted = 1;
+                        }
+                        if (clio_emit_repeat(sink, '0', width - core_len) == 0) {
+                            return EOF;
+                        }
+                    } else {
+                        if (clio_emit_repeat(sink, ' ', width - core_len) == 0) {
+                            return EOF;
+                        }
+                    }
+                }
+
+                if (sign_char != '\0' && sign_emitted == 0) {
+                    if (clio_sink_emit(sink, &sign_char, 1UL) == 0) {
+                        return EOF;
+                    }
+                }
+
+                if (clio_emit_repeat(sink, '0', leading_zeros) == 0) {
+                    return EOF;
+                }
+
+                if (digits_len > 0UL && clio_sink_emit(sink, digits, digits_len) == 0) {
+                    return EOF;
+                }
+
+                if (left_align != 0 && width > core_len) {
+                    if (clio_emit_repeat(sink, ' ', width - core_len) == 0) {
+                        return EOF;
+                    }
                 }
             } else if (spec == 'u' || spec == 'x' || spec == 'X') {
                 unsigned long long value;
                 unsigned int base = (spec == 'u') ? 10U : 16U;
                 int upper = (spec == 'X') ? 1 : 0;
+                clio_size_t digits_len;
+                clio_size_t leading_zeros = 0UL;
+                clio_size_t core_len;
+                char pad_char = ' ';
 
                 if (length_mode == 2) {
                     value = va_arg(args, unsigned long long);
@@ -298,21 +437,97 @@ static int clio_vformat(struct clio_sink *sink, const char *fmt, va_list args) {
                     value = (unsigned long long)va_arg(args, unsigned int);
                 }
 
-                out_len = clio_u64_to_base(value, base, upper, number_buf, (clio_size_t)sizeof(number_buf));
-                if (out_len == 0UL || clio_sink_emit(sink, number_buf, out_len) == 0) {
+                digits_len = clio_u64_to_base(value, base, upper, number_buf, (clio_size_t)sizeof(number_buf));
+                if (digits_len == 0UL) {
                     return EOF;
+                }
+
+                if (has_precision != 0 && precision == 0UL && value == 0ULL) {
+                    digits_len = 0UL;
+                }
+
+                if (has_precision != 0 && precision > digits_len) {
+                    leading_zeros = precision - digits_len;
+                }
+
+                core_len = digits_len + leading_zeros;
+
+                if (zero_pad != 0 && has_precision == 0 && left_align == 0) {
+                    pad_char = '0';
+                }
+
+                if (left_align == 0 && width > core_len) {
+                    if (clio_emit_repeat(sink, pad_char, width - core_len) == 0) {
+                        return EOF;
+                    }
+                }
+
+                if (clio_emit_repeat(sink, '0', leading_zeros) == 0) {
+                    return EOF;
+                }
+
+                if (digits_len > 0UL && clio_sink_emit(sink, number_buf, digits_len) == 0) {
+                    return EOF;
+                }
+
+                if (left_align != 0 && width > core_len) {
+                    if (clio_emit_repeat(sink, ' ', width - core_len) == 0) {
+                        return EOF;
+                    }
                 }
             } else if (spec == 'p') {
                 const void *ptr = va_arg(args, const void *);
                 unsigned long long value = (unsigned long long)(unsigned long)ptr;
+                clio_size_t digits_len;
+                clio_size_t leading_zeros = 0UL;
+                clio_size_t core_len;
+
+                digits_len = clio_u64_to_base(value, 16U, 0, number_buf, (clio_size_t)sizeof(number_buf));
+                if (digits_len == 0UL) {
+                    return EOF;
+                }
+
+                if (has_precision != 0 && precision == 0UL && value == 0ULL) {
+                    digits_len = 0UL;
+                }
+
+                if (has_precision != 0 && precision > digits_len) {
+                    leading_zeros = precision - digits_len;
+                }
+
+                core_len = 2UL + leading_zeros + digits_len;
+
+                if (left_align == 0 && width > core_len) {
+                    if (clio_emit_repeat(sink, ' ', width - core_len) == 0) {
+                        return EOF;
+                    }
+                }
 
                 if (clio_sink_emit(sink, "0x", 2UL) == 0) {
                     return EOF;
                 }
 
-                out_len = clio_u64_to_base(value, 16U, 0, number_buf, (clio_size_t)sizeof(number_buf));
-                if (out_len == 0UL || clio_sink_emit(sink, number_buf, out_len) == 0) {
+                if (clio_emit_repeat(sink, '0', leading_zeros) == 0) {
                     return EOF;
+                }
+
+                if (digits_len > 0UL && clio_sink_emit(sink, number_buf, digits_len) == 0) {
+                    return EOF;
+                }
+
+                if (left_align != 0 && width > core_len) {
+                    if (clio_emit_repeat(sink, ' ', width - core_len) == 0) {
+                        return EOF;
+                    }
+                }
+            } else if (spec == 'n') {
+                int *out_count = va_arg(args, int *);
+                if (out_count != (int *)0) {
+                    if (sink->count > 0x7FFFFFFFUL) {
+                        *out_count = 0x7FFFFFFF;
+                    } else {
+                        *out_count = (int)sink->count;
+                    }
                 }
             } else {
                 char fallback[2];

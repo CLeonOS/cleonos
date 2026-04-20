@@ -183,6 +183,8 @@ static u64 clks_exec_unwind_slot_stack[CLKS_EXEC_MAX_DEPTH];
 static clks_bool clks_exec_unwind_slot_valid_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_image_begin_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_image_end_stack[CLKS_EXEC_MAX_DEPTH];
+static u64 clks_exec_image_vaddr_begin_stack[CLKS_EXEC_MAX_DEPTH];
+static u64 clks_exec_image_vaddr_end_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_stack_begin_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_stack_end_stack[CLKS_EXEC_MAX_DEPTH];
 static u32 clks_exec_pid_stack_depth = 0U;
@@ -320,6 +322,48 @@ static clks_bool clks_exec_rip_is_current_user_context(u64 rip) {
     }
 
     return (rip >= image_begin && rip < image_end) ? CLKS_TRUE : CLKS_FALSE;
+}
+
+static clks_bool clks_exec_translate_legacy_user_rip(u64 rip, u64 *out_rip) {
+    i32 depth_index;
+    u64 vaddr_begin;
+    u64 vaddr_end;
+    u64 image_begin;
+    u64 image_end;
+    u64 off;
+    u64 translated;
+
+    if (out_rip == CLKS_NULL || clks_exec_pid_stack_depth == 0U) {
+        return CLKS_FALSE;
+    }
+
+    depth_index = (i32)(clks_exec_pid_stack_depth - 1U);
+    vaddr_begin = clks_exec_image_vaddr_begin_stack[(u32)depth_index];
+    vaddr_end = clks_exec_image_vaddr_end_stack[(u32)depth_index];
+    image_begin = clks_exec_image_begin_stack[(u32)depth_index];
+    image_end = clks_exec_image_end_stack[(u32)depth_index];
+
+    if (vaddr_begin == 0ULL || vaddr_end <= vaddr_begin || image_begin == 0ULL || image_end <= image_begin) {
+        return CLKS_FALSE;
+    }
+
+    if (rip < vaddr_begin || rip >= vaddr_end) {
+        return CLKS_FALSE;
+    }
+
+    off = rip - vaddr_begin;
+
+    if (off >= (image_end - image_begin)) {
+        return CLKS_FALSE;
+    }
+
+    translated = image_begin + off;
+    if (translated < image_begin || translated >= image_end) {
+        return CLKS_FALSE;
+    }
+
+    *out_rip = translated;
+    return CLKS_TRUE;
 }
 
 static void clks_exec_copy_path(char *dst, usize dst_size, const char *src) {
@@ -1285,6 +1329,8 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
     clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
     clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
     clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+    clks_exec_image_vaddr_begin_stack[(u32)depth_index] = 0ULL;
+    clks_exec_image_vaddr_end_stack[(u32)depth_index] = 0ULL;
     clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
     clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
     clks_exec_pid_stack_depth++;
@@ -1333,6 +1379,8 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
 
         clks_exec_image_begin_stack[(u32)depth_index] = image_begin;
         clks_exec_image_end_stack[(u32)depth_index] = image_end;
+        clks_exec_image_vaddr_begin_stack[(u32)depth_index] = loaded.image_vaddr_base;
+        clks_exec_image_vaddr_end_stack[(u32)depth_index] = loaded.image_vaddr_base + loaded.image_size;
     }
 
     clks_exec_log_info_serial("EXEC RUN START");
@@ -1381,6 +1429,8 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
         clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
         clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+        clks_exec_image_vaddr_begin_stack[(u32)depth_index] = 0ULL;
+        clks_exec_image_vaddr_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_pid_stack_depth--;
@@ -1409,6 +1459,8 @@ fail:
         clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
         clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+        clks_exec_image_vaddr_begin_stack[(u32)depth_index] = 0ULL;
+        clks_exec_image_vaddr_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_pid_stack_depth--;
@@ -1521,6 +1573,8 @@ void clks_exec_init(void) {
     clks_memset(clks_exec_unwind_slot_valid_stack, 0, sizeof(clks_exec_unwind_slot_valid_stack));
     clks_memset(clks_exec_image_begin_stack, 0, sizeof(clks_exec_image_begin_stack));
     clks_memset(clks_exec_image_end_stack, 0, sizeof(clks_exec_image_end_stack));
+    clks_memset(clks_exec_image_vaddr_begin_stack, 0, sizeof(clks_exec_image_vaddr_begin_stack));
+    clks_memset(clks_exec_image_vaddr_end_stack, 0, sizeof(clks_exec_image_vaddr_end_stack));
     clks_memset(clks_exec_stack_begin_stack, 0, sizeof(clks_exec_stack_begin_stack));
     clks_memset(clks_exec_stack_end_stack, 0, sizeof(clks_exec_stack_end_stack));
     clks_memset(clks_exec_proc_table, 0, sizeof(clks_exec_proc_table));
@@ -2457,6 +2511,20 @@ clks_bool clks_exec_handle_exception(u64 vector, u64 error_code, u64 rip, u64 *i
     if (depth_index < 0 || proc == CLKS_NULL) {
         return CLKS_FALSE;
     }
+
+#if defined(CLKS_ARCH_X86_64)
+    if (vector == 14ULL && (error_code & 0x10ULL) != 0ULL && io_rip != CLKS_NULL) {
+        u64 translated_rip = 0ULL;
+
+        if (clks_exec_translate_legacy_user_rip(rip, &translated_rip) == CLKS_TRUE) {
+            *io_rip = translated_rip;
+            clks_exec_log_info_serial("USER RIP LEGACY REBASE");
+            clks_exec_log_hex_serial("RIP_OLD", rip);
+            clks_exec_log_hex_serial("RIP_NEW", translated_rip);
+            return CLKS_TRUE;
+        }
+    }
+#endif
 
     signal = clks_exec_signal_from_vector(vector);
     status = clks_exec_encode_signal_status(signal, vector, error_code);

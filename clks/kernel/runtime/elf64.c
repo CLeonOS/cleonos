@@ -18,6 +18,8 @@
 
 #define CLKS_ELF64_EM_X86_64 62U
 
+#define CLKS_ELF64_PF_X 0x1U
+
 struct clks_elf64_ehdr {
     u8 e_ident[16];
     u16 e_type;
@@ -89,6 +91,42 @@ static clks_bool clks_elf64_range_ok(u64 off, u64 len, u64 total) {
     }
 
     return CLKS_TRUE;
+}
+
+static void clks_elf64_rebase_exec_pointers(struct clks_elf64_loaded_image *loaded, u64 old_base, u64 old_end,
+                                            u64 delta) {
+    u16 seg_index;
+
+    if (loaded == CLKS_NULL || delta == 0ULL || old_end <= old_base) {
+        return;
+    }
+
+    for (seg_index = 0U; seg_index < loaded->segment_count; seg_index++) {
+        struct clks_elf64_loaded_segment *seg = &loaded->segments[seg_index];
+        u64 scan_len;
+        u64 off;
+
+        /* Skip executable segments to avoid patching instruction bytes. */
+        if ((seg->flags & CLKS_ELF64_PF_X) != 0U) {
+            continue;
+        }
+
+        scan_len = seg->filesz;
+        if (scan_len < sizeof(u64)) {
+            continue;
+        }
+
+        scan_len -= (scan_len % sizeof(u64));
+
+        for (off = 0ULL; off < scan_len; off += sizeof(u64)) {
+            u64 *slot = (u64 *)((u8 *)seg->base + (usize)off);
+            u64 value = *slot;
+
+            if (value >= old_base && value < old_end) {
+                *slot = value + delta;
+            }
+        }
+    }
 }
 
 clks_bool clks_elf64_validate(const void *image, u64 size) {
@@ -276,6 +314,17 @@ clks_bool clks_elf64_load(const void *image, u64 size, struct clks_elf64_loaded_
         out_loaded->segments[out_loaded->segment_count].filesz = ph->p_filesz;
         out_loaded->segments[out_loaded->segment_count].flags = ph->p_flags;
         out_loaded->segment_count++;
+    }
+
+    if (eh->e_type == CLKS_ELF64_ET_EXEC) {
+        u64 new_base = (u64)(usize)image_base;
+        u64 old_base = min_vaddr;
+        u64 old_end = max_vaddr_end;
+
+        if (new_base != old_base) {
+            u64 delta = new_base - old_base;
+            clks_elf64_rebase_exec_pointers(out_loaded, old_base, old_end, delta);
+        }
     }
 
     return CLKS_TRUE;

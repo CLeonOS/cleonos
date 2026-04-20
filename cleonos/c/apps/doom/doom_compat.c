@@ -18,6 +18,8 @@
 #define DG_PATH_MAX 192
 #define DG_ENV_LINE_MAX 256
 #define DG_STDIO_MAGIC 0x44474D46U
+#define DG_SERIAL_LOG_CHUNK 176U
+#define DG_SERIAL_LOG_PREFIX "[DOOM] "
 
 struct dg_alloc_hdr {
     size_t size;
@@ -383,6 +385,47 @@ static int dg_fd_flush_slot(struct dg_mem_fd *file) {
 
     file->dirty = 0;
     return 0;
+}
+
+static void dg_serial_log_bytes(const void *buffer, size_t size) {
+    const unsigned char *src = (const unsigned char *)buffer;
+    static const char prefix[] = DG_SERIAL_LOG_PREFIX;
+    char line[DG_SERIAL_LOG_CHUNK + sizeof(prefix) + 1U];
+    size_t prefix_len = sizeof(prefix) - 1U;
+    size_t offset = 0U;
+    int first = 1;
+
+    if (src == (const unsigned char *)0 || size == 0U) {
+        return;
+    }
+
+    while (offset < size) {
+        size_t room = DG_SERIAL_LOG_CHUNK;
+        size_t used = 0U;
+
+        if (first != 0 && prefix_len < sizeof(line)) {
+            memcpy(line, prefix, prefix_len);
+            used = prefix_len;
+            first = 0;
+        }
+
+        while (offset < size && room > 0U) {
+            unsigned char ch = src[offset++];
+
+            if (ch == '\0') {
+                ch = ' ';
+            } else if (ch < 32U && ch != '\n' && ch != '\r' && ch != '\t') {
+                ch = ' ';
+            }
+
+            line[used++] = (char)ch;
+            room--;
+        }
+
+        if (used > 0U) {
+            (void)cleonos_sys_log_write(line, (u64)used);
+        }
+    }
 }
 
 void *malloc(size_t size) {
@@ -943,6 +986,7 @@ ssize_t write(int fd, const void *buf, size_t size) {
             errno = EIO;
             return -1;
         }
+        dg_serial_log_bytes(buf, (size_t)wrote);
         return (ssize_t)wrote;
     }
 
