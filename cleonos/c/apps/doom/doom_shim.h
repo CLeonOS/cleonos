@@ -18,4 +18,3 @@
 #define sscanf dg_sscanf
 
 #endif
-

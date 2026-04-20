@@ -7,12 +7,7 @@ int cl_doom_run_main(int argc, char **argv);
 
 static const char *cl_doom_pick_default_wad(void) {
     static const char *candidates[] = {
-        "/doom1.wad",
-        "/DOOM1.WAD",
-        "/temp/doom1.wad",
-        "/temp/DOOM1.WAD",
-        "/shell/doom1.wad",
-        "/shell/DOOM1.WAD",
+        "/doom1.wad", "/DOOM1.WAD", "/temp/doom1.wad", "/temp/DOOM1.WAD", "/shell/doom1.wad", "/shell/DOOM1.WAD",
     };
     u64 i;
 
@@ -84,4 +79,3 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)printf("doom: launching doomgeneric\n");
     return cl_doom_run_main(run_argc, run_argv);
 }
-

@@ -137,8 +137,12 @@ void DG_Init(void) {
         g_scale = 4ULL;
     }
 
-    g_dst_x = (g_fb_info.width > ((u64)DOOMGENERIC_RESX * g_scale)) ? ((g_fb_info.width - ((u64)DOOMGENERIC_RESX * g_scale)) / 2ULL) : 0ULL;
-    g_dst_y = (g_fb_info.height > ((u64)DOOMGENERIC_RESY * g_scale)) ? ((g_fb_info.height - ((u64)DOOMGENERIC_RESY * g_scale)) / 2ULL) : 0ULL;
+    g_dst_x = (g_fb_info.width > ((u64)DOOMGENERIC_RESX * g_scale))
+                  ? ((g_fb_info.width - ((u64)DOOMGENERIC_RESX * g_scale)) / 2ULL)
+                  : 0ULL;
+    g_dst_y = (g_fb_info.height > ((u64)DOOMGENERIC_RESY * g_scale))
+                  ? ((g_fb_info.height - ((u64)DOOMGENERIC_RESY * g_scale)) / 2ULL)
+                  : 0ULL;
 
     g_blit_req.pixels_ptr = 0ULL;
     g_blit_req.src_width = (u64)DOOMGENERIC_RESX;
@@ -194,4 +198,3 @@ int cl_doom_run_main(int argc, char **argv) {
         doomgeneric_Tick();
     }
 }
-
