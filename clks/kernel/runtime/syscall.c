@@ -1,6 +1,7 @@
 #include <clks/cpu.h>
 #include <clks/audio.h>
 #include <clks/exec.h>
+#include <clks/framebuffer.h>
 #include <clks/fs.h>
 #include <clks/heap.h>
 #include <clks/interrupts.h>
@@ -32,7 +33,7 @@
 #define CLKS_SYSCALL_KDBG_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_SYSCALL_KERNEL_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_SYSCALL_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
-#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_EXEC_PATHV_IO
+#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_FB_CLEAR
 #define CLKS_SYSCALL_STATS_RING_SIZE 256U
 #define CLKS_SYSCALL_USC_MAX_ALLOWED_APPS 64U
 
@@ -131,6 +132,23 @@ struct clks_syscall_exec_io_req {
     u64 stderr_fd;
 };
 
+struct clks_syscall_fb_info_user {
+    u64 width;
+    u64 height;
+    u64 pitch;
+    u64 bpp;
+};
+
+struct clks_syscall_fb_blit_req {
+    u64 pixels_ptr;
+    u64 src_width;
+    u64 src_height;
+    u64 src_pitch_bytes;
+    u64 dst_x;
+    u64 dst_y;
+    u64 scale;
+};
+
 static clks_bool clks_syscall_ready = CLKS_FALSE;
 static clks_bool clks_syscall_user_trace_active = CLKS_FALSE;
 static u64 clks_syscall_user_trace_budget = 0ULL;
@@ -160,16 +178,55 @@ static inline void clks_syscall_outw(u16 port, u16 value) {
 }
 #endif
 
+static clks_bool clks_syscall_in_user_exec_context(void) {
+    return (clks_exec_is_running() == CLKS_TRUE && clks_exec_current_path_is_user() == CLKS_TRUE) ? CLKS_TRUE
+                                                                                                    : CLKS_FALSE;
+}
+
+static clks_bool clks_syscall_user_ptr_readable(u64 addr, u64 size) {
+    if (addr == 0ULL || size == 0ULL) {
+        return CLKS_FALSE;
+    }
+
+    if (clks_syscall_in_user_exec_context() == CLKS_FALSE) {
+        return CLKS_TRUE;
+    }
+
+    return clks_exec_current_user_ptr_readable(addr, size);
+}
+
+static clks_bool clks_syscall_user_ptr_writable(u64 addr, u64 size) {
+    if (addr == 0ULL || size == 0ULL) {
+        return CLKS_FALSE;
+    }
+
+    if (clks_syscall_in_user_exec_context() == CLKS_FALSE) {
+        return CLKS_TRUE;
+    }
+
+    return clks_exec_current_user_ptr_writable(addr, size);
+}
+
 static clks_bool clks_syscall_copy_user_string(u64 src_addr, char *dst, usize dst_size) {
-    const char *src = (const char *)src_addr;
     usize i = 0U;
 
-    if (src == CLKS_NULL || dst == CLKS_NULL || dst_size == 0U) {
+    if (src_addr == 0ULL || dst == CLKS_NULL || dst_size == 0U) {
         return CLKS_FALSE;
     }
 
     while (i + 1U < dst_size) {
-        char ch = src[i];
+        u64 char_addr = src_addr + (u64)i;
+        char ch;
+
+        if (char_addr < src_addr) {
+            return CLKS_FALSE;
+        }
+
+        if (clks_syscall_user_ptr_readable(char_addr, 1ULL) == CLKS_FALSE) {
+            return CLKS_FALSE;
+        }
+
+        ch = *(const char *)(usize)char_addr;
         dst[i] = ch;
 
         if (ch == '\0') {
@@ -209,6 +266,10 @@ static u64 clks_syscall_copy_text_to_user(u64 dst_addr, u64 dst_size, const char
         copy_len = (usize)dst_size - 1U;
     }
 
+    if (clks_syscall_user_ptr_writable(dst_addr, (u64)copy_len + 1ULL) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     clks_memcpy((void *)dst_addr, src, copy_len);
     ((char *)dst_addr)[copy_len] = '\0';
     return (u64)copy_len;
@@ -226,6 +287,10 @@ static u64 clks_syscall_log_write(u64 arg0, u64 arg1) {
 
     if (len > CLKS_SYSCALL_LOG_MAX_LEN) {
         len = CLKS_SYSCALL_LOG_MAX_LEN;
+    }
+
+    if (clks_syscall_user_ptr_readable((u64)(usize)src, len) == CLKS_FALSE) {
+        return 0ULL;
     }
 
     for (i = 0ULL; i < len; i++) {
@@ -250,6 +315,10 @@ static u64 clks_syscall_tty_write(u64 arg0, u64 arg1) {
 
     if (len > CLKS_SYSCALL_TTY_MAX_LEN) {
         len = CLKS_SYSCALL_TTY_MAX_LEN;
+    }
+
+    if (clks_syscall_user_ptr_readable((u64)(usize)src, len) == CLKS_FALSE) {
+        return 0ULL;
     }
 
     for (i = 0ULL; i < len; i++) {
@@ -277,6 +346,127 @@ static u64 clks_syscall_kbd_get_char(void) {
     return (u64)(u8)ch;
 }
 
+static u64 clks_syscall_fb_info(u64 arg0) {
+    struct clks_syscall_fb_info_user *out_info = (struct clks_syscall_fb_info_user *)arg0;
+    struct clks_framebuffer_info fb_info;
+
+    if (arg0 == 0ULL || clks_fb_ready() == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg0, (u64)sizeof(*out_info)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    fb_info = clks_fb_info();
+    out_info->width = (u64)fb_info.width;
+    out_info->height = (u64)fb_info.height;
+    out_info->pitch = (u64)fb_info.pitch;
+    out_info->bpp = (u64)fb_info.bpp;
+    return 1ULL;
+}
+
+static u64 clks_syscall_fb_clear(u64 arg0) {
+    if (clks_fb_ready() == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    clks_fb_clear((u32)(arg0 & 0xFFFFFFFFULL));
+    return 1ULL;
+}
+
+static u64 clks_syscall_fb_blit(u64 arg0) {
+    struct clks_syscall_fb_blit_req req;
+    const u8 *src_base;
+    struct clks_framebuffer_info fb_info;
+    u64 src_width;
+    u64 src_height;
+    u64 src_pitch_bytes;
+    u64 dst_x;
+    u64 dst_y;
+    u64 scale;
+    u64 y;
+    u64 x;
+
+    if (arg0 == 0ULL || clks_fb_ready() == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_readable(arg0, (u64)sizeof(req)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    clks_memcpy(&req, (const void *)(usize)arg0, sizeof(req));
+
+    if (req.pixels_ptr == 0ULL) {
+        return 0ULL;
+    }
+
+    src_width = req.src_width;
+    src_height = req.src_height;
+    src_pitch_bytes = req.src_pitch_bytes;
+    dst_x = req.dst_x;
+    dst_y = req.dst_y;
+    scale = req.scale;
+
+    if (src_width == 0ULL || src_height == 0ULL || scale == 0ULL) {
+        return 0ULL;
+    }
+
+    if (src_width > 4096ULL || src_height > 4096ULL || scale > 8ULL) {
+        return 0ULL;
+    }
+
+    if (src_pitch_bytes == 0ULL) {
+        src_pitch_bytes = src_width * 4ULL;
+    }
+
+    if (src_pitch_bytes < (src_width * 4ULL)) {
+        return 0ULL;
+    }
+
+    if (src_pitch_bytes != 0ULL && src_height > (((u64)-1) / src_pitch_bytes)) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_readable(req.pixels_ptr, src_pitch_bytes * src_height) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    src_base = (const u8 *)(usize)req.pixels_ptr;
+    fb_info = clks_fb_info();
+
+    if (dst_x >= (u64)fb_info.width || dst_y >= (u64)fb_info.height) {
+        return 0ULL;
+    }
+
+    for (y = 0ULL; y < src_height; y++) {
+        const u32 *src_row = (const u32 *)(const void *)(src_base + (usize)(y * src_pitch_bytes));
+        u64 draw_y = dst_y + (y * scale);
+
+        if (draw_y >= (u64)fb_info.height) {
+            break;
+        }
+
+        for (x = 0ULL; x < src_width; x++) {
+            u32 color = src_row[x];
+            u64 draw_x = dst_x + (x * scale);
+
+            if (draw_x >= (u64)fb_info.width) {
+                break;
+            }
+
+            if (scale == 1ULL) {
+                clks_fb_draw_pixel((u32)draw_x, (u32)draw_y, color);
+            } else {
+                clks_fb_fill_rect((u32)draw_x, (u32)draw_y, (u32)scale, (u32)scale, color);
+            }
+        }
+    }
+
+    return 1ULL;
+}
+
 static u64 clks_syscall_fd_open(u64 arg0, u64 arg1, u64 arg2) {
     char path[CLKS_SYSCALL_PATH_MAX];
 
@@ -292,11 +482,19 @@ static u64 clks_syscall_fd_read(u64 arg0, u64 arg1, u64 arg2) {
         return (u64)-1;
     }
 
+    if (arg2 > 0ULL && clks_syscall_user_ptr_writable(arg1, arg2) == CLKS_FALSE) {
+        return (u64)-1;
+    }
+
     return clks_exec_fd_read(arg0, (void *)arg1, arg2);
 }
 
 static u64 clks_syscall_fd_write(u64 arg0, u64 arg1, u64 arg2) {
     if (arg2 > 0ULL && arg1 == 0ULL) {
+        return (u64)-1;
+    }
+
+    if (arg2 > 0ULL && clks_syscall_user_ptr_readable(arg1, arg2) == CLKS_FALSE) {
         return (u64)-1;
     }
 
@@ -878,6 +1076,10 @@ static u64 clks_syscall_kdbg_bt(u64 arg0) {
         return 0ULL;
     }
 
+    if (clks_syscall_user_ptr_readable(arg0, (u64)sizeof(req)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     clks_memcpy(&req, (const void *)arg0, sizeof(req));
 
     if (req.out_ptr == 0ULL || req.out_size == 0ULL) {
@@ -1144,6 +1346,10 @@ static u64 clks_syscall_fs_get_child_name(u64 arg0, u64 arg1, u64 arg2) {
         return 0ULL;
     }
 
+    if (clks_syscall_user_ptr_writable(arg2, CLKS_SYSCALL_NAME_MAX) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     if (clks_syscall_copy_user_string(arg0, path, sizeof(path)) == CLKS_FALSE) {
         return 0ULL;
     }
@@ -1212,6 +1418,10 @@ static u64 clks_syscall_fs_read(u64 arg0, u64 arg1, u64 arg2) {
     u64 copy_len;
 
     if (arg1 == 0ULL || arg2 == 0ULL) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg1, arg2) == CLKS_FALSE) {
         return 0ULL;
     }
 
@@ -1309,6 +1519,10 @@ static u64 clks_syscall_exec_pathv_io(u64 arg0, u64 arg1, u64 arg2) {
         return (u64)-1;
     }
 
+    if (clks_syscall_user_ptr_readable(arg2, (u64)sizeof(req)) == CLKS_FALSE) {
+        return (u64)-1;
+    }
+
     clks_memcpy(&req, (const void *)arg2, sizeof(req));
 
     if (clks_syscall_copy_user_optional_string(req.env_line_ptr, env_line, sizeof(env_line)) == CLKS_FALSE) {
@@ -1372,6 +1586,9 @@ static u64 clks_syscall_waitpid(u64 arg0, u64 arg1) {
     u64 wait_ret = clks_exec_wait_pid(arg0, &status);
 
     if (wait_ret == 1ULL && arg1 != 0ULL) {
+        if (clks_syscall_user_ptr_writable(arg1, (u64)sizeof(status)) == CLKS_FALSE) {
+            return (u64)-1;
+        }
         clks_memcpy((void *)arg1, &status, sizeof(status));
     }
 
@@ -1391,6 +1608,10 @@ static u64 clks_syscall_proc_argv(u64 arg0, u64 arg1, u64 arg2) {
         arg2 = CLKS_SYSCALL_ITEM_MAX;
     }
 
+    if (clks_syscall_user_ptr_writable(arg1, arg2) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     return (clks_exec_copy_current_argv(arg0, (char *)arg1, (usize)arg2) == CLKS_TRUE) ? 1ULL : 0ULL;
 }
 
@@ -1405,6 +1626,10 @@ static u64 clks_syscall_proc_env(u64 arg0, u64 arg1, u64 arg2) {
 
     if (arg2 > CLKS_SYSCALL_ITEM_MAX) {
         arg2 = CLKS_SYSCALL_ITEM_MAX;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg1, arg2) == CLKS_FALSE) {
+        return 0ULL;
     }
 
     return (clks_exec_copy_current_env(arg0, (char *)arg1, (usize)arg2) == CLKS_TRUE) ? 1ULL : 0ULL;
@@ -1437,6 +1662,10 @@ static u64 clks_syscall_proc_pid_at(u64 arg0, u64 arg1) {
         return 0ULL;
     }
 
+    if (clks_syscall_user_ptr_writable(arg1, (u64)sizeof(pid)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     if (clks_exec_proc_pid_at(arg0, &pid) == CLKS_FALSE) {
         return 0ULL;
     }
@@ -1449,6 +1678,10 @@ static u64 clks_syscall_proc_snapshot(u64 arg0, u64 arg1, u64 arg2) {
     struct clks_exec_proc_snapshot snap;
 
     if (arg1 == 0ULL || arg2 < (u64)sizeof(snap)) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg1, (u64)sizeof(snap)) == CLKS_FALSE) {
         return 0ULL;
     }
 
@@ -1602,6 +1835,10 @@ static u64 clks_syscall_fs_write_common(u64 arg0, u64 arg1, u64 arg2, clks_bool 
         return 0ULL;
     }
 
+    if (clks_syscall_user_ptr_readable(arg1, arg2) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
     while (remaining > 0ULL) {
         u64 chunk_len = remaining;
         void *heap_copy;
@@ -1665,6 +1902,10 @@ static u64 clks_syscall_log_journal_read(u64 arg0, u64 arg1, u64 arg2) {
     usize copy_len;
 
     if (arg1 == 0ULL || arg2 == 0ULL) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg1, arg2) == CLKS_FALSE) {
         return 0ULL;
     }
 
@@ -2266,6 +2507,12 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
         return clks_syscall_dl_close(frame->rbx);
     case CLKS_SYSCALL_DL_SYM:
         return clks_syscall_dl_sym(frame->rbx, frame->rcx);
+    case CLKS_SYSCALL_FB_INFO:
+        return clks_syscall_fb_info(frame->rbx);
+    case CLKS_SYSCALL_FB_BLIT:
+        return clks_syscall_fb_blit(frame->rbx);
+    case CLKS_SYSCALL_FB_CLEAR:
+        return clks_syscall_fb_clear(frame->rbx);
     default:
         return (u64)-1;
     }

@@ -337,6 +337,24 @@ set(USER_CFLAGS
     "-I${CMAKE_SOURCE_DIR}/cleonos/c/include"
 )
 
+set(USER_CFLAGS_DOOM
+    -std=c11
+    -ffreestanding
+    -fno-stack-protector
+    -fno-builtin
+    -Wall
+    -Wextra
+    -Wno-error
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
+    -Wno-sign-compare
+    -D_DEFAULT_SOURCE
+    -D_POSIX_C_SOURCE=200809L
+    "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric"
+    "-include"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/doom_shim.h"
+)
+
 set(USER_LDFLAGS
     -nostdlib
     -z
@@ -494,6 +512,23 @@ function(add_user_c_object SRC OUTPUT_VAR)
     set(${OUTPUT_VAR} "${OBJ_PATH}" PARENT_SCOPE)
 endfunction()
 
+function(add_user_c_object_doom SRC OUTPUT_VAR)
+    string(REGEX REPLACE "\\.c$" ".o" OBJ_REL "${SRC}")
+    set(OBJ_PATH "${USER_OBJ_ROOT}/${OBJ_REL}")
+    get_filename_component(OBJ_DIR "${OBJ_PATH}" DIRECTORY)
+    set(_deps "${CMAKE_SOURCE_DIR}/${SRC}" ${USER_INC_SOURCES_ABS} ${DOOMGENERIC_DEP_SOURCES_ABS})
+
+    add_custom_command(
+        OUTPUT "${OBJ_PATH}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OBJ_DIR}"
+        COMMAND ${USER_CC} ${USER_CFLAGS_DOOM} -c "${CMAKE_SOURCE_DIR}/${SRC}" -o "${OBJ_PATH}"
+        DEPENDS ${_deps}
+        VERBATIM
+    )
+
+    set(${OUTPUT_VAR} "${OBJ_PATH}" PARENT_SCOPE)
+endfunction()
+
 set(KERNEL_OBJECTS)
 foreach(SRC IN LISTS C_SOURCES)
     add_kernel_c_object("${SRC}" KERNEL_OBJECTS)
@@ -565,6 +600,25 @@ set(RAMDISK_DRIVER_APPS)
 set(RAMDISK_SYSTEM_APPS)
 set(RAMDISK_ROOT_APPS)
 
+set(DOOMGENERIC_DIR "${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric")
+set(DOOMGENERIC_SRC_BASENAMES
+    dummy am_map doomdef doomstat dstrings d_event d_items d_iwad d_loop d_main d_mode d_net f_finale f_wipe
+    g_game hu_lib hu_stuff info i_cdmus i_endoom i_joystick i_scale i_sound i_system i_timer memio m_argv
+    m_bbox m_cheat m_config m_controls m_fixed m_menu m_misc m_random p_ceilng p_doors p_enemy p_floor
+    p_inter p_lights p_map p_maputl p_mobj p_plats p_pspr p_saveg p_setup p_sight p_spec p_switch p_telept
+    p_tick p_user r_bsp r_data r_draw r_main r_plane r_segs r_sky r_things sha1 sounds statdump st_lib st_stuff
+    s_sound tables v_video wi_stuff w_checksum w_file w_main w_wad z_zone w_file_stdc i_input i_video doomgeneric
+)
+set(DOOMGENERIC_APP_SOURCES)
+foreach(_base IN LISTS DOOMGENERIC_SRC_BASENAMES)
+    list(APPEND DOOMGENERIC_APP_SOURCES "cleonos/third-party/doomgeneric/doomgeneric/${_base}.c")
+endforeach()
+file(GLOB_RECURSE DOOMGENERIC_DEP_SOURCES_ABS CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric/*.h"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/*.h"
+)
+list(SORT DOOMGENERIC_DEP_SOURCES_ABS)
+
 set(USER_SHELL_COMMAND_APPS
     help args ls cat grep head tail wc cut uniq sort pwd cd exec pid spawn wait sleep yield
     bg fg jobs kill ps top
@@ -610,6 +664,13 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
         "${CMAKE_SOURCE_DIR}/cleonos/c/apps/${_app_name}_*.c"
         "${CMAKE_SOURCE_DIR}/cleonos/c/apps/${_app_name}/*.c"
     )
+    set(_app_common_objects ${USER_COMMON_OBJECTS})
+
+    if(_app_name STREQUAL "doom")
+        foreach(_doom_src IN LISTS DOOMGENERIC_APP_SOURCES)
+            list(APPEND _app_specific_abs "${CMAKE_SOURCE_DIR}/${_doom_src}")
+        endforeach()
+    endif()
 
     list(FIND USER_SHELL_COMMAND_APPS "${_app_name}" _shell_cmd_idx)
     if(NOT _shell_cmd_idx EQUAL -1)
@@ -626,7 +687,11 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
             continue()
         endif()
 
-        add_user_c_object("${_extra_rel}" _extra_obj)
+        if(_app_name STREQUAL "doom")
+            add_user_c_object_doom("${_extra_rel}" _extra_obj)
+        else()
+            add_user_c_object("${_extra_rel}" _extra_obj)
+        endif()
         list(APPEND _app_specific_objs "${_extra_obj}")
     endforeach()
     list(REMOVE_DUPLICATES _app_specific_objs)
@@ -635,8 +700,8 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
     add_custom_command(
         OUTPUT "${_app_out}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${USER_APP_DIR}"
-        COMMAND ${USER_LD} ${USER_LDFLAGS} -o "${_app_out}" ${USER_COMMON_OBJECTS} "${_user_obj}" ${_app_specific_objs} "${USER_RUST_LIB}"
-        DEPENDS ${USER_COMMON_OBJECTS} "${_user_obj}" ${_app_specific_objs} "${USER_RUST_LIB}" "${USER_LINKER_SCRIPT}"
+        COMMAND ${USER_LD} ${USER_LDFLAGS} -o "${_app_out}" ${_app_common_objects} "${_user_obj}" ${_app_specific_objs} "${USER_RUST_LIB}"
+        DEPENDS ${_app_common_objects} "${_user_obj}" ${_app_specific_objs} "${USER_RUST_LIB}" "${USER_LINKER_SCRIPT}"
         VERBATIM
     )
 

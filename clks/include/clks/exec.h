@@ -74,5 +74,7 @@ u64 clks_exec_request_count(void);
 u64 clks_exec_success_count(void);
 clks_bool clks_exec_is_running(void);
 clks_bool clks_exec_current_path_is_user(void);
+clks_bool clks_exec_current_user_ptr_readable(u64 addr, u64 size);
+clks_bool clks_exec_current_user_ptr_writable(u64 addr, u64 size);
 
 #endif

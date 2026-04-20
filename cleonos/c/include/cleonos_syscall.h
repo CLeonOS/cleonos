@@ -43,6 +43,23 @@ typedef struct cleonos_proc_snapshot {
     char path[CLEONOS_PROC_PATH_MAX];
 } cleonos_proc_snapshot;
 
+typedef struct cleonos_fb_info {
+    u64 width;
+    u64 height;
+    u64 pitch;
+    u64 bpp;
+} cleonos_fb_info;
+
+typedef struct cleonos_fb_blit_req {
+    u64 pixels_ptr;
+    u64 src_width;
+    u64 src_height;
+    u64 src_pitch_bytes;
+    u64 dst_x;
+    u64 dst_y;
+    u64 scale;
+} cleonos_fb_blit_req;
+
 #define CLEONOS_SYSCALL_LOG_WRITE 0ULL
 #define CLEONOS_SYSCALL_TIMER_TICKS 1ULL
 #define CLEONOS_SYSCALL_TASK_COUNT 2ULL
@@ -124,6 +141,9 @@ typedef struct cleonos_proc_snapshot {
 #define CLEONOS_SYSCALL_DL_CLOSE 78ULL
 #define CLEONOS_SYSCALL_DL_SYM 79ULL
 #define CLEONOS_SYSCALL_EXEC_PATHV_IO 80ULL
+#define CLEONOS_SYSCALL_FB_INFO 81ULL
+#define CLEONOS_SYSCALL_FB_BLIT 82ULL
+#define CLEONOS_SYSCALL_FB_CLEAR 83ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -207,5 +227,8 @@ u64 cleonos_sys_fd_dup(u64 fd);
 u64 cleonos_sys_dl_open(const char *path);
 u64 cleonos_sys_dl_close(u64 handle);
 u64 cleonos_sys_dl_sym(u64 handle, const char *symbol);
+u64 cleonos_sys_fb_info(cleonos_fb_info *out_info);
+u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req);
+u64 cleonos_sys_fb_clear(u64 rgb);
 
 #endif

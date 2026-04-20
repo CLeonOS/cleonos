@@ -178,6 +178,8 @@ static u64 clks_exec_unwind_slot_stack[CLKS_EXEC_MAX_DEPTH];
 static clks_bool clks_exec_unwind_slot_valid_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_image_begin_stack[CLKS_EXEC_MAX_DEPTH];
 static u64 clks_exec_image_end_stack[CLKS_EXEC_MAX_DEPTH];
+static u64 clks_exec_stack_begin_stack[CLKS_EXEC_MAX_DEPTH];
+static u64 clks_exec_stack_end_stack[CLKS_EXEC_MAX_DEPTH];
 static u32 clks_exec_pid_stack_depth = 0U;
 static struct clks_exec_dynlib_slot clks_exec_dynlib_table[CLKS_EXEC_DYNLIB_MAX];
 static u64 clks_exec_next_dynlib_handle = 1ULL;
@@ -356,6 +358,26 @@ static clks_bool clks_exec_range_ok(u64 off, u64 len, u64 total) {
     }
 
     if (len > (total - off)) {
+        return CLKS_FALSE;
+    }
+
+    return CLKS_TRUE;
+}
+
+static clks_bool clks_exec_addr_range_in_window(u64 addr, u64 size, u64 begin, u64 end) {
+    if (begin == 0ULL || end <= begin) {
+        return CLKS_FALSE;
+    }
+
+    if (size == 0ULL) {
+        return CLKS_FALSE;
+    }
+
+    if (addr < begin || addr >= end) {
+        return CLKS_FALSE;
+    }
+
+    if (size > (end - addr)) {
         return CLKS_FALSE;
     }
 
@@ -1179,6 +1201,8 @@ static clks_bool clks_exec_invoke_entry(void *entry_ptr, u32 depth_index, u64 *o
         }
 
         stack_top = (void *)((u8 *)stack_base + (usize)CLKS_EXEC_RUN_STACK_BYTES);
+        clks_exec_stack_begin_stack[depth_index] = (u64)stack_base;
+        clks_exec_stack_end_stack[depth_index] = (u64)stack_top;
         unwind_slot = (((u64)stack_top) & ~0xFULL) - CLKS_EXEC_UNWIND_CTX_BYTES;
         clks_exec_unwind_slot_stack[depth_index] = unwind_slot;
         clks_exec_unwind_slot_valid_stack[depth_index] = CLKS_TRUE;
@@ -1192,6 +1216,8 @@ static clks_bool clks_exec_invoke_entry(void *entry_ptr, u32 depth_index, u64 *o
         /* Close unwind window immediately after call returns to avoid IRQ race. */
         clks_exec_unwind_slot_valid_stack[depth_index] = CLKS_FALSE;
         clks_exec_unwind_slot_stack[depth_index] = 0ULL;
+        clks_exec_stack_begin_stack[depth_index] = 0ULL;
+        clks_exec_stack_end_stack[depth_index] = 0ULL;
 
         clks_exec_restore_interrupt_window(restore_irq_disable);
         *out_ret = call_ret;
@@ -1254,6 +1280,8 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
     clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
     clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
     clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+    clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
+    clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
     clks_exec_pid_stack_depth++;
     depth_pushed = CLKS_TRUE;
 
@@ -1348,6 +1376,8 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
         clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
         clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+        clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
+        clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_pid_stack_depth--;
         depth_pushed = CLKS_FALSE;
     }
@@ -1374,6 +1404,8 @@ fail:
         clks_exec_stop_requested_stack[(u32)depth_index] = CLKS_FALSE;
         clks_exec_image_begin_stack[(u32)depth_index] = 0ULL;
         clks_exec_image_end_stack[(u32)depth_index] = 0ULL;
+        clks_exec_stack_begin_stack[(u32)depth_index] = 0ULL;
+        clks_exec_stack_end_stack[(u32)depth_index] = 0ULL;
         clks_exec_pid_stack_depth--;
     }
 
@@ -1484,6 +1516,8 @@ void clks_exec_init(void) {
     clks_memset(clks_exec_unwind_slot_valid_stack, 0, sizeof(clks_exec_unwind_slot_valid_stack));
     clks_memset(clks_exec_image_begin_stack, 0, sizeof(clks_exec_image_begin_stack));
     clks_memset(clks_exec_image_end_stack, 0, sizeof(clks_exec_image_end_stack));
+    clks_memset(clks_exec_stack_begin_stack, 0, sizeof(clks_exec_stack_begin_stack));
+    clks_memset(clks_exec_stack_end_stack, 0, sizeof(clks_exec_stack_end_stack));
     clks_memset(clks_exec_proc_table, 0, sizeof(clks_exec_proc_table));
     clks_memset(clks_exec_dynlib_table, 0, sizeof(clks_exec_dynlib_table));
     clks_exec_next_dynlib_handle = 1ULL;
@@ -2525,4 +2559,40 @@ clks_bool clks_exec_current_path_is_user(void) {
 
     proc = &clks_exec_proc_table[(u32)slot];
     return clks_exec_path_is_user_program(proc->path);
+}
+
+clks_bool clks_exec_current_user_ptr_readable(u64 addr, u64 size) {
+    i32 depth_index;
+    u64 image_begin;
+    u64 image_end;
+    u64 stack_begin;
+    u64 stack_end;
+
+    if (clks_exec_is_running() == CLKS_FALSE || clks_exec_current_path_is_user() == CLKS_FALSE) {
+        return CLKS_FALSE;
+    }
+
+    if (size == 0ULL || clks_exec_pid_stack_depth == 0U) {
+        return CLKS_FALSE;
+    }
+
+    depth_index = (i32)(clks_exec_pid_stack_depth - 1U);
+    image_begin = clks_exec_image_begin_stack[(u32)depth_index];
+    image_end = clks_exec_image_end_stack[(u32)depth_index];
+    stack_begin = clks_exec_stack_begin_stack[(u32)depth_index];
+    stack_end = clks_exec_stack_end_stack[(u32)depth_index];
+
+    if (clks_exec_addr_range_in_window(addr, size, image_begin, image_end) == CLKS_TRUE) {
+        return CLKS_TRUE;
+    }
+
+    if (clks_exec_addr_range_in_window(addr, size, stack_begin, stack_end) == CLKS_TRUE) {
+        return CLKS_TRUE;
+    }
+
+    return CLKS_FALSE;
+}
+
+clks_bool clks_exec_current_user_ptr_writable(u64 addr, u64 size) {
+    return clks_exec_current_user_ptr_readable(addr, size);
 }

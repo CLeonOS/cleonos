@@ -84,6 +84,9 @@
 #define CLKS_SYSCALL_DL_CLOSE 78ULL
 #define CLKS_SYSCALL_DL_SYM 79ULL
 #define CLKS_SYSCALL_EXEC_PATHV_IO 80ULL
+#define CLKS_SYSCALL_FB_INFO 81ULL
+#define CLKS_SYSCALL_FB_BLIT 82ULL
+#define CLKS_SYSCALL_FB_CLEAR 83ULL
 
 void clks_syscall_init(void);
 u64 clks_syscall_dispatch(void *frame_ptr);

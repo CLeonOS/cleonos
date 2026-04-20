@@ -28,7 +28,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 内核分发位置：
 
-- `clks/kernel/syscall.c`
+- `clks/kernel/runtime/syscall.c`
 
 ## 2. 全局返回规则
 
@@ -61,10 +61,10 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 3. 当前实现中的长度/路径限制
 
-以下限制由内核 `clks/kernel/syscall.c` 当前实现决定：
+以下限制由内核 `clks/kernel/runtime/syscall.c` 当前实现决定：
 
 - 日志写入 `LOG_WRITE`：最大拷贝 `191` 字节。
-- TTY 文本写入 `TTY_WRITE`：最大拷贝 `512` 字节。
+- TTY 文本写入 `TTY_WRITE`：最大拷贝 `2048` 字节。
 - 文件读取 `FS_READ`：最多读取 `min(file_size, buffer_size)` 字节。
 - 文件写入 `FS_WRITE` / `FS_APPEND`：内核按 `65536` 字节分块搬运；这是实现分块大小，不是文件大小上限。
 - log journal 行读取缓冲：`256` 字节。
@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~76）
+## 4. Syscall 列表（0~83）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -604,6 +604,61 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：新 fd；失败 `-1`
 - 说明：当前为“按值复制”语义（复制 flags/offset/目标对象）。
 
+### 77 `CLEONOS_SYSCALL_DL_OPEN`
+
+- 参数：
+- `arg0`: `const char *path`
+- 返回：动态库句柄（`handle`）；失败 `-1`
+- 说明：将用户态动态库（ELF）加载到当前进程地址空间，供 `DL_SYM` 查询符号。
+
+### 78 `CLEONOS_SYSCALL_DL_CLOSE`
+
+- 参数：
+- `arg0`: `u64 handle`
+- 返回：成功 `0`，失败 `-1`
+- 说明：关闭/释放由 `DL_OPEN` 返回的动态库句柄。
+
+### 79 `CLEONOS_SYSCALL_DL_SYM`
+
+- 参数：
+- `arg0`: `u64 handle`
+- `arg1`: `const char *symbol`
+- 返回：符号地址（`u64`）；失败返回 `0`
+- 说明：用于查询库导出符号入口地址。
+
+### 80 `CLEONOS_SYSCALL_EXEC_PATHV_IO`
+
+- 参数：
+- `arg0`: `const char *path`
+- `arg1`: `const char *argv_line`（可为 `0`）
+- `arg2`: `struct { u64 env_line_ptr; u64 stdin_fd; u64 stdout_fd; u64 stderr_fd; } *req`
+- 返回：与 `EXEC_PATHV` 一致（成功返回子进程退出状态，失败 `-1`）
+- 说明：在 `EXEC_PATHV` 基础上增加 I/O 句柄重定向（用于管道与重定向）。
+
+### 81 `CLEONOS_SYSCALL_FB_INFO`
+
+- 参数：
+- `arg0`: `cleonos_fb_info *out_info`
+- 返回：成功 `1`，失败 `0`
+- 说明：获取 framebuffer 信息（`width/height/pitch/bpp`）。`out_info` 为空或 framebuffer 未就绪时失败。
+
+### 82 `CLEONOS_SYSCALL_FB_BLIT`
+
+- 参数：
+- `arg0`: `const cleonos_fb_blit_req *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 从用户态 `pixels_ptr` 指向的 32bpp 源缓冲拷贝到 framebuffer。
+- `src_pitch_bytes=0` 时按 `src_width*4` 推导。
+- 当前实现限制：`src_width<=4096`、`src_height<=4096`、`scale<=8`，且目标坐标需落在屏幕内。
+
+### 83 `CLEONOS_SYSCALL_FB_CLEAR`
+
+- 参数：
+- `arg0`: `u64 rgb`（低 32 位有效）
+- 返回：成功 `1`，失败 `0`
+- 说明：用纯色清屏。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -629,6 +684,9 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_kdbg_sym()` / `cleonos_sys_kdbg_bt()` / `cleonos_sys_kdbg_regs()`
 - `cleonos_sys_stats_total()` / `cleonos_sys_stats_id_count()` / `cleonos_sys_stats_recent_window()` / `cleonos_sys_stats_recent_id()`
 - `cleonos_sys_fd_open()` / `cleonos_sys_fd_read()` / `cleonos_sys_fd_write()` / `cleonos_sys_fd_close()` / `cleonos_sys_fd_dup()`
+- `cleonos_sys_dl_open()` / `cleonos_sys_dl_close()` / `cleonos_sys_dl_sym()`
+- `cleonos_sys_exec_pathv_io()`
+- `cleonos_sys_fb_info()` / `cleonos_sys_fb_blit()` / `cleonos_sys_fb_clear()`
 
 ## 6. 开发注意事项
 
@@ -639,6 +697,8 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 目前以 syscall `0..67` 为主；`68..76`（stats/fd）需同步适配后才能完整覆盖。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..80`（含 `stats/fd/exec_pathv_io`）。
+- `DL_*`（`77..79`）在 Wine 中当前为占位实现：`DL_OPEN=-1`、`DL_CLOSE=0`、`DL_SYM=0`。
+- framebuffer 相关 syscall（`81..83`）尚未在 Wine 中实现（会返回未支持路径）。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。

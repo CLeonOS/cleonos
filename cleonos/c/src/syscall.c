@@ -355,3 +355,15 @@ u64 cleonos_sys_dl_close(u64 handle) {
 u64 cleonos_sys_dl_sym(u64 handle, const char *symbol) {
     return cleonos_syscall(CLEONOS_SYSCALL_DL_SYM, handle, (u64)symbol, 0ULL);
 }
+
+u64 cleonos_sys_fb_info(cleonos_fb_info *out_info) {
+    return cleonos_syscall(CLEONOS_SYSCALL_FB_INFO, (u64)out_info, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_FB_BLIT, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_fb_clear(u64 rgb) {
+    return cleonos_syscall(CLEONOS_SYSCALL_FB_CLEAR, rgb, 0ULL, 0ULL);
+}

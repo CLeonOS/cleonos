@@ -1,5 +1,6 @@
 #include <clks/elf64.h>
 #include <clks/heap.h>
+#include <clks/log.h>
 #include <clks/string.h>
 #include <clks/types.h>
 
@@ -230,6 +231,10 @@ clks_bool clks_elf64_load(const void *image, u64 size, struct clks_elf64_loaded_
 
     image_base = clks_kmalloc((usize)span);
     if (image_base == CLKS_NULL) {
+        clks_log(CLKS_LOG_WARN, "ELF", "LOAD ALLOC FAILED");
+        clks_log_hex(CLKS_LOG_WARN, "ELF", "SPAN", span);
+        clks_log_hex(CLKS_LOG_WARN, "ELF", "MIN_VADDR", min_vaddr);
+        clks_log_hex(CLKS_LOG_WARN, "ELF", "MAX_VADDR_END", max_vaddr_end);
         return CLKS_FALSE;
     }
 

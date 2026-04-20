@@ -137,6 +137,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  ansi / ansitest / color");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  fastfetch [--plain]");
+    ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");
     ush_writeln("  memstat / fsstat / taskstat / userstat / shstat / stats");
     ush_writeln("  tty [index]");
     ush_writeln("  dmesg [n]");
