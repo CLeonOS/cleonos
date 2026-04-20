@@ -180,7 +180,7 @@ static inline void clks_syscall_outw(u16 port, u16 value) {
 
 static clks_bool clks_syscall_in_user_exec_context(void) {
     return (clks_exec_is_running() == CLKS_TRUE && clks_exec_current_path_is_user() == CLKS_TRUE) ? CLKS_TRUE
-                                                                                                    : CLKS_FALSE;
+                                                                                                  : CLKS_FALSE;
 }
 
 static clks_bool clks_syscall_user_ptr_readable(u64 addr, u64 size) {
