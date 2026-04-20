@@ -1,3 +1,6 @@
 [submodule "limine"]
 	path = limine
 	url = https://github.com/limine-bootloader/limine.git
+[submodule "cleonos/third-party/doomgeneric"]
+	path = cleonos/third-party/doomgeneric
+	url = https://github.com/ozkl/doomgeneric.git

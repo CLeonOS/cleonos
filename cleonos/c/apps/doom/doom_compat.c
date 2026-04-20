@@ -21,6 +21,9 @@
 
 struct dg_alloc_hdr {
     size_t size;
+    int free;
+    struct dg_alloc_hdr *next;
+    struct dg_alloc_hdr *prev;
 };
 
 struct dg_mem_fd {
@@ -42,7 +45,8 @@ struct dg_stream {
 };
 
 static unsigned char g_dg_heap[DG_HEAP_SIZE];
-static size_t g_dg_heap_pos = 0U;
+static struct dg_alloc_hdr *g_dg_heap_head = (struct dg_alloc_hdr *)0;
+static int g_dg_heap_ready = 0;
 static struct dg_mem_fd g_dg_fds[DG_MAX_MEM_FD];
 static struct dg_stream g_dg_stdin_stream = {DG_STDIO_MAGIC, 0, 0, 0};
 static struct dg_stream g_dg_stdout_stream = {DG_STDIO_MAGIC, 1, 0, 0};
@@ -382,30 +386,87 @@ static int dg_fd_flush_slot(struct dg_mem_fd *file) {
 }
 
 void *malloc(size_t size) {
-    struct dg_alloc_hdr *hdr;
-    size_t aligned = (size + 15U) & ~(size_t)15U;
-    size_t need = aligned + sizeof(struct dg_alloc_hdr);
+    struct dg_alloc_hdr *cur;
+    size_t aligned;
 
     if (size == 0U) {
         size = 1U;
-        aligned = (size + 15U) & ~(size_t)15U;
-        need = aligned + sizeof(struct dg_alloc_hdr);
     }
 
-    if (need > DG_HEAP_SIZE || g_dg_heap_pos > DG_HEAP_SIZE - need) {
-        errno = ENOMEM;
-        return (void *)0;
+    aligned = (size + 15U) & ~(size_t)15U;
+
+    if (g_dg_heap_ready == 0) {
+        if (DG_HEAP_SIZE <= sizeof(struct dg_alloc_hdr) + 16U) {
+            errno = ENOMEM;
+            return (void *)0;
+        }
+
+        g_dg_heap_head = (struct dg_alloc_hdr *)(void *)g_dg_heap;
+        g_dg_heap_head->size = DG_HEAP_SIZE - sizeof(struct dg_alloc_hdr);
+        g_dg_heap_head->free = 1;
+        g_dg_heap_head->next = (struct dg_alloc_hdr *)0;
+        g_dg_heap_head->prev = (struct dg_alloc_hdr *)0;
+        g_dg_heap_ready = 1;
     }
 
-    hdr = (struct dg_alloc_hdr *)(void *)(g_dg_heap + g_dg_heap_pos);
-    hdr->size = aligned;
-    g_dg_heap_pos += need;
+    cur = g_dg_heap_head;
 
-    return (void *)(hdr + 1);
+    while (cur != (struct dg_alloc_hdr *)0) {
+        if (cur->free != 0 && cur->size >= aligned) {
+            size_t remain = cur->size - aligned;
+
+            if (remain > sizeof(struct dg_alloc_hdr) + 16U) {
+                struct dg_alloc_hdr *tail =
+                    (struct dg_alloc_hdr *)(void *)((unsigned char *)(void *)(cur + 1) + aligned);
+                tail->size = remain - sizeof(struct dg_alloc_hdr);
+                tail->free = 1;
+                tail->next = cur->next;
+                tail->prev = cur;
+                if (cur->next != (struct dg_alloc_hdr *)0) {
+                    cur->next->prev = tail;
+                }
+                cur->next = tail;
+                cur->size = aligned;
+            }
+
+            cur->free = 0;
+            return (void *)(cur + 1);
+        }
+
+        cur = cur->next;
+    }
+
+    errno = ENOMEM;
+    return (void *)0;
 }
 
 void free(void *ptr) {
-    (void)ptr;
+    struct dg_alloc_hdr *hdr;
+
+    if (ptr == (void *)0) {
+        return;
+    }
+
+    hdr = ((struct dg_alloc_hdr *)ptr) - 1;
+    hdr->free = 1;
+
+    if (hdr->next != (struct dg_alloc_hdr *)0 && hdr->next->free != 0) {
+        struct dg_alloc_hdr *next = hdr->next;
+        hdr->size += sizeof(struct dg_alloc_hdr) + next->size;
+        hdr->next = next->next;
+        if (next->next != (struct dg_alloc_hdr *)0) {
+            next->next->prev = hdr;
+        }
+    }
+
+    if (hdr->prev != (struct dg_alloc_hdr *)0 && hdr->prev->free != 0) {
+        struct dg_alloc_hdr *prev = hdr->prev;
+        prev->size += sizeof(struct dg_alloc_hdr) + hdr->size;
+        prev->next = hdr->next;
+        if (hdr->next != (struct dg_alloc_hdr *)0) {
+            hdr->next->prev = prev;
+        }
+    }
 }
 
 void *calloc(size_t nmemb, size_t size) {
@@ -446,12 +507,28 @@ void *realloc(void *ptr, size_t size) {
     old_hdr = ((struct dg_alloc_hdr *)ptr) - 1;
     old_size = old_hdr->size;
 
+    if (old_size >= size) {
+        return ptr;
+    }
+
+    if (old_hdr->next != (struct dg_alloc_hdr *)0 && old_hdr->next->free != 0 &&
+        old_size + sizeof(struct dg_alloc_hdr) + old_hdr->next->size >= size) {
+        struct dg_alloc_hdr *next = old_hdr->next;
+        old_hdr->size += sizeof(struct dg_alloc_hdr) + next->size;
+        old_hdr->next = next->next;
+        if (old_hdr->next != (struct dg_alloc_hdr *)0) {
+            old_hdr->next->prev = old_hdr;
+        }
+        return ptr;
+    }
+
     new_ptr = malloc(size);
     if (new_ptr == (void *)0) {
         return (void *)0;
     }
 
     memcpy(new_ptr, ptr, (old_size < size) ? old_size : size);
+    free(ptr);
     return new_ptr;
 }
 
@@ -656,6 +733,7 @@ int rename(const char *old_path, const char *new_path) {
     u64 file_size;
     char *buf;
     u64 read_len;
+    int rc = -1;
 
     if (old_path == (const char *)0 || new_path == (const char *)0) {
         errno = EINVAL;
@@ -684,20 +762,23 @@ int rename(const char *old_path, const char *new_path) {
     read_len = cleonos_sys_fs_read(src, buf, file_size);
     if (read_len != file_size) {
         errno = EIO;
-        return -1;
+        goto done;
     }
 
     if (cleonos_sys_fs_write(dst, buf, read_len) != read_len) {
         errno = EIO;
-        return -1;
+        goto done;
     }
 
     if (cleonos_sys_fs_remove(src) == 0ULL) {
         errno = EIO;
-        return -1;
+        goto done;
     }
 
-    return 0;
+    rc = 0;
+done:
+    free(buf);
+    return rc;
 }
 
 int open(const char *path, int flags, ...) {
@@ -739,12 +820,18 @@ int open(const char *path, int flags, ...) {
             }
         } else if (size > 0ULL) {
             if (dg_fd_ensure_cap(file, (size_t)size) != 0) {
+                free(file->data);
                 file->used = 0;
+                file->data = (unsigned char *)0;
+                file->cap = 0U;
                 return -1;
             }
 
             if (cleonos_sys_fs_read(resolved, (char *)file->data, size) != size) {
+                free(file->data);
                 file->used = 0;
+                file->data = (unsigned char *)0;
+                file->cap = 0U;
                 errno = EIO;
                 return -1;
             }
@@ -783,6 +870,7 @@ int close(int fd) {
         return -1;
     }
 
+    free(file->data);
     file->used = 0;
     file->writable = 0;
     file->dirty = 0;

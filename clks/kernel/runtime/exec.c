@@ -13,7 +13,7 @@
 
 typedef u64 (*clks_exec_entry_fn)(void);
 
-#define CLKS_EXEC_RUN_STACK_BYTES (64ULL * 1024ULL)
+#define CLKS_EXEC_RUN_STACK_BYTES (1024ULL * 1024ULL)
 #define CLKS_EXEC_MAX_PROCS 64U
 #define CLKS_EXEC_MAX_DEPTH 16U
 #define CLKS_EXEC_PATH_MAX 192U
@@ -160,6 +160,11 @@ struct clks_exec_dynlib_slot {
 #if defined(CLKS_ARCH_X86_64)
 extern u64 clks_exec_call_on_stack_x86_64(void *entry_ptr, void *stack_top);
 extern void clks_exec_abort_to_caller_x86_64(void);
+static u64 clks_exec_read_cr2(void) {
+    u64 value = 0ULL;
+    __asm__ volatile("mov %%cr2, %0" : "=r"(value));
+    return value;
+}
 #endif
 
 static u64 clks_exec_requests = 0ULL;
@@ -2471,6 +2476,11 @@ clks_bool clks_exec_handle_exception(u64 vector, u64 error_code, u64 rip, u64 *i
     clks_exec_log_hex_serial("VECTOR", vector);
     clks_exec_log_hex_serial("ERROR", error_code);
     clks_exec_log_hex_serial("RIP", rip);
+#if defined(CLKS_ARCH_X86_64)
+    if (vector == 14ULL) {
+        clks_exec_log_hex_serial("CR2", clks_exec_read_cr2());
+    }
+#endif
 
 #if defined(CLKS_ARCH_X86_64)
     if (io_rip == CLKS_NULL || io_rdi == CLKS_NULL || io_rsi == CLKS_NULL) {
