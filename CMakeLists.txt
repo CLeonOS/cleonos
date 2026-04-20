@@ -613,6 +613,13 @@ set(DOOMGENERIC_APP_SOURCES)
 foreach(_base IN LISTS DOOMGENERIC_SRC_BASENAMES)
     list(APPEND DOOMGENERIC_APP_SOURCES "cleonos/third-party/doomgeneric/doomgeneric/${_base}.c")
 endforeach()
+set(DOOMGENERIC_REQUIRED_SOURCE "${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric/dummy.c")
+if(EXISTS "${DOOMGENERIC_REQUIRED_SOURCE}")
+    set(DOOMGENERIC_AVAILABLE ON)
+else()
+    set(DOOMGENERIC_AVAILABLE OFF)
+    cl_log_warn("doomgeneric sources missing, doom app will be skipped: ${DOOMGENERIC_REQUIRED_SOURCE}")
+endif()
 file(GLOB_RECURSE DOOMGENERIC_DEP_SOURCES_ABS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric/*.h"
     "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/*.h"
@@ -648,6 +655,11 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
 
     if(NOT ${_app_enabled_var})
         cl_log_info("menuconfig: skip disabled user app ${_app_name}")
+        continue()
+    endif()
+
+    if(_app_name STREQUAL "doom" AND NOT DOOMGENERIC_AVAILABLE)
+        cl_log_warn("skip user app doom because doomgeneric sources are unavailable")
         continue()
     endif()
 
