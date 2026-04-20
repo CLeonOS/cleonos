@@ -13,6 +13,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  exec|run <path|name> [args...]");
     ush_writeln("  clear");
     ush_writeln("  ansi / ansitest / color");
+    ush_writeln("  bmpview <file.bmp> [cols]");
+    ush_writeln("  qrcode [--ecc <L|M|Q|H>] <text>");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  fastfetch [--plain]");
     ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");

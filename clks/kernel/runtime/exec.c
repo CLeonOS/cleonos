@@ -366,6 +366,47 @@ static clks_bool clks_exec_translate_legacy_user_rip(u64 rip, u64 *out_rip) {
     return CLKS_TRUE;
 }
 
+static clks_bool clks_exec_translate_loaded_user_rip_to_vaddr(u64 rip, u64 *out_rip) {
+    i32 depth_index;
+    u64 vaddr_begin;
+    u64 vaddr_end;
+    u64 image_begin;
+    u64 image_end;
+    u64 off;
+    u64 translated;
+
+    if (out_rip == CLKS_NULL || clks_exec_pid_stack_depth == 0U) {
+        return CLKS_FALSE;
+    }
+
+    depth_index = (i32)(clks_exec_pid_stack_depth - 1U);
+    vaddr_begin = clks_exec_image_vaddr_begin_stack[(u32)depth_index];
+    vaddr_end = clks_exec_image_vaddr_end_stack[(u32)depth_index];
+    image_begin = clks_exec_image_begin_stack[(u32)depth_index];
+    image_end = clks_exec_image_end_stack[(u32)depth_index];
+
+    if (vaddr_begin == 0ULL || vaddr_end <= vaddr_begin || image_begin == 0ULL || image_end <= image_begin) {
+        return CLKS_FALSE;
+    }
+
+    if (rip < image_begin || rip >= image_end) {
+        return CLKS_FALSE;
+    }
+
+    off = rip - image_begin;
+    if (off >= (vaddr_end - vaddr_begin)) {
+        return CLKS_FALSE;
+    }
+
+    translated = vaddr_begin + off;
+    if (translated < vaddr_begin || translated >= vaddr_end) {
+        return CLKS_FALSE;
+    }
+
+    *out_rip = translated;
+    return CLKS_TRUE;
+}
+
 static void clks_exec_copy_path(char *dst, usize dst_size, const char *src) {
     usize i = 0U;
 
@@ -793,6 +834,41 @@ static u64 clks_exec_signal_from_vector(u64 vector) {
 static u64 clks_exec_encode_signal_status(u64 signal, u64 vector, u64 error_code) {
     return CLKS_EXEC_STATUS_SIGNAL_FLAG | (signal & 0xFFULL) | ((vector & 0xFFULL) << 8) |
            ((error_code & 0xFFFFULL) << 16);
+}
+
+static clks_bool clks_exec_status_is_signal(u64 status) {
+    return ((status & CLKS_EXEC_STATUS_SIGNAL_FLAG) != 0ULL) ? CLKS_TRUE : CLKS_FALSE;
+}
+
+static u64 clks_exec_status_signal(u64 status) {
+    return status & 0xFFULL;
+}
+
+static u64 clks_exec_status_vector(u64 status) {
+    return (status >> 8) & 0xFFULL;
+}
+
+static u64 clks_exec_status_error(u64 status) {
+    return (status >> 16) & 0xFFFFULL;
+}
+
+static clks_bool clks_exec_status_is_user_terminated(u64 status) {
+    u64 signal;
+
+    if (clks_exec_status_is_signal(status) == CLKS_FALSE) {
+        return CLKS_FALSE;
+    }
+
+    if (clks_exec_status_vector(status) != 0ULL || clks_exec_status_error(status) != 0ULL) {
+        return CLKS_FALSE;
+    }
+
+    signal = clks_exec_status_signal(status);
+    if (signal == CLKS_EXEC_SIGNAL_TERM || signal == CLKS_EXEC_SIGNAL_KILL || signal == CLKS_EXEC_SIGNAL_STOP) {
+        return CLKS_TRUE;
+    }
+
+    return CLKS_FALSE;
 }
 
 static i32 clks_exec_proc_find_slot_by_pid(u64 pid) {
@@ -1387,6 +1463,9 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
     clks_exec_log_info_serial(proc->path);
     clks_exec_log_hex_serial("ENTRY", info.entry);
     clks_exec_log_hex_serial("PHNUM", (u64)info.phnum);
+    clks_exec_log_hex_serial("IMAGE_BASE", (u64)loaded.image_base);
+    clks_exec_log_hex_serial("IMAGE_SIZE", loaded.image_size);
+    clks_exec_log_hex_serial("VADDR_BASE", loaded.image_vaddr_base);
 
     clks_exec_running_depth++;
     depth_counted = CLKS_TRUE;
@@ -1409,6 +1488,12 @@ static clks_bool clks_exec_run_proc_slot(i32 slot, u64 *out_status) {
     clks_exec_log_info_serial("RUN RETURNED");
     clks_exec_log_info_serial(proc->path);
     clks_exec_log_hex_serial("RET", run_ret);
+    if (clks_exec_status_is_user_terminated(run_ret) == CLKS_TRUE) {
+        clks_exec_log_info_serial("TERMINATED BY USER");
+        clks_exec_log_info_serial(proc->path);
+        clks_exec_log_hex_serial("PID", proc->pid);
+        clks_exec_log_hex_serial("SIGNAL", clks_exec_status_signal(run_ret));
+    }
 
     clks_exec_success++;
     if (clks_exec_stop_requested_stack[(u32)depth_index] == CLKS_TRUE) {
@@ -2364,6 +2449,13 @@ u64 clks_exec_proc_kill(u64 pid, u64 signal) {
 
     if (proc->state == CLKS_EXEC_PROC_PENDING || proc->state == CLKS_EXEC_PROC_STOPPED) {
         clks_exec_proc_mark_exited(proc, now_tick, status);
+        if (effective_signal == CLKS_EXEC_SIGNAL_TERM || effective_signal == CLKS_EXEC_SIGNAL_KILL ||
+            effective_signal == CLKS_EXEC_SIGNAL_STOP) {
+            clks_exec_log_info_serial("TERMINATED BY USER");
+            clks_exec_log_info_serial(proc->path);
+            clks_exec_log_hex_serial("PID", proc->pid);
+            clks_exec_log_hex_serial("SIGNAL", effective_signal);
+        }
         return 1ULL;
     }
 
@@ -2544,6 +2636,12 @@ clks_bool clks_exec_handle_exception(u64 vector, u64 error_code, u64 rip, u64 *i
     clks_exec_log_hex_serial("VECTOR", vector);
     clks_exec_log_hex_serial("ERROR", error_code);
     clks_exec_log_hex_serial("RIP", rip);
+    {
+        u64 rip_vaddr = 0ULL;
+        if (clks_exec_translate_loaded_user_rip_to_vaddr(rip, &rip_vaddr) == CLKS_TRUE) {
+            clks_exec_log_hex_serial("RIP_VADDR", rip_vaddr);
+        }
+    }
 #if defined(CLKS_ARCH_X86_64)
     if (vector == 14ULL) {
         clks_exec_log_hex_serial("CR2", clks_exec_read_cr2());

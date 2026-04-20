@@ -3,4 +3,4 @@
 	url = https://github.com/limine-bootloader/limine.git
 [submodule "cleonos/third-party/doomgeneric"]
 	path = cleonos/third-party/doomgeneric
-	url = https://github.com/ozkl/doomgeneric.git
+	url = https://github.com/Leonmmcoset/doom.git
