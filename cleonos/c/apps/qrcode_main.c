@@ -225,7 +225,8 @@ static int ush_qrcode_build_canvas(const uint8_t qrcode[], u64 module_pixels, u6
         for (x = 0ULL; x < side_pixels; x++) {
             int qx = (int)(x / module_pixels) - (int)USH_QRCODE_BORDER;
             int qy = (int)(y / module_pixels) - (int)USH_QRCODE_BORDER;
-            int dark = (qx >= 0 && qy >= 0 && qx < qr_size && qy < qr_size && qrcodegen_getModule(qrcode, qx, qy)) ? 1 : 0;
+            int dark =
+                (qx >= 0 && qy >= 0 && qx < qr_size && qy < qr_size && qrcodegen_getModule(qrcode, qx, qy)) ? 1 : 0;
             ush_qrcode_canvas[y][x] =
                 (dark != 0) ? (unsigned int)USH_QRCODE_COLOR_DARK : (unsigned int)USH_QRCODE_COLOR_LIGHT;
         }
@@ -258,7 +259,8 @@ static int ush_qrcode_emit_pixels(const uint8_t qrcode[]) {
     }
 
     ush_zero(&fb_info, (u64)sizeof(fb_info));
-    if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL || fb_info.bpp != 32ULL) {
+    if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL ||
+        fb_info.bpp != 32ULL) {
         ush_writeln("qrcode: framebuffer unavailable, fallback to ascii");
         ush_qrcode_emit_ascii(qrcode);
         return 1;
