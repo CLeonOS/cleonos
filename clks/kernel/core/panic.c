@@ -59,17 +59,7 @@ struct clks_panic_screen_snapshot {
 };
 
 static struct clks_panic_screen_snapshot clks_panic_screen = {
-    CLKS_PANIC_SCREEN_NONE,
-    {0},
-    {0},
-    0ULL,
-    0ULL,
-    0ULL,
-    0ULL,
-    0ULL,
-    CLKS_FALSE,
-    CLKS_FALSE
-};
+    CLKS_PANIC_SCREEN_NONE, {0}, {0}, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, CLKS_FALSE, CLKS_FALSE};
 
 static inline void clks_panic_disable_interrupts(void) {
 #if defined(CLKS_ARCH_X86_64)
