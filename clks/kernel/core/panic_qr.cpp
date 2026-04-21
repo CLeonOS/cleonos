@@ -207,8 +207,8 @@ static clks_bool clks_panic_qr_encode_payload(const u8 *payload, u64 payload_siz
 
     url_seg_buf_len = qrcodegen_calcSegmentBufferSize(qrcodegen_Mode_BYTE, (size_t)CLKS_PANIC_QR_URL_PREFIX_LEN);
     num_seg_buf_len = qrcodegen_calcSegmentBufferSize(qrcodegen_Mode_NUMERIC, (size_t)digit_len);
-    if (url_seg_buf_len == (size_t)-1 || num_seg_buf_len == (size_t)-1 ||
-        url_seg_buf_len > qrcodegen_BUFFER_LEN_MAX || num_seg_buf_len > qrcodegen_BUFFER_LEN_MAX) {
+    if (url_seg_buf_len == (size_t)-1 || num_seg_buf_len == (size_t)-1 || url_seg_buf_len > qrcodegen_BUFFER_LEN_MAX ||
+        num_seg_buf_len > qrcodegen_BUFFER_LEN_MAX) {
         return CLKS_FALSE;
     }
 
