@@ -697,8 +697,16 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..80`（含 `stats/fd/exec_pathv_io`）。
-- `DL_*`（`77..79`）在 Wine 中当前为占位实现：`DL_OPEN=-1`、`DL_CLOSE=0`、`DL_SYM=0`。
-- framebuffer 相关 syscall（`81..83`）尚未在 Wine 中实现（会返回未支持路径）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..83`（含 `DL_*`、`FB_*`）。
+- `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
+- `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
+- `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
+- `DL_CLOSE`：引用计数归零后释放句柄。
+- `DL_*` 兼容限制：未实现完整动态链接器语义（例如完整重定位/依赖库链），但对 CLeonOS 现有用户态库调用场景可工作。
+- framebuffer syscall（`81..83`）在 Wine 中已实现兼容：
+- `FB_INFO` 返回 framebuffer 参数（默认 `1280x800x32`，可用环境变量 `CLEONOS_WINE_FB_WIDTH/HEIGHT` 调整）。
+- `FB_BLIT` 实现内核同类参数校验并支持 `scale>=1` 绘制。
+- 配合 Wine 参数 `--fb-window` 可将 framebuffer 实时显示到主机窗口（pygame 后端）；未启用时保持内存缓冲模式。
+- `FB_CLEAR` 支持清屏颜色写入。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。

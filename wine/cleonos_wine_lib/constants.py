@@ -89,6 +89,9 @@ SYS_DL_OPEN = 77
 SYS_DL_CLOSE = 78
 SYS_DL_SYM = 79
 SYS_EXEC_PATHV_IO = 80
+SYS_FB_INFO = 81
+SYS_FB_BLIT = 82
+SYS_FB_CLEAR = 83
 
 # proc states (from cleonos/c/include/cleonos_syscall.h)
 PROC_STATE_UNUSED = 0

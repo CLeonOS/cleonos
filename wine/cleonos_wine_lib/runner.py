@@ -4,7 +4,7 @@ import os
 import struct
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -48,6 +48,9 @@ from .constants import (
     SYS_FD_OPEN,
     SYS_FD_READ,
     SYS_FD_WRITE,
+    SYS_FB_BLIT,
+    SYS_FB_CLEAR,
+    SYS_FB_INFO,
     SYS_FS_APPEND,
     SYS_FS_CHILD_COUNT,
     SYS_FS_GET_CHILD_NAME,
@@ -112,6 +115,7 @@ from .constants import (
     u64,
     u64_neg1,
 )
+from .fb_window import FBWindow
 from .input_pump import InputPump
 from .platform import (
     Uc,
@@ -165,6 +169,19 @@ class FDEntry:
     tty_index: int = 0
 
 
+@dataclass
+class DLImage:
+    handle: int
+    guest_path: str
+    host_path: str
+    owner_pid: int
+    ref_count: int
+    map_start: int
+    map_end: int
+    load_bias: int
+    symbols: Dict[str, int] = field(default_factory=dict)
+
+
 EXEC_PATH_MAX = 192
 EXEC_ARG_LINE_MAX = 256
 EXEC_ENV_LINE_MAX = 512
@@ -174,6 +191,14 @@ EXEC_ITEM_MAX = 128
 EXEC_STATUS_SIGNAL_FLAG = 1 << 63
 PROC_PATH_MAX = 192
 FD_MAX = 64
+DL_MAX_NAME = 192
+DL_MAX_SYMBOL = 128
+DL_BASE_START = 0x0000000100000000
+DL_BASE_GAP = 0x0000000000100000
+FB_DEFAULT_WIDTH = 1280
+FB_DEFAULT_HEIGHT = 800
+FB_MAX_DIM = 4096
+FB_MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
 
 class CLeonOSWineNative:
@@ -194,6 +219,10 @@ class CLeonOSWineNative:
         argv_items: Optional[List[str]] = None,
         env_items: Optional[List[str]] = None,
         inherited_fds: Optional[Dict[int, FDEntry]] = None,
+        fb_window: bool = False,
+        fb_scale: int = 2,
+        fb_max_fps: int = 60,
+        fb_hold_ms: int = 2500,
     ) -> None:
         self.elf_path = elf_path
         self.rootfs = rootfs
@@ -206,6 +235,10 @@ class CLeonOSWineNative:
         self.top_level = top_level
         self.pid = int(pid)
         self.ppid = int(ppid)
+        self.fb_window = bool(fb_window)
+        self.fb_scale = max(1, int(fb_scale))
+        self.fb_max_fps = max(1, int(fb_max_fps))
+        self.fb_hold_ms = max(0, int(fb_hold_ms))
         self.argv_items = list(argv_items) if argv_items is not None else []
         self.env_items = list(env_items) if env_items is not None else []
         self._exit_requested = False
@@ -222,6 +255,20 @@ class CLeonOSWineNative:
         self._tty_index = int(self.state.tty_active)
         self._fds: Dict[int, FDEntry] = {}
         self._fd_inherited = inherited_fds if inherited_fds is not None else {}
+        self._dl_images: Dict[int, DLImage] = {}
+        self._dl_path_to_handle: Dict[str, int] = {}
+        self._dl_next_handle = 1
+        self._dl_next_base = DL_BASE_START
+
+        self._fb_width = self._bounded_env_int("CLEONOS_WINE_FB_WIDTH", FB_DEFAULT_WIDTH, 64, FB_MAX_DIM)
+        self._fb_height = self._bounded_env_int("CLEONOS_WINE_FB_HEIGHT", FB_DEFAULT_HEIGHT, 64, FB_MAX_DIM)
+        self._fb_bpp = 32
+        self._fb_pitch = self._fb_width * 4
+        self._fb_pixels = bytearray(self._fb_pitch * self._fb_height)
+        self._fb_window: Optional[FBWindow] = None
+        self._fb_window_failed = False
+        self._fb_dirty = False
+        self._fb_presented_once = False
 
         default_path = self._normalize_guest_path(self.guest_path_hint or f"/{self.elf_path.name}")
         self.argv_items, self.env_items = self._prepare_exec_items(default_path, self.argv_items, self.env_items)
@@ -249,6 +296,89 @@ class CLeonOSWineNative:
     def _fd_can_write(cls, flags: int) -> bool:
         mode = cls._fd_access_mode(flags)
         return mode in (O_WRONLY, O_RDWR)
+
+    @staticmethod
+    def _bounded_env_int(name: str, default: int, min_value: int, max_value: int) -> int:
+        raw = os.environ.get(name)
+        value = default
+
+        if raw is not None:
+            try:
+                value = int(raw.strip(), 10)
+            except Exception:
+                value = default
+
+        if value < min_value:
+            value = min_value
+        if value > max_value:
+            value = max_value
+        return value
+
+    def _ensure_fb_window(self) -> None:
+        if not self.fb_window:
+            return
+
+        if self._fb_window is not None or self._fb_window_failed:
+            return
+
+        self._fb_window = FBWindow.create(
+            self._fb_width,
+            self._fb_height,
+            self.fb_scale,
+            self.fb_max_fps,
+            verbose=self.verbose,
+        )
+
+        if self._fb_window is None:
+            self._fb_window_failed = True
+
+    def _fb_poll_window(self) -> None:
+        self._ensure_fb_window()
+        if self._fb_window is not None:
+            self._fb_window.pump_input(self.state)
+            if self._fb_window.is_closed():
+                self._fb_window = None
+
+    def _fb_present(self, *, force: bool = False) -> None:
+        self._ensure_fb_window()
+        if self._fb_window is None:
+            return
+
+        self._fb_window.pump_input(self.state)
+        did_present = self._fb_window.present(self._fb_pixels, force=force)
+        if did_present:
+            self._fb_dirty = False
+            self._fb_presented_once = True
+
+        if self._fb_window.is_closed():
+            self._fb_window = None
+
+    def _fb_mark_dirty(self) -> None:
+        self._fb_dirty = True
+        self._fb_present(force=False)
+
+    def _fb_hold_after_exit(self) -> None:
+        end_ns: int
+
+        if self._fb_window is None:
+            return
+
+        if self.fb_hold_ms <= 0 or self._fb_presented_once is False:
+            return
+
+        end_ns = time.monotonic_ns() + (self.fb_hold_ms * 1_000_000)
+
+        while time.monotonic_ns() < end_ns:
+            if self._fb_window is None:
+                return
+
+            self._fb_window.pump_input(self.state)
+            if self._fb_window.is_closed():
+                self._fb_window = None
+                return
+
+            self._fb_window.present(self._fb_pixels, force=True)
+            time.sleep(0.016)
 
     def _init_default_fds(self) -> None:
         self._fds = {
@@ -325,6 +455,8 @@ class CLeonOSWineNative:
         self._install_hooks(uc)
         self._load_segments(uc)
         self._prepare_stack_and_return(uc)
+        self._ensure_fb_window()
+        self._fb_present(force=True)
 
         if self.top_level and not self.no_kbd:
             self._input_pump = InputPump(self.state)
@@ -346,6 +478,11 @@ class CLeonOSWineNative:
         finally:
             if self.top_level and self._input_pump is not None:
                 self._input_pump.stop()
+            if self._fb_window is not None:
+                self._fb_hold_after_exit()
+            if self._fb_window is not None:
+                self._fb_window.close()
+                self._fb_window = None
 
         if interrupted:
             self.state.mark_exited(self.pid, u64_neg1())
@@ -391,6 +528,8 @@ class CLeonOSWineNative:
         self._reg_write(uc, UC_X86_REG_RAX, u64(ret))
 
     def _dispatch_syscall(self, uc: Uc, sid: int, arg0: int, arg1: int, arg2: int) -> int:
+        self._fb_poll_window()
+
         if sid == SYS_LOG_WRITE:
             data = self._read_guest_bytes(uc, arg0, arg1)
             text = data.decode("utf-8", errors="replace")
@@ -563,11 +702,17 @@ class CLeonOSWineNative:
         if sid == SYS_FD_DUP:
             return self._fd_dup(arg0)
         if sid == SYS_DL_OPEN:
-            return u64_neg1()
+            return self._dl_open(uc, arg0)
         if sid == SYS_DL_CLOSE:
-            return 0
+            return self._dl_close(arg0)
         if sid == SYS_DL_SYM:
-            return 0
+            return self._dl_sym(uc, arg0, arg1)
+        if sid == SYS_FB_INFO:
+            return self._fb_info(uc, arg0)
+        if sid == SYS_FB_BLIT:
+            return self._fb_blit(uc, arg0)
+        if sid == SYS_FB_CLEAR:
+            return self._fb_clear(arg0)
 
         return u64_neg1()
 
@@ -643,6 +788,12 @@ class CLeonOSWineNative:
                 return True
         return False
 
+    def _range_overlaps_mapped(self, start: int, end: int) -> bool:
+        for ms, me in self._mapped_ranges:
+            if start < me and end > ms:
+                return True
+        return False
+
     @staticmethod
     def _reg_read(uc: Uc, reg: int) -> int:
         return int(uc.reg_read(reg))
@@ -715,24 +866,23 @@ class CLeonOSWineNative:
             return False
 
     @staticmethod
-    def _parse_elf(path: Path) -> ELFImage:
-        data = path.read_bytes()
+    def _parse_elf_image_from_blob(data: bytes, *, require_entry: bool) -> ELFImage:
         if len(data) < 64:
-            raise RuntimeError(f"ELF too small: {path}")
+            raise RuntimeError("ELF too small")
         if data[0:4] != b"\x7fELF":
-            raise RuntimeError(f"invalid ELF magic: {path}")
+            raise RuntimeError("invalid ELF magic")
         if data[4] != 2 or data[5] != 1:
-            raise RuntimeError(f"unsupported ELF class/endianness: {path}")
+            raise RuntimeError("unsupported ELF class/endianness")
 
         entry = struct.unpack_from("<Q", data, 0x18)[0]
         phoff = struct.unpack_from("<Q", data, 0x20)[0]
         phentsize = struct.unpack_from("<H", data, 0x36)[0]
         phnum = struct.unpack_from("<H", data, 0x38)[0]
 
-        if entry == 0:
-            raise RuntimeError(f"ELF entry is 0: {path}")
+        if require_entry and entry == 0:
+            raise RuntimeError("ELF entry is 0")
         if phentsize == 0 or phnum == 0:
-            raise RuntimeError(f"ELF has no program headers: {path}")
+            raise RuntimeError("ELF has no program headers")
 
         segments: List[ELFSegment] = []
         for i in range(phnum):
@@ -760,9 +910,17 @@ class CLeonOSWineNative:
             segments.append(ELFSegment(vaddr=int(p_vaddr), memsz=int(p_memsz), flags=int(p_flags), data=seg_data))
 
         if not segments:
-            raise RuntimeError(f"ELF has no PT_LOAD segments: {path}")
+            raise RuntimeError("ELF has no PT_LOAD segments")
 
         return ELFImage(entry=int(entry), segments=segments)
+
+    @staticmethod
+    def _parse_elf(path: Path) -> ELFImage:
+        data = path.read_bytes()
+        try:
+            return CLeonOSWineNative._parse_elf_image_from_blob(data, require_entry=True)
+        except RuntimeError as exc:
+            raise RuntimeError(f"{exc}: {path}") from exc
 
     def _fs_node_count(self) -> int:
         count = 1
@@ -1087,6 +1245,10 @@ class CLeonOSWineNative:
             argv_items=argv_items,
             env_items=env_items,
             inherited_fds=child_stdio,
+            fb_window=self.fb_window,
+            fb_scale=self.fb_scale,
+            fb_max_fps=self.fb_max_fps,
+            fb_hold_ms=self.fb_hold_ms,
         )
         child_ret = child.run()
 
@@ -1444,6 +1606,403 @@ class CLeonOSWineNative:
 
         self._fds[slot] = self._clone_fd_entry(src)
         return slot
+
+    def _dl_alloc_handle(self) -> int:
+        handle = int(u64(self._dl_next_handle))
+        if handle == 0:
+            handle = 1
+
+        while handle in self._dl_images or handle == 0:
+            handle = int(u64(handle + 1))
+            if handle == 0:
+                handle = 1
+
+        self._dl_next_handle = int(u64(handle + 1))
+        if self._dl_next_handle == 0:
+            self._dl_next_handle = 1
+
+        return handle
+
+    def _dl_pick_base(self, min_vaddr: int, max_vaddr: int) -> Tuple[int, int, int]:
+        old_base = page_floor(min_vaddr)
+        span = page_ceil(max_vaddr - old_base)
+        candidate = page_ceil(self._dl_next_base)
+        retries = 0
+
+        if span <= 0:
+            return 0, 0, 0
+
+        while retries < 1024:
+            start = candidate
+            end = start + span
+
+            if not self._range_overlaps_mapped(start, end):
+                self._dl_next_base = end + DL_BASE_GAP
+                return start, end, start - old_base
+
+            candidate = end + DL_BASE_GAP
+            retries += 1
+
+        return 0, 0, 0
+
+    @staticmethod
+    def _dl_rebase_non_exec_segment(data: bytes, old_base: int, old_end: int, delta: int) -> bytes:
+        if not data or delta == 0:
+            return data
+
+        patched = bytearray(data)
+        limit = len(patched) - (len(patched) % 8)
+
+        for off in range(0, limit, 8):
+            value = struct.unpack_from("<Q", patched, off)[0]
+            if old_base <= value < old_end:
+                struct.pack_into("<Q", patched, off, u64(value + delta))
+
+        return bytes(patched)
+
+    @staticmethod
+    def _read_elf_cstring(blob: bytes, start: int, end: int) -> str:
+        if start < 0 or end <= start or start >= len(blob):
+            return ""
+
+        limit = min(end, len(blob))
+        cur = start
+        while cur < limit and blob[cur] != 0:
+            cur += 1
+
+        if cur <= start:
+            return ""
+
+        return blob[start:cur].decode("utf-8", errors="ignore")
+
+    @classmethod
+    def _dl_extract_symbols(cls, blob: bytes, load_bias: int) -> Dict[str, int]:
+        symbols: Dict[str, int] = {}
+        sections: List[Tuple[int, int, int, int, int, int, int, int, int, int]] = []
+
+        if len(blob) < 0x40:
+            return symbols
+
+        try:
+            shoff = struct.unpack_from("<Q", blob, 0x28)[0]
+            shentsize = struct.unpack_from("<H", blob, 0x3A)[0]
+            shnum = struct.unpack_from("<H", blob, 0x3C)[0]
+        except struct.error:
+            return symbols
+
+        if shoff == 0 or shentsize < 64 or shnum == 0:
+            return symbols
+
+        if shoff + (shentsize * shnum) > len(blob):
+            return symbols
+
+        for idx in range(shnum):
+            off = shoff + (idx * shentsize)
+            try:
+                sh = struct.unpack_from("<IIQQQQIIQQ", blob, off)
+            except struct.error:
+                return symbols
+            sections.append(sh)
+
+        for sh in sections:
+            sh_type = int(sh[1])
+            sh_offset = int(sh[4])
+            sh_size = int(sh[5])
+            sh_link = int(sh[6])
+            sh_entsize = int(sh[9])
+
+            if sh_type not in (2, 11):
+                continue
+
+            if sh_link < 0 or sh_link >= len(sections):
+                continue
+
+            if sh_entsize < 24:
+                sh_entsize = 24
+
+            if sh_offset < 0 or sh_size <= 0 or sh_offset >= len(blob):
+                continue
+
+            sym_end = min(len(blob), sh_offset + sh_size)
+            if sym_end <= sh_offset:
+                continue
+
+            strtab = sections[sh_link]
+            str_off = int(strtab[4])
+            str_size = int(strtab[5])
+
+            if str_size <= 0 or str_off < 0 or str_off >= len(blob):
+                continue
+
+            str_end = min(len(blob), str_off + str_size)
+            count = (sym_end - sh_offset) // sh_entsize
+
+            for i in range(count):
+                ent_off = sh_offset + (i * sh_entsize)
+                if ent_off + 24 > len(blob):
+                    break
+
+                try:
+                    st_name, _st_info, _st_other, st_shndx, st_value, _st_size = struct.unpack_from(
+                        "<IBBHQQ", blob, ent_off
+                    )
+                except struct.error:
+                    break
+
+                if st_name == 0 or st_shndx == 0 or st_value == 0:
+                    continue
+
+                name = cls._read_elf_cstring(blob, str_off + st_name, str_end)
+                if not name:
+                    continue
+
+                addr = int(u64(st_value + load_bias))
+                if addr == 0:
+                    continue
+
+                if name not in symbols:
+                    symbols[name] = addr
+
+        return symbols
+
+    def _dl_open(self, uc: Uc, path_ptr: int) -> int:
+        guest_path = self._normalize_guest_path(self._read_guest_cstring(uc, path_ptr, DL_MAX_NAME))
+        cached_handle = self._dl_path_to_handle.get(guest_path)
+        host_path: Optional[Path]
+        file_blob: bytes
+        image: ELFImage
+        e_type: int
+        min_vaddr: int
+        max_vaddr: int
+        map_start: int
+        map_end: int
+        load_bias: int
+        handle: int
+        owner_pid: int
+
+        if not guest_path.startswith("/") or guest_path == "/":
+            return u64_neg1()
+        if len(guest_path.encode("utf-8", errors="replace")) >= DL_MAX_NAME:
+            return u64_neg1()
+
+        if cached_handle is not None:
+            cached = self._dl_images.get(cached_handle)
+            if cached is not None:
+                cached.ref_count += 1
+                return cached.handle
+
+        host_path = self._guest_to_host(guest_path, must_exist=True)
+        if host_path is None or not host_path.is_file():
+            return u64_neg1()
+
+        try:
+            file_blob = host_path.read_bytes()
+            image = self._parse_elf_image_from_blob(file_blob, require_entry=False)
+            e_type = struct.unpack_from("<H", file_blob, 0x10)[0]
+        except Exception:
+            return u64_neg1()
+
+        min_vaddr = min(seg.vaddr for seg in image.segments)
+        max_vaddr = max(seg.vaddr + seg.memsz for seg in image.segments)
+        if max_vaddr <= min_vaddr:
+            return u64_neg1()
+
+        map_start, map_end, load_bias = self._dl_pick_base(min_vaddr, max_vaddr)
+        if map_start == 0 or map_end <= map_start:
+            return u64_neg1()
+
+        try:
+            for seg in image.segments:
+                seg_start = page_floor(seg.vaddr + load_bias)
+                seg_end = page_ceil(seg.vaddr + load_bias + seg.memsz)
+                self._map_region(uc, seg_start, seg_end - seg_start, UC_PROT_ALL)
+
+            for seg in image.segments:
+                payload = seg.data
+                if e_type == 2 and (seg.flags & 0x1) == 0 and load_bias != 0 and payload:
+                    payload = self._dl_rebase_non_exec_segment(payload, min_vaddr, max_vaddr, load_bias)
+                if payload:
+                    self._mem_write(uc, seg.vaddr + load_bias, payload)
+
+            for seg in image.segments:
+                seg_start = page_floor(seg.vaddr + load_bias)
+                seg_end = page_ceil(seg.vaddr + load_bias + seg.memsz)
+                perms = 0
+                if seg.flags & 0x4:
+                    perms |= UC_PROT_READ
+                if seg.flags & 0x2:
+                    perms |= UC_PROT_WRITE
+                if seg.flags & 0x1:
+                    perms |= UC_PROT_EXEC
+                if perms == 0:
+                    perms = UC_PROT_READ
+                try:
+                    uc.mem_protect(seg_start, seg_end - seg_start, perms)
+                except Exception:
+                    pass
+        except Exception:
+            return u64_neg1()
+
+        handle = self._dl_alloc_handle()
+        owner_pid = self.state.get_current_pid()
+        self._dl_images[handle] = DLImage(
+            handle=handle,
+            guest_path=guest_path,
+            host_path=str(host_path),
+            owner_pid=owner_pid,
+            ref_count=1,
+            map_start=map_start,
+            map_end=map_end,
+            load_bias=load_bias,
+            symbols=self._dl_extract_symbols(file_blob, load_bias),
+        )
+        self._dl_path_to_handle[guest_path] = handle
+        return handle
+
+    def _dl_close(self, handle: int) -> int:
+        key = int(handle)
+        image = self._dl_images.get(key)
+
+        if key == 0 or image is None:
+            return u64_neg1()
+
+        if image.ref_count > 1:
+            image.ref_count -= 1
+            return 0
+
+        del self._dl_images[key]
+        if self._dl_path_to_handle.get(image.guest_path) == key:
+            del self._dl_path_to_handle[image.guest_path]
+        return 0
+
+    def _dl_sym(self, uc: Uc, handle: int, symbol_ptr: int) -> int:
+        symbol = self._read_guest_cstring(uc, symbol_ptr, DL_MAX_SYMBOL)
+        image = self._dl_images.get(int(handle))
+        addr: Optional[int]
+
+        if image is None or not symbol:
+            return 0
+
+        addr = image.symbols.get(symbol)
+        if addr is None and not symbol.startswith("_"):
+            addr = image.symbols.get(f"_{symbol}")
+
+        return int(u64(addr)) if addr is not None else 0
+
+    def _fb_info(self, uc: Uc, out_ptr: int) -> int:
+        if out_ptr == 0:
+            return 0
+
+        self._ensure_fb_window()
+
+        payload = struct.pack(
+            "<QQQQ",
+            u64(self._fb_width),
+            u64(self._fb_height),
+            u64(self._fb_pitch),
+            u64(self._fb_bpp),
+        )
+        ok = 1 if self._write_guest_bytes(uc, out_ptr, payload) else 0
+        if ok == 1:
+            self._fb_present(force=True)
+        return ok
+
+    def _fb_clear(self, rgb: int) -> int:
+        if len(self._fb_pixels) == 0:
+            return 0
+
+        pixel = struct.pack("<I", int(u64(rgb) & 0xFFFFFFFF))
+        self._fb_pixels[:] = pixel * (len(self._fb_pixels) // 4)
+        self._fb_mark_dirty()
+        return 1
+
+    def _fb_blit(self, uc: Uc, req_ptr: int) -> int:
+        req_blob = self._read_guest_bytes_exact(uc, int(req_ptr), 56)
+        pixels_ptr: int
+        src_width: int
+        src_height: int
+        src_pitch_bytes: int
+        dst_x: int
+        dst_y: int
+        scale: int
+        total_src_bytes: int
+        src_blob: Optional[bytes]
+        max_src_w: int
+        max_src_h: int
+        copy_w: int
+        copy_h: int
+
+        if req_ptr == 0 or req_blob is None or len(req_blob) != 56:
+            return 0
+
+        pixels_ptr, src_width, src_height, src_pitch_bytes, dst_x, dst_y, scale = struct.unpack("<QQQQQQQ", req_blob)
+
+        if pixels_ptr == 0 or src_width == 0 or src_height == 0 or scale == 0:
+            return 0
+
+        if src_width > 4096 or src_height > 4096 or scale > 8:
+            return 0
+
+        if src_pitch_bytes == 0:
+            src_pitch_bytes = src_width * 4
+
+        if src_pitch_bytes < (src_width * 4):
+            return 0
+
+        if src_height > (u64_neg1() // src_pitch_bytes):
+            return 0
+
+        if dst_x >= self._fb_width or dst_y >= self._fb_height:
+            return 0
+
+        total_src_bytes = src_pitch_bytes * src_height
+        if total_src_bytes == 0 or total_src_bytes > FB_MAX_UPLOAD_BYTES:
+            return 0
+
+        src_blob = self._read_guest_bytes_exact(uc, pixels_ptr, total_src_bytes)
+        if src_blob is None:
+            return 0
+
+        max_src_w = (self._fb_width - dst_x + scale - 1) // scale
+        max_src_h = (self._fb_height - dst_y + scale - 1) // scale
+        copy_w = min(src_width, max_src_w)
+        copy_h = min(src_height, max_src_h)
+
+        if copy_w <= 0 or copy_h <= 0:
+            return 0
+
+        if scale == 1:
+            row_bytes = copy_w * 4
+            for y in range(copy_h):
+                src_off = y * src_pitch_bytes
+                dst_off = ((dst_y + y) * self._fb_width + dst_x) * 4
+                self._fb_pixels[dst_off : dst_off + row_bytes] = src_blob[src_off : src_off + row_bytes]
+        else:
+            draw_row_pixels = min(self._fb_width - dst_x, copy_w * scale)
+            draw_row_bytes = draw_row_pixels * 4
+
+            for y in range(copy_h):
+                src_row_off = y * src_pitch_bytes
+                src_row = memoryview(src_blob)[src_row_off : src_row_off + (copy_w * 4)]
+                expanded = bytearray(copy_w * scale * 4)
+                write_off = 0
+
+                for x in range(copy_w):
+                    pixel = bytes(src_row[x * 4 : (x + 1) * 4])
+                    expanded[write_off : write_off + (scale * 4)] = pixel * scale
+                    write_off += scale * 4
+
+                draw_y = dst_y + (y * scale)
+                repeat_h = min(scale, self._fb_height - draw_y)
+                row_data = expanded[:draw_row_bytes]
+
+                for sy in range(repeat_h):
+                    dst_off = ((draw_y + sy) * self._fb_width + dst_x) * 4
+                    self._fb_pixels[dst_off : dst_off + draw_row_bytes] = row_data
+
+        self._fb_mark_dirty()
+
+        return 1
 
     @staticmethod
     def _truncate_item_text(text: str, max_bytes: int = EXEC_ITEM_MAX) -> str:
