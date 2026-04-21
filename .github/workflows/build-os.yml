@@ -74,6 +74,13 @@ jobs:
           cmake -S . -B build-cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DNO_COLOR=1 \
+            -DCC=gcc \
+            -DKERNEL_CXX=g++ \
+            -DLD=ld.lld \
+            -DUSER_CC=cc \
+            -DUSER_LD=ld.lld \
+            -DNM=llvm-nm \
+            -DADDR2LINE=llvm-addr2line \
             -DLIMINE_REPO=https://github.com/limine-bootloader/limine.git
 
       - name: Build ISO
