@@ -14,7 +14,9 @@
 #define CLKS_PANIC_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_PANIC_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_PANIC_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
-#define CLKS_PANIC_QR_HINT "\nPress SPACE to display panic log QR.\n"
+#define CLKS_PANIC_QR_HINT "\nPress SPACE to toggle panic log QR.\n"
+#define CLKS_PANIC_REASON_MAX 192U
+#define CLKS_PANIC_NAME_MAX 64U
 
 #define CLKS_PANIC_PS2_DATA_PORT 0x60U
 #define CLKS_PANIC_PS2_STATUS_PORT 0x64U
@@ -36,6 +38,38 @@ static clks_bool clks_panic_active = CLKS_FALSE;
 static clks_bool clks_panic_symbols_checked = CLKS_FALSE;
 static const char *clks_panic_symbols_data = CLKS_NULL;
 static u64 clks_panic_symbols_size = 0ULL;
+
+enum clks_panic_screen_kind {
+    CLKS_PANIC_SCREEN_NONE = 0,
+    CLKS_PANIC_SCREEN_REASON = 1,
+    CLKS_PANIC_SCREEN_EXCEPTION = 2
+};
+
+struct clks_panic_screen_snapshot {
+    enum clks_panic_screen_kind kind;
+    char reason[CLKS_PANIC_REASON_MAX];
+    char name[CLKS_PANIC_NAME_MAX];
+    u64 vector;
+    u64 error_code;
+    u64 rip;
+    u64 rbp;
+    u64 rsp;
+    clks_bool has_reason;
+    clks_bool has_name;
+};
+
+static struct clks_panic_screen_snapshot clks_panic_screen = {
+    CLKS_PANIC_SCREEN_NONE,
+    {0},
+    {0},
+    0ULL,
+    0ULL,
+    0ULL,
+    0ULL,
+    0ULL,
+    CLKS_FALSE,
+    CLKS_FALSE
+};
 
 static inline void clks_panic_disable_interrupts(void) {
 #if defined(CLKS_ARCH_X86_64)
@@ -457,7 +491,7 @@ static clks_bool clks_panic_lookup_symbol(u64 addr, const char **out_name, usize
     return CLKS_TRUE;
 }
 
-static void clks_panic_emit_bt_entry(struct clks_panic_console *console, u32 index, u64 rip) {
+static void clks_panic_emit_bt_entry(struct clks_panic_console *console, u32 index, u64 rip, clks_bool serial_enabled) {
     char index_dec[12];
     char rip_hex[19];
     const char *sym_name = CLKS_NULL;
@@ -471,28 +505,30 @@ static void clks_panic_emit_bt_entry(struct clks_panic_console *console, u32 ind
     clks_panic_u64_to_hex(rip, rip_hex);
     has_symbol = clks_panic_lookup_symbol(rip, &sym_name, &sym_name_len, &sym_base, &sym_source, &sym_source_len);
 
-    clks_serial_write("[PANIC][BT] #");
-    clks_serial_write(index_dec);
-    clks_serial_write(" ");
-    clks_serial_write(rip_hex);
-
-    if (has_symbol == CLKS_TRUE) {
-        char off_hex[19];
-        u64 off = rip - sym_base;
-
-        clks_panic_u64_to_hex(off, off_hex);
+    if (serial_enabled == CLKS_TRUE) {
+        clks_serial_write("[PANIC][BT] #");
+        clks_serial_write(index_dec);
         clks_serial_write(" ");
-        clks_panic_serial_write_n(sym_name, sym_name_len);
-        clks_serial_write("+");
-        clks_serial_write(off_hex);
+        clks_serial_write(rip_hex);
 
-        if (sym_source != CLKS_NULL && sym_source_len > 0U) {
-            clks_serial_write(" @ ");
-            clks_panic_serial_write_n(sym_source, sym_source_len);
+        if (has_symbol == CLKS_TRUE) {
+            char off_hex[19];
+            u64 off = rip - sym_base;
+
+            clks_panic_u64_to_hex(off, off_hex);
+            clks_serial_write(" ");
+            clks_panic_serial_write_n(sym_name, sym_name_len);
+            clks_serial_write("+");
+            clks_serial_write(off_hex);
+
+            if (sym_source != CLKS_NULL && sym_source_len > 0U) {
+                clks_serial_write(" @ ");
+                clks_panic_serial_write_n(sym_source, sym_source_len);
+            }
         }
-    }
 
-    clks_serial_write("\n");
+        clks_serial_write("\n");
+    }
 
     if (console == CLKS_NULL) {
         return;
@@ -538,7 +574,8 @@ static clks_bool clks_panic_stack_ptr_valid(u64 ptr, u64 stack_low, u64 stack_hi
     return CLKS_TRUE;
 }
 
-static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 rip, u64 rbp, u64 rsp) {
+static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 rip, u64 rbp, u64 rsp,
+                                      clks_bool serial_enabled) {
     u64 current_rbp;
     u64 stack_low;
     u64 stack_high;
@@ -548,17 +585,21 @@ static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 ri
         return;
     }
 
-    clks_panic_serial_write_line("[PANIC][BT] BEGIN");
+    if (serial_enabled == CLKS_TRUE) {
+        clks_panic_serial_write_line("[PANIC][BT] BEGIN");
+    }
 
     if (console != CLKS_NULL) {
         clks_panic_console_write(console, "\nBACKTRACE:\n");
     }
 
-    clks_panic_emit_bt_entry(console, frame, rip);
+    clks_panic_emit_bt_entry(console, frame, rip, serial_enabled);
     frame++;
 
     if (rbp == 0ULL || rsp == 0ULL || frame >= CLKS_PANIC_BACKTRACE_MAX) {
-        clks_panic_serial_write_line("[PANIC][BT] END");
+        if (serial_enabled == CLKS_TRUE) {
+            clks_panic_serial_write_line("[PANIC][BT] END");
+        }
         return;
     }
 
@@ -566,7 +607,9 @@ static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 ri
     stack_high = rsp + CLKS_PANIC_STACK_WINDOW_BYTES;
 
     if (stack_high <= stack_low) {
-        clks_panic_serial_write_line("[PANIC][BT] END");
+        if (serial_enabled == CLKS_TRUE) {
+            clks_panic_serial_write_line("[PANIC][BT] END");
+        }
         return;
     }
 
@@ -589,7 +632,7 @@ static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 ri
             break;
         }
 
-        clks_panic_emit_bt_entry(console, frame, ret_rip);
+        clks_panic_emit_bt_entry(console, frame, ret_rip, serial_enabled);
         frame++;
 
         if (next_rbp <= current_rbp) {
@@ -599,7 +642,9 @@ static void clks_panic_emit_backtrace(struct clks_panic_console *console, u64 ri
         current_rbp = next_rbp;
     }
 
-    clks_panic_serial_write_line("[PANIC][BT] END");
+    if (serial_enabled == CLKS_TRUE) {
+        clks_panic_serial_write_line("[PANIC][BT] END");
+    }
 }
 
 static void clks_panic_capture_context(u64 *out_rip, u64 *out_rbp, u64 *out_rsp) {
@@ -630,16 +675,129 @@ static void clks_panic_capture_context(u64 *out_rip, u64 *out_rbp, u64 *out_rsp)
 #endif
 }
 
+static void clks_panic_copy_text(char *dst, usize dst_size, const char *src) {
+    usize i = 0U;
+
+    if (dst == CLKS_NULL || dst_size == 0U) {
+        return;
+    }
+
+    if (src == CLKS_NULL) {
+        dst[0] = '\0';
+        return;
+    }
+
+    while (i + 1U < dst_size && src[i] != '\0') {
+        dst[i] = src[i];
+        i++;
+    }
+
+    dst[i] = '\0';
+}
+
+static void clks_panic_snapshot_reason(const char *reason, u64 rip, u64 rbp, u64 rsp) {
+    clks_panic_screen.kind = CLKS_PANIC_SCREEN_REASON;
+    clks_panic_screen.vector = 0ULL;
+    clks_panic_screen.error_code = 0ULL;
+    clks_panic_screen.rip = rip;
+    clks_panic_screen.rbp = rbp;
+    clks_panic_screen.rsp = rsp;
+    clks_panic_screen.has_name = CLKS_FALSE;
+    clks_panic_screen.name[0] = '\0';
+
+    if (reason != CLKS_NULL && reason[0] != '\0') {
+        clks_panic_copy_text(clks_panic_screen.reason, sizeof(clks_panic_screen.reason), reason);
+        clks_panic_screen.has_reason = CLKS_TRUE;
+    } else {
+        clks_panic_screen.reason[0] = '\0';
+        clks_panic_screen.has_reason = CLKS_FALSE;
+    }
+}
+
+static void clks_panic_snapshot_exception(const char *name, u64 vector, u64 error_code, u64 rip, u64 rbp, u64 rsp) {
+    clks_panic_screen.kind = CLKS_PANIC_SCREEN_EXCEPTION;
+    clks_panic_screen.vector = vector;
+    clks_panic_screen.error_code = error_code;
+    clks_panic_screen.rip = rip;
+    clks_panic_screen.rbp = rbp;
+    clks_panic_screen.rsp = rsp;
+    clks_panic_screen.has_reason = CLKS_FALSE;
+    clks_panic_screen.reason[0] = '\0';
+
+    if (name != CLKS_NULL && name[0] != '\0') {
+        clks_panic_copy_text(clks_panic_screen.name, sizeof(clks_panic_screen.name), name);
+        clks_panic_screen.has_name = CLKS_TRUE;
+    } else {
+        clks_panic_screen.name[0] = '\0';
+        clks_panic_screen.has_name = CLKS_FALSE;
+    }
+}
+
+static void clks_panic_render_snapshot_console(clks_bool serial_backtrace) {
+    struct clks_panic_console console;
+    char hex_buf[19];
+
+    if (clks_panic_console_init(&console) == CLKS_TRUE) {
+        clks_fb_clear(CLKS_PANIC_BG);
+        clks_panic_console_write(&console, "CLeonOS KERNEL PANIC\n");
+        clks_panic_console_write(&console, "====================\n\n");
+
+        if (clks_panic_screen.kind == CLKS_PANIC_SCREEN_EXCEPTION) {
+            clks_panic_console_write(&console, "TYPE: CPU EXCEPTION\n");
+
+            if (clks_panic_screen.has_name == CLKS_TRUE) {
+                clks_panic_console_write(&console, "NAME: ");
+                clks_panic_console_write(&console, clks_panic_screen.name);
+                clks_panic_console_write(&console, "\n");
+            }
+
+            clks_panic_u64_to_hex(clks_panic_screen.vector, hex_buf);
+            clks_panic_console_write(&console, "VECTOR: ");
+            clks_panic_console_write(&console, hex_buf);
+            clks_panic_console_write(&console, "\n");
+
+            clks_panic_u64_to_hex(clks_panic_screen.error_code, hex_buf);
+            clks_panic_console_write(&console, "ERROR:  ");
+            clks_panic_console_write(&console, hex_buf);
+            clks_panic_console_write(&console, "\n");
+
+            clks_panic_u64_to_hex(clks_panic_screen.rip, hex_buf);
+            clks_panic_console_write(&console, "RIP:    ");
+            clks_panic_console_write(&console, hex_buf);
+            clks_panic_console_write(&console, "\n");
+        } else if (clks_panic_screen.has_reason == CLKS_TRUE) {
+            clks_panic_console_write(&console, "REASON: ");
+            clks_panic_console_write(&console, clks_panic_screen.reason);
+            clks_panic_console_write(&console, "\n");
+        }
+
+        clks_panic_emit_backtrace(&console, clks_panic_screen.rip, clks_panic_screen.rbp, clks_panic_screen.rsp,
+                                  serial_backtrace);
+        clks_panic_console_write(&console, "\nSystem halted. Please reboot the computer.\n");
+        clks_panic_console_write(&console, CLKS_PANIC_QR_HINT);
+    } else {
+        clks_panic_emit_backtrace(CLKS_NULL, clks_panic_screen.rip, clks_panic_screen.rbp, clks_panic_screen.rsp,
+                                  serial_backtrace);
+    }
+}
+
 static CLKS_NORETURN void clks_panic_halt_loop(void) {
     clks_bool space_down = CLKS_FALSE;
     clks_bool qr_shown = CLKS_FALSE;
 
     for (;;) {
-        if (clks_panic_poll_space_press(&space_down) == CLKS_TRUE && qr_shown == CLKS_FALSE) {
-            if (clks_panic_qr_show() == CLKS_TRUE) {
-                qr_shown = CLKS_TRUE;
+        if (clks_panic_poll_space_press(&space_down) == CLKS_TRUE) {
+            if (qr_shown == CLKS_FALSE) {
+                if (clks_panic_qr_show() == CLKS_TRUE) {
+                    qr_shown = CLKS_TRUE;
+                    clks_panic_serial_write_line("[PANIC][QR] DISPLAYED");
+                } else {
+                    clks_panic_serial_write_line("[PANIC][QR] PREPARE/SHOW FAILED");
+                }
             } else {
-                clks_panic_serial_write_line("[PANIC][QR] PREPARE/SHOW FAILED");
+                clks_panic_render_snapshot_console(CLKS_FALSE);
+                qr_shown = CLKS_FALSE;
+                clks_panic_serial_write_line("[PANIC][QR] RETURNED TO PANIC PAGE");
             }
         }
 
@@ -648,7 +806,6 @@ static CLKS_NORETURN void clks_panic_halt_loop(void) {
 }
 
 CLKS_NORETURN void clks_panic(const char *reason) {
-    struct clks_panic_console console;
     u64 rip = 0ULL;
     u64 rbp = 0ULL;
     u64 rsp = 0ULL;
@@ -668,27 +825,11 @@ CLKS_NORETURN void clks_panic(const char *reason) {
         clks_panic_serial_write_line(reason);
     }
 
-    if (clks_panic_console_init(&console) == CLKS_TRUE) {
-        clks_fb_clear(CLKS_PANIC_BG);
-
-        clks_panic_console_write(&console, "CLeonOS KERNEL PANIC\n");
-        clks_panic_console_write(&console, "====================\n\n");
-
-        if (reason != CLKS_NULL) {
-            clks_panic_console_write(&console, "REASON: ");
-            clks_panic_console_write(&console, reason);
-            clks_panic_console_write(&console, "\n");
-        }
-
-        clks_panic_emit_backtrace(&console, rip, rbp, rsp);
-        clks_panic_console_write(&console, "\nSystem halted. Please reboot the computer.\n");
-        clks_panic_console_write(&console, CLKS_PANIC_QR_HINT);
-    } else {
-        clks_panic_emit_backtrace(CLKS_NULL, rip, rbp, rsp);
-    }
+    clks_panic_snapshot_reason(reason, rip, rbp, rsp);
+    clks_panic_render_snapshot_console(CLKS_TRUE);
 
     if (clks_panic_qr_prepare() == CLKS_TRUE) {
-        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE)");
+        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE TO TOGGLE)");
     } else {
         clks_panic_serial_write_line("[PANIC][QR] NOT AVAILABLE");
     }
@@ -697,7 +838,6 @@ CLKS_NORETURN void clks_panic(const char *reason) {
 }
 
 CLKS_NORETURN void clks_panic_exception(const char *name, u64 vector, u64 error_code, u64 rip, u64 rbp, u64 rsp) {
-    struct clks_panic_console console;
     char hex_buf[19];
 
     clks_panic_disable_interrupts();
@@ -721,43 +861,11 @@ CLKS_NORETURN void clks_panic_exception(const char *name, u64 vector, u64 error_
     clks_panic_u64_to_hex(rip, hex_buf);
     clks_panic_serial_write_line(hex_buf);
 
-    if (clks_panic_console_init(&console) == CLKS_TRUE) {
-        clks_fb_clear(CLKS_PANIC_BG);
-
-        clks_panic_console_write(&console, "CLeonOS KERNEL PANIC\n");
-        clks_panic_console_write(&console, "====================\n\n");
-        clks_panic_console_write(&console, "TYPE: CPU EXCEPTION\n");
-
-        if (name != CLKS_NULL) {
-            clks_panic_console_write(&console, "NAME: ");
-            clks_panic_console_write(&console, name);
-            clks_panic_console_write(&console, "\n");
-        }
-
-        clks_panic_u64_to_hex(vector, hex_buf);
-        clks_panic_console_write(&console, "VECTOR: ");
-        clks_panic_console_write(&console, hex_buf);
-        clks_panic_console_write(&console, "\n");
-
-        clks_panic_u64_to_hex(error_code, hex_buf);
-        clks_panic_console_write(&console, "ERROR:  ");
-        clks_panic_console_write(&console, hex_buf);
-        clks_panic_console_write(&console, "\n");
-
-        clks_panic_u64_to_hex(rip, hex_buf);
-        clks_panic_console_write(&console, "RIP:    ");
-        clks_panic_console_write(&console, hex_buf);
-        clks_panic_console_write(&console, "\n");
-
-        clks_panic_emit_backtrace(&console, rip, rbp, rsp);
-        clks_panic_console_write(&console, "\nSystem halted. Please reboot the computer.\n");
-        clks_panic_console_write(&console, CLKS_PANIC_QR_HINT);
-    } else {
-        clks_panic_emit_backtrace(CLKS_NULL, rip, rbp, rsp);
-    }
+    clks_panic_snapshot_exception(name, vector, error_code, rip, rbp, rsp);
+    clks_panic_render_snapshot_console(CLKS_TRUE);
 
     if (clks_panic_qr_prepare() == CLKS_TRUE) {
-        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE)");
+        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE TO TOGGLE)");
     } else {
         clks_panic_serial_write_line("[PANIC][QR] NOT AVAILABLE");
     }
