@@ -46,7 +46,9 @@ static u64 clks_shell_cmd_unknown = 0ULL;
 static clks_bool clks_shell_pending_command = CLKS_FALSE;
 static char clks_shell_pending_line[CLKS_SHELL_LINE_MAX];
 
-extern void clks_rusttest_hello(void);
+__attribute__((weak)) void clks_rusttest_hello(void) {
+    clks_tty_write("rusttest: rust symbol unavailable\n");
+}
 
 static clks_bool clks_shell_is_space(char ch) {
     return (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') ? CLKS_TRUE : CLKS_FALSE;

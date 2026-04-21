@@ -2,6 +2,7 @@
 #include <clks/framebuffer.h>
 #include <clks/fs.h>
 #include <clks/panic.h>
+#include <clks/panic_qr.h>
 #include <clks/serial.h>
 #include <clks/string.h>
 #include <clks/types.h>
@@ -13,6 +14,14 @@
 #define CLKS_PANIC_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_PANIC_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_PANIC_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
+#define CLKS_PANIC_QR_HINT "\nPress SPACE to display panic log QR.\n"
+
+#define CLKS_PANIC_PS2_DATA_PORT 0x60U
+#define CLKS_PANIC_PS2_STATUS_PORT 0x64U
+#define CLKS_PANIC_PS2_STATUS_OBF 0x01U
+#define CLKS_PANIC_SC_SPACE_MAKE 0x39U
+#define CLKS_PANIC_SC_SPACE_BREAK 0xB9U
+#define CLKS_PANIC_SC_EXT_PREFIX 0xE0U
 
 struct clks_panic_console {
     u32 cols;
@@ -33,6 +42,55 @@ static inline void clks_panic_disable_interrupts(void) {
     __asm__ volatile("cli");
 #elif defined(CLKS_ARCH_AARCH64)
     __asm__ volatile("msr daifset, #0xf");
+#endif
+}
+
+#if defined(CLKS_ARCH_X86_64)
+static inline u8 clks_panic_inb(u16 port) {
+    u8 value;
+
+    __asm__ volatile("inb %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+static clks_bool clks_panic_ps2_has_output(void) {
+    return ((clks_panic_inb(CLKS_PANIC_PS2_STATUS_PORT) & CLKS_PANIC_PS2_STATUS_OBF) != 0U) ? CLKS_TRUE : CLKS_FALSE;
+}
+#endif
+
+static clks_bool clks_panic_poll_space_press(clks_bool *space_down) {
+#if defined(CLKS_ARCH_X86_64)
+    clks_bool pressed = CLKS_FALSE;
+
+    if (space_down == CLKS_NULL) {
+        return CLKS_FALSE;
+    }
+
+    while (clks_panic_ps2_has_output() == CLKS_TRUE) {
+        u8 scancode = clks_panic_inb(CLKS_PANIC_PS2_DATA_PORT);
+
+        if (scancode == CLKS_PANIC_SC_EXT_PREFIX) {
+            continue;
+        }
+
+        if (scancode == CLKS_PANIC_SC_SPACE_BREAK) {
+            *space_down = CLKS_FALSE;
+            continue;
+        }
+
+        if (scancode == CLKS_PANIC_SC_SPACE_MAKE) {
+            if (*space_down == CLKS_FALSE) {
+                *space_down = CLKS_TRUE;
+                pressed = CLKS_TRUE;
+            }
+            continue;
+        }
+    }
+
+    return pressed;
+#else
+    (void)space_down;
+    return CLKS_FALSE;
 #endif
 }
 
@@ -573,7 +631,20 @@ static void clks_panic_capture_context(u64 *out_rip, u64 *out_rbp, u64 *out_rsp)
 }
 
 static CLKS_NORETURN void clks_panic_halt_loop(void) {
-    clks_cpu_halt_forever();
+    clks_bool space_down = CLKS_FALSE;
+    clks_bool qr_shown = CLKS_FALSE;
+
+    for (;;) {
+        if (clks_panic_poll_space_press(&space_down) == CLKS_TRUE && qr_shown == CLKS_FALSE) {
+            if (clks_panic_qr_show() == CLKS_TRUE) {
+                qr_shown = CLKS_TRUE;
+            } else {
+                clks_panic_serial_write_line("[PANIC][QR] PREPARE/SHOW FAILED");
+            }
+        }
+
+        clks_cpu_pause();
+    }
 }
 
 CLKS_NORETURN void clks_panic(const char *reason) {
@@ -611,8 +682,15 @@ CLKS_NORETURN void clks_panic(const char *reason) {
 
         clks_panic_emit_backtrace(&console, rip, rbp, rsp);
         clks_panic_console_write(&console, "\nSystem halted. Please reboot the computer.\n");
+        clks_panic_console_write(&console, CLKS_PANIC_QR_HINT);
     } else {
         clks_panic_emit_backtrace(CLKS_NULL, rip, rbp, rsp);
+    }
+
+    if (clks_panic_qr_prepare() == CLKS_TRUE) {
+        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE)");
+    } else {
+        clks_panic_serial_write_line("[PANIC][QR] NOT AVAILABLE");
     }
 
     clks_panic_halt_loop();
@@ -673,8 +751,15 @@ CLKS_NORETURN void clks_panic_exception(const char *name, u64 vector, u64 error_
 
         clks_panic_emit_backtrace(&console, rip, rbp, rsp);
         clks_panic_console_write(&console, "\nSystem halted. Please reboot the computer.\n");
+        clks_panic_console_write(&console, CLKS_PANIC_QR_HINT);
     } else {
         clks_panic_emit_backtrace(CLKS_NULL, rip, rbp, rsp);
+    }
+
+    if (clks_panic_qr_prepare() == CLKS_TRUE) {
+        clks_panic_serial_write_line("[PANIC][QR] READY (PRESS SPACE)");
+    } else {
+        clks_panic_serial_write_line("[PANIC][QR] NOT AVAILABLE");
     }
 
     clks_panic_halt_loop();

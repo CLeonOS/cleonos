@@ -7,6 +7,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/log.cmake")
 set(CL_LOG_EMIT_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/log_emit.cmake")
 
 set(CC "x86_64-elf-gcc" CACHE STRING "Kernel C compiler")
+set(KERNEL_CXX "g++" CACHE STRING "Kernel C++ compiler")
 set(LD "x86_64-elf-ld" CACHE STRING "Kernel linker")
 set(USER_CC "cc" CACHE STRING "User-space C compiler")
 set(USER_LD "ld" CACHE STRING "User-space linker")
@@ -99,6 +100,7 @@ set(USER_RUST_LIB "${USER_LIB_DIR}/libcleonos_user_rust.a")
 set(KERNEL_RUST_LIB "${BUILD_ROOT}/libclks_kernel_rust.a")
 
 resolve_tool_with_fallback(CC gcc cc clang)
+resolve_tool_with_fallback(KERNEL_CXX g++ clang++ x86_64-elf-g++)
 resolve_tool_with_fallback(LD ld.lld ld)
 resolve_tool_with_fallback(USER_CC cc gcc clang)
 resolve_tool_with_fallback(USER_LD ld.lld ld)
@@ -254,6 +256,22 @@ set(CFLAGS_COMMON
     -ffreestanding
     -fno-stack-protector
     -fno-builtin
+    -g
+    -Wall
+    -Wextra
+    -Werror
+    "-I${CMAKE_SOURCE_DIR}/clks/include"
+)
+
+set(CXXFLAGS_COMMON
+    -std=c++17
+    -ffreestanding
+    -fno-stack-protector
+    -fno-builtin
+    -fno-exceptions
+    -fno-rtti
+    -fno-threadsafe-statics
+    -fno-use-cxa-atexit
     -g
     -Wall
     -Wextra
