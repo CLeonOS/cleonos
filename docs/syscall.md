@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~83）
+## 4. Syscall 列表（0~84）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -659,6 +659,14 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：成功 `1`，失败 `0`
 - 说明：用纯色清屏。
 
+### 84 `CLEONOS_SYSCALL_KERNEL_VERSION`
+
+- 参数：
+- `arg0`: `char *out_version`
+- `arg1`: `u64 out_size`
+- 返回：实际写入字节数（不含终止符），失败返回 `0`
+- 说明：返回 CLKS 内核版本字符串（当前默认 `1.0.0-alpha`），内核会保证输出以 `\0` 结尾。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -687,6 +695,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_dl_open()` / `cleonos_sys_dl_close()` / `cleonos_sys_dl_sym()`
 - `cleonos_sys_exec_pathv_io()`
 - `cleonos_sys_fb_info()` / `cleonos_sys_fb_blit()` / `cleonos_sys_fb_clear()`
+- `cleonos_sys_kernel_version()`
 
 ## 6. 开发注意事项
 
@@ -697,7 +706,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..83`（含 `DL_*`、`FB_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..84`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -708,5 +717,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `FB_BLIT` 实现内核同类参数校验并支持 `scale>=1` 绘制。
 - 配合 Wine 参数 `--fb-window` 可将 framebuffer 实时显示到主机窗口（pygame 后端）；未启用时保持内存缓冲模式。
 - `FB_CLEAR` 支持清屏颜色写入。
+- `KERNEL_VERSION`（`84`）在 Wine 中返回内核版本字符串（当前默认 `1.0.0-alpha`）。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
+- Wine 版本号策略固定为 `85.0.0-wine`（`85` = 当前实现 syscall 数量，后续保持不变）。

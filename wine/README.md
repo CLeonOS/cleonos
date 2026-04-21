@@ -38,7 +38,7 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 ## 支持
 
 - ELF64 (x86_64) PT_LOAD 段装载
-- CLeonOS `int 0x80` syscall 0..83（含 `FD_*`、`DL_*`、`FB_*`、`PROC_*`、`STATS_*`、`EXEC_PATHV_IO`）
+- CLeonOS `int 0x80` syscall 0..84（含 `FD_*`、`DL_*`、`FB_*`、`PROC_*`、`STATS_*`、`EXEC_PATHV_IO`、`KERNEL_VERSION`）
 - TTY 输出与键盘输入队列
 - rootfs 文件/目录访问（`FS_*`）
 - `/temp` 写入限制（`FS_MKDIR/WRITE/APPEND/REMOVE`）
@@ -51,7 +51,13 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 - 文件描述符（`FD_OPEN/FD_READ/FD_WRITE/FD_CLOSE/FD_DUP`）
 - 动态库兼容加载（`DL_OPEN/DL_CLOSE/DL_SYM`，基于 ELF 符号解析）
 - framebuffer 兼容（`FB_INFO/FB_BLIT/FB_CLEAR`，支持内存缓冲与窗口显示）
+- 内核版本查询（`KERNEL_VERSION`）
 - 异常退出状态编码与故障元信息（`PROC_LAST_SIGNAL/PROC_FAULT_*`）
+
+## 版本策略
+
+- CLeonOS-Wine 版本号固定为：`85.0.0-wine`
+- 该值来源于“当前实现 syscall 数量 = 85（0..84）”，按项目约定后续不再变更
 
 ## 参数
 

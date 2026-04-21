@@ -1,4 +1,5 @@
 #include "cmd_runtime.h"
+#include <cleonos_version.h>
 static u64 ush_fastfetch_u64_to_dec(char *out, u64 out_size, u64 value) {
     char rev[32];
     u64 digits = 0ULL;
@@ -115,6 +116,7 @@ static int ush_cmd_fastfetch(const char *arg) {
     u64 tty_count;
     u64 exec_req;
     u64 exec_ok;
+    char kernel_version[32];
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_streq(arg, "--plain") != 0) {
@@ -132,12 +134,17 @@ static int ush_cmd_fastfetch(const char *arg) {
     tty_count = cleonos_sys_tty_count();
     exec_req = cleonos_sys_exec_request_count();
     exec_ok = cleonos_sys_exec_success_count();
+    if (cleonos_sys_kernel_version(kernel_version, (u64)sizeof(kernel_version)) == 0ULL) {
+        ush_copy(kernel_version, (u64)sizeof(kernel_version), "unknown");
+    }
 
     ush_fastfetch_print_logo(plain);
     ush_write_char('\n');
 
     ush_fastfetch_print_text(plain, "OS", "CLeonOS x86_64");
     ush_fastfetch_print_text(plain, "Shell", "User Shell (/shell/shell.elf)");
+    ush_fastfetch_print_text(plain, "CLeonOSVersion", CLEONOS_VERSION_STRING);
+    ush_fastfetch_print_text(plain, "CLKSVersion", kernel_version);
     ush_fastfetch_print_u64(plain, "PID", cleonos_sys_getpid());
     ush_fastfetch_print_u64(plain, "UptimeTicks", cleonos_sys_timer_ticks());
     ush_fastfetch_print_u64(plain, "Tasks", cleonos_sys_task_count());

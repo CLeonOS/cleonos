@@ -265,6 +265,7 @@ set(CFLAGS_COMMON
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/clks/include"
+    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(CXXFLAGS_COMMON
@@ -281,6 +282,7 @@ set(CXXFLAGS_COMMON
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/clks/include"
+    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(ARCH_CFLAGS
@@ -357,6 +359,7 @@ set(USER_CFLAGS
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/cleonos/c/include"
+    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(USER_CFLAGS_DOOM
@@ -372,6 +375,7 @@ set(USER_CFLAGS_DOOM
     -Wno-sign-compare
     -D_DEFAULT_SOURCE
     -D_POSIX_C_SOURCE=200809L
+    "-I${CMAKE_SOURCE_DIR}/common/include"
     "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric"
     "-include"
     "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/doom_shim.h"

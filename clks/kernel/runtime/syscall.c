@@ -16,6 +16,7 @@
 #include <clks/tty.h>
 #include <clks/types.h>
 #include <clks/userland.h>
+#include <cleonos_version.h>
 
 #define CLKS_SYSCALL_LOG_MAX_LEN 191U
 #define CLKS_SYSCALL_PATH_MAX 192U
@@ -33,7 +34,7 @@
 #define CLKS_SYSCALL_KDBG_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_SYSCALL_KERNEL_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_SYSCALL_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
-#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_FB_CLEAR
+#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_KERNEL_VERSION
 #define CLKS_SYSCALL_STATS_RING_SIZE 256U
 #define CLKS_SYSCALL_USC_MAX_ALLOWED_APPS 64U
 
@@ -465,6 +466,11 @@ static u64 clks_syscall_fb_blit(u64 arg0) {
     }
 
     return 1ULL;
+}
+
+static u64 clks_syscall_kernel_version(u64 arg0, u64 arg1) {
+    usize len = clks_strlen(CLKS_VERSION_STRING);
+    return clks_syscall_copy_text_to_user(arg0, arg1, CLKS_VERSION_STRING, len);
 }
 
 static u64 clks_syscall_fd_open(u64 arg0, u64 arg1, u64 arg2) {
@@ -2513,6 +2519,8 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
         return clks_syscall_fb_blit(frame->rbx);
     case CLKS_SYSCALL_FB_CLEAR:
         return clks_syscall_fb_clear(frame->rbx);
+    case CLKS_SYSCALL_KERNEL_VERSION:
+        return clks_syscall_kernel_version(frame->rbx, frame->rcx);
     default:
         return (u64)-1;
     }

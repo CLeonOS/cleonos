@@ -144,6 +144,7 @@ typedef struct cleonos_fb_blit_req {
 #define CLEONOS_SYSCALL_FB_INFO 81ULL
 #define CLEONOS_SYSCALL_FB_BLIT 82ULL
 #define CLEONOS_SYSCALL_FB_CLEAR 83ULL
+#define CLEONOS_SYSCALL_KERNEL_VERSION 84ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -230,5 +231,6 @@ u64 cleonos_sys_dl_sym(u64 handle, const char *symbol);
 u64 cleonos_sys_fb_info(cleonos_fb_info *out_info);
 u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req);
 u64 cleonos_sys_fb_clear(u64 rgb);
+u64 cleonos_sys_kernel_version(char *out_version, u64 out_size);
 
 #endif

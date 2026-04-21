@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .constants import (
+    CLKS_VERSION_STRING,
     DEFAULT_MAX_EXEC_DEPTH,
     FD_INHERIT,
     FS_NAME_MAX,
@@ -62,6 +63,7 @@ from .constants import (
     SYS_FS_STAT_TYPE,
     SYS_FS_WRITE,
     SYS_GETPID,
+    SYS_KERNEL_VERSION,
     SYS_KBD_BUFFERED,
     SYS_KBD_DROPPED,
     SYS_KBD_GET_CHAR,
@@ -713,6 +715,8 @@ class CLeonOSWineNative:
             return self._fb_blit(uc, arg0)
         if sid == SYS_FB_CLEAR:
             return self._fb_clear(arg0)
+        if sid == SYS_KERNEL_VERSION:
+            return self._kernel_version(uc, arg0, arg1)
 
         return u64_neg1()
 
@@ -1888,6 +1892,23 @@ class CLeonOSWineNative:
             addr = image.symbols.get(f"_{symbol}")
 
         return int(u64(addr)) if addr is not None else 0
+
+    def _kernel_version(self, uc: Uc, out_ptr: int, out_size: int) -> int:
+        if out_ptr == 0 or out_size <= 0:
+            return 0
+
+        max_copy = int(out_size) - 1
+        if max_copy < 0:
+            return 0
+
+        payload = CLKS_VERSION_STRING.encode("utf-8", errors="replace")
+        if len(payload) > max_copy:
+            payload = payload[:max_copy]
+
+        if not self._write_guest_bytes(uc, int(out_ptr), payload + b"\x00"):
+            return 0
+
+        return len(payload)
 
     def _fb_info(self, uc: Uc, out_ptr: int) -> int:
         if out_ptr == 0:

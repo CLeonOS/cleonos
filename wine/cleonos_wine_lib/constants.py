@@ -7,6 +7,12 @@ MAX_IO_READ = 1 << 20
 DEFAULT_MAX_EXEC_DEPTH = 6
 FS_NAME_MAX = 96
 
+CLKS_VERSION_STRING = "1.0.0-alpha"
+CLEONOS_VERSION_STRING = "1.0.0-alpha"
+WINE_IMPLEMENTED_SYSCALL_COUNT = 85
+# Frozen policy: this version string must not change in future updates.
+CLEONOS_WINE_VERSION_STRING = "85.0.0-wine"
+
 # CLeonOS syscall IDs from cleonos/c/include/cleonos_syscall.h
 SYS_LOG_WRITE = 0
 SYS_TIMER_TICKS = 1
@@ -92,6 +98,7 @@ SYS_EXEC_PATHV_IO = 80
 SYS_FB_INFO = 81
 SYS_FB_BLIT = 82
 SYS_FB_CLEAR = 83
+SYS_KERNEL_VERSION = 84
 
 # proc states (from cleonos/c/include/cleonos_syscall.h)
 PROC_STATE_UNUSED = 0

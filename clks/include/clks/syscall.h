@@ -87,6 +87,7 @@
 #define CLKS_SYSCALL_FB_INFO 81ULL
 #define CLKS_SYSCALL_FB_BLIT 82ULL
 #define CLKS_SYSCALL_FB_CLEAR 83ULL
+#define CLKS_SYSCALL_KERNEL_VERSION 84ULL
 
 void clks_syscall_init(void);
 u64 clks_syscall_dispatch(void *frame_ptr);
