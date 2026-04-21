@@ -3,7 +3,14 @@
 
 #define USH_QRCODE_MAX_TEXT 640U
 #define USH_QRCODE_MAX_VERSION 15
-#define USH_QRCODE_BORDER 2
+#define USH_QRCODE_BORDER 4U
+#define USH_QRCODE_MAX_MODULES ((USH_QRCODE_MAX_VERSION * 4U) + 17U + (USH_QRCODE_BORDER * 2U))
+#define USH_QRCODE_CANVAS_MAX 1024U
+
+#define USH_QRCODE_COLOR_DARK 0x00000000ULL
+#define USH_QRCODE_COLOR_LIGHT 0x00FFFFFFULL
+
+static unsigned int ush_qrcode_canvas[USH_QRCODE_CANVAS_MAX][USH_QRCODE_CANVAS_MAX];
 
 static int ush_qrcode_streq_ignore_case(const char *left, const char *right) {
     u64 i = 0ULL;
@@ -176,17 +183,127 @@ static int ush_qrcode_parse_args(const char *arg, char *out_text, u64 out_text_s
 
 static void ush_qrcode_emit_ascii(const uint8_t qrcode[]) {
     int size = qrcodegen_getSize(qrcode);
+    int border = (int)USH_QRCODE_BORDER;
+    int limit;
     int y;
     int x;
 
-    for (y = -USH_QRCODE_BORDER; y < size + USH_QRCODE_BORDER; y++) {
-        for (x = -USH_QRCODE_BORDER; x < size + USH_QRCODE_BORDER; x++) {
+    limit = size + border;
+
+    for (y = -border; y < limit; y++) {
+        for (x = -border; x < limit; x++) {
             int dark = (x >= 0 && y >= 0 && x < size && y < size && qrcodegen_getModule(qrcode, x, y)) ? 1 : 0;
             ush_write(dark != 0 ? "##" : "  ");
         }
 
         ush_write_char('\n');
     }
+}
+
+static int ush_qrcode_build_canvas(const uint8_t qrcode[], u64 module_pixels, u64 *out_side_pixels) {
+    int qr_size = qrcodegen_getSize(qrcode);
+    u64 side_modules;
+    u64 side_pixels;
+    u64 y;
+    u64 x;
+
+    if (out_side_pixels == (u64 *)0 || module_pixels == 0ULL || qr_size <= 0) {
+        return 0;
+    }
+
+    side_modules = (u64)qr_size + (u64)(USH_QRCODE_BORDER * 2U);
+    if (side_modules == 0ULL || side_modules > (u64)USH_QRCODE_MAX_MODULES) {
+        return 0;
+    }
+
+    side_pixels = side_modules * module_pixels;
+    if (side_pixels == 0ULL || side_pixels > (u64)USH_QRCODE_CANVAS_MAX) {
+        return 0;
+    }
+
+    for (y = 0ULL; y < side_pixels; y++) {
+        for (x = 0ULL; x < side_pixels; x++) {
+            int qx = (int)(x / module_pixels) - (int)USH_QRCODE_BORDER;
+            int qy = (int)(y / module_pixels) - (int)USH_QRCODE_BORDER;
+            int dark = (qx >= 0 && qy >= 0 && qx < qr_size && qy < qr_size && qrcodegen_getModule(qrcode, qx, qy)) ? 1 : 0;
+            ush_qrcode_canvas[y][x] =
+                (dark != 0) ? (unsigned int)USH_QRCODE_COLOR_DARK : (unsigned int)USH_QRCODE_COLOR_LIGHT;
+        }
+    }
+
+    *out_side_pixels = side_pixels;
+    return 1;
+}
+
+static int ush_qrcode_emit_pixels(const uint8_t qrcode[]) {
+    int qr_size = qrcodegen_getSize(qrcode);
+    u64 side_modules;
+    cleonos_fb_info fb_info;
+    cleonos_fb_blit_req req;
+    u64 module_pixels_x;
+    u64 module_pixels_y;
+    u64 module_pixels;
+    u64 module_pixels_canvas_cap;
+    u64 side_pixels = 0ULL;
+    u64 draw_w;
+    u64 draw_h;
+
+    if (qr_size <= 0) {
+        return 0;
+    }
+
+    side_modules = (u64)qr_size + (u64)(USH_QRCODE_BORDER * 2U);
+    if (side_modules == 0ULL || side_modules > (u64)USH_QRCODE_MAX_MODULES) {
+        return 0;
+    }
+
+    ush_zero(&fb_info, (u64)sizeof(fb_info));
+    if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL || fb_info.bpp != 32ULL) {
+        ush_writeln("qrcode: framebuffer unavailable, fallback to ascii");
+        ush_qrcode_emit_ascii(qrcode);
+        return 1;
+    }
+
+    module_pixels_x = fb_info.width / side_modules;
+    module_pixels_y = fb_info.height / side_modules;
+    module_pixels = (module_pixels_x < module_pixels_y) ? module_pixels_x : module_pixels_y;
+
+    if (module_pixels == 0ULL) {
+        ush_writeln("qrcode: framebuffer too small");
+        return 0;
+    }
+
+    module_pixels_canvas_cap = (u64)USH_QRCODE_CANVAS_MAX / side_modules;
+    if (module_pixels_canvas_cap == 0ULL) {
+        return 0;
+    }
+
+    if (module_pixels > module_pixels_canvas_cap) {
+        module_pixels = module_pixels_canvas_cap;
+    }
+
+    if (ush_qrcode_build_canvas(qrcode, module_pixels, &side_pixels) == 0) {
+        return 0;
+    }
+
+    draw_w = side_pixels;
+    draw_h = side_pixels;
+
+    req.pixels_ptr = (u64)(void *)&ush_qrcode_canvas[0][0];
+    req.src_width = side_pixels;
+    req.src_height = side_pixels;
+    req.src_pitch_bytes = (u64)USH_QRCODE_CANVAS_MAX * 4ULL;
+    req.dst_x = (fb_info.width > draw_w) ? ((fb_info.width - draw_w) / 2ULL) : 0ULL;
+    req.dst_y = (fb_info.height > draw_h) ? ((fb_info.height - draw_h) / 2ULL) : 0ULL;
+    req.scale = 1ULL;
+
+    (void)cleonos_sys_fb_clear(USH_QRCODE_COLOR_LIGHT);
+    if (cleonos_sys_fb_blit(&req) == 0ULL) {
+        ush_writeln("qrcode: framebuffer blit failed");
+        return 0;
+    }
+
+    return 1;
 }
 
 static int ush_cmd_qrcode(const char *arg) {
@@ -216,8 +333,7 @@ static int ush_cmd_qrcode(const char *arg) {
         return 0;
     }
 
-    ush_qrcode_emit_ascii(qrcode);
-    return 1;
+    return ush_qrcode_emit_pixels(qrcode);
 }
 
 int cleonos_app_main(void) {
