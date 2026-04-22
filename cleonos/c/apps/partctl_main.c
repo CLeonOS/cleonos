@@ -9,7 +9,8 @@
 #define PARTCTL_MBR_SIG_OFFSET 510U
 
 static unsigned int partctl_read_u32_le(const unsigned char *ptr) {
-    return (unsigned int)ptr[0] | ((unsigned int)ptr[1] << 8U) | ((unsigned int)ptr[2] << 16U) | ((unsigned int)ptr[3] << 24U);
+    return (unsigned int)ptr[0] | ((unsigned int)ptr[1] << 8U) | ((unsigned int)ptr[2] << 16U) |
+           ((unsigned int)ptr[3] << 24U);
 }
 
 static void partctl_write_u32_le(unsigned char *ptr, unsigned int value) {
@@ -157,9 +158,9 @@ static int partctl_cmd_list(void) {
             end_lba = (u64)start + (u64)size - 1ULL;
         }
 
-        (void)printf("%llu    %s   0x%02X  %-12llu %-12llu ",
-                     (unsigned long long)(i + 1ULL), (boot == 0x80U) ? "yes " : "no  ", (unsigned int)type,
-                     (unsigned long long)start, (unsigned long long)size);
+        (void)printf("%llu    %s   0x%02X  %-12llu %-12llu ", (unsigned long long)(i + 1ULL),
+                     (boot == 0x80U) ? "yes " : "no  ", (unsigned int)type, (unsigned long long)start,
+                     (unsigned long long)size);
 
         if (size == 0U) {
             (void)fputs("-\n", 1);
@@ -371,9 +372,9 @@ static int partctl_cmd_create(const char *index_text, const char *start_text, co
         return 0;
     }
 
-    (void)printf("partctl: created p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n",
-                 (unsigned long long)index, (unsigned long long)start_lba, (unsigned long long)sectors,
-                 (unsigned int)((unsigned char)type), (unsigned long long)boot);
+    (void)printf("partctl: created p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n", (unsigned long long)index,
+                 (unsigned long long)start_lba, (unsigned long long)sectors, (unsigned int)((unsigned char)type),
+                 (unsigned long long)boot);
     return 1;
 }
 
@@ -466,4 +467,3 @@ int cleonos_app_main(void) {
 
     return (success != 0) ? 0 : 1;
 }
-
