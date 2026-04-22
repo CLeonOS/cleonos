@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import struct
 import sys
 import time
@@ -62,6 +63,14 @@ from .constants import (
     SYS_FS_STAT_SIZE,
     SYS_FS_STAT_TYPE,
     SYS_FS_WRITE,
+    SYS_DISK_FORMATTED,
+    SYS_DISK_FORMAT_FAT32,
+    SYS_DISK_MOUNT,
+    SYS_DISK_MOUNTED,
+    SYS_DISK_MOUNT_PATH,
+    SYS_DISK_PRESENT,
+    SYS_DISK_SECTOR_COUNT,
+    SYS_DISK_SIZE_BYTES,
     SYS_GETPID,
     SYS_KERNEL_VERSION,
     SYS_KBD_BUFFERED,
@@ -271,6 +280,23 @@ class CLeonOSWineNative:
         self._fb_window_failed = False
         self._fb_dirty = False
         self._fb_presented_once = False
+
+        self._disk_present = True
+        self._disk_size_bytes = self._bounded_env_int("CLEONOS_WINE_DISK_SIZE_MB", 64, 8, 4096) * 1024 * 1024
+        self._disk_mount_path = "/temp/disk"
+        self._disk_root = (self.rootfs / "__clks_disk0__").resolve()
+        self._disk_marker = self._disk_root / ".fat32"
+        self._disk_formatted = False
+        self._disk_mounted = False
+        try:
+            self._disk_root.mkdir(parents=True, exist_ok=True)
+            if self._disk_marker.exists():
+                self._disk_formatted = True
+                self._disk_mounted = True
+        except Exception:
+            self._disk_present = False
+            self._disk_formatted = False
+            self._disk_mounted = False
 
         default_path = self._normalize_guest_path(self.guest_path_hint or f"/{self.elf_path.name}")
         self.argv_items, self.env_items = self._prepare_exec_items(default_path, self.argv_items, self.env_items)
@@ -717,6 +743,25 @@ class CLeonOSWineNative:
             return self._fb_clear(arg0)
         if sid == SYS_KERNEL_VERSION:
             return self._kernel_version(uc, arg0, arg1)
+        if sid == SYS_DISK_PRESENT:
+            return 1 if self._disk_present else 0
+        if sid == SYS_DISK_SIZE_BYTES:
+            return int(u64(self._disk_size_bytes if self._disk_present else 0))
+        if sid == SYS_DISK_SECTOR_COUNT:
+            if not self._disk_present:
+                return 0
+            return int(u64(self._disk_size_bytes // 512))
+        if sid == SYS_DISK_FORMATTED:
+            return 1 if (self._disk_present and self._disk_formatted) else 0
+        if sid == SYS_DISK_FORMAT_FAT32:
+            label = self._read_guest_cstring(uc, arg0, 16) if arg0 != 0 else ""
+            return self._disk_format_fat32(label)
+        if sid == SYS_DISK_MOUNT:
+            return self._disk_mount(uc, arg0)
+        if sid == SYS_DISK_MOUNTED:
+            return 1 if self._disk_mounted else 0
+        if sid == SYS_DISK_MOUNT_PATH:
+            return self._disk_mount_path_query(uc, arg0, arg1)
 
         return u64_neg1()
 
@@ -1008,9 +1053,90 @@ class CLeonOSWineNative:
     def _guest_path_is_under_temp(path: str) -> bool:
         return path == "/temp" or path.startswith("/temp/")
 
+    def _disk_path_is_under_mount(self, path: str) -> bool:
+        if not self._disk_mounted:
+            return False
+        normalized = self._normalize_guest_path(path)
+        mount = self._normalize_guest_path(self._disk_mount_path)
+        return normalized == mount or normalized.startswith(mount + "/")
+
+    def _disk_guest_to_host(self, guest_path: str, *, must_exist: bool) -> Optional[Path]:
+        normalized = self._normalize_guest_path(guest_path)
+        mount = self._normalize_guest_path(self._disk_mount_path)
+
+        if not self._disk_present or not self._disk_formatted or not self._disk_mounted:
+            return None
+
+        if normalized == mount:
+            host = self._disk_root
+        elif normalized.startswith(mount + "/"):
+            rel = normalized[len(mount) + 1 :]
+            parts = [part for part in rel.split("/") if part]
+            host = self._disk_root.joinpath(*parts) if parts else self._disk_root
+        else:
+            return None
+
+        if must_exist and not host.exists():
+            return None
+        return host
+
+    def _disk_format_fat32(self, label: str) -> int:
+        _ = label
+        if not self._disk_present:
+            return 0
+
+        try:
+            self._disk_root.mkdir(parents=True, exist_ok=True)
+            for child in list(self._disk_root.iterdir()):
+                if child.name == self._disk_marker.name:
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            self._disk_marker.write_text("FAT32\n", encoding="utf-8")
+            self._disk_formatted = True
+            return 1
+        except Exception:
+            return 0
+
+    def _disk_mount(self, uc: Uc, mount_ptr: int) -> int:
+        mount_path = self._normalize_guest_path(self._read_guest_cstring(uc, mount_ptr, EXEC_PATH_MAX))
+
+        if not self._disk_present or not self._disk_formatted:
+            return 0
+
+        if mount_path == "/":
+            return 0
+
+        self._disk_mount_path = mount_path
+        self._disk_mounted = True
+        return 1
+
+    def _disk_mount_path_query(self, uc: Uc, out_ptr: int, out_size: int) -> int:
+        if out_ptr == 0 or out_size == 0:
+            return 0
+
+        if not self._disk_mounted:
+            return 0
+
+        payload = self._normalize_guest_path(self._disk_mount_path).encode("utf-8", errors="replace")
+        max_copy = int(out_size) - 1
+        if max_copy < 0:
+            return 0
+        if len(payload) > max_copy:
+            payload = payload[:max_copy]
+        return len(payload) if self._write_guest_bytes(uc, out_ptr, payload + b"\x00") else 0
+
     def _fs_mkdir(self, uc: Uc, path_ptr: int) -> int:
         path = self._normalize_guest_path(self._read_guest_cstring(uc, path_ptr))
-        if not self._guest_path_is_under_temp(path):
+        is_temp_path = self._guest_path_is_under_temp(path)
+        is_disk_path = self._disk_path_is_under_mount(path)
+
+        if not is_temp_path and not is_disk_path:
+            return 0
+
+        if is_disk_path and not self._disk_formatted:
             return 0
 
         host_path = self._guest_to_host(path, must_exist=False)
@@ -1028,8 +1154,17 @@ class CLeonOSWineNative:
 
     def _fs_write_common(self, uc: Uc, path_ptr: int, data_ptr: int, size: int, append_mode: bool) -> int:
         path = self._normalize_guest_path(self._read_guest_cstring(uc, path_ptr))
+        is_temp_path = self._guest_path_is_under_temp(path)
+        is_disk_path = self._disk_path_is_under_mount(path)
+        disk_mount = self._normalize_guest_path(self._disk_mount_path)
 
-        if not self._guest_path_is_under_temp(path) or path == "/temp":
+        if not is_temp_path and not is_disk_path:
+            return 0
+
+        if is_disk_path and not self._disk_formatted:
+            return 0
+
+        if path == "/temp" or (is_disk_path and path == disk_mount):
             return 0
 
         if size < 0 or size > self.state.fs_write_max:
@@ -1068,8 +1203,17 @@ class CLeonOSWineNative:
 
     def _fs_remove(self, uc: Uc, path_ptr: int) -> int:
         path = self._normalize_guest_path(self._read_guest_cstring(uc, path_ptr))
+        is_temp_path = self._guest_path_is_under_temp(path)
+        is_disk_path = self._disk_path_is_under_mount(path)
+        disk_mount = self._normalize_guest_path(self._disk_mount_path)
 
-        if not self._guest_path_is_under_temp(path) or path == "/temp":
+        if not is_temp_path and not is_disk_path:
+            return 0
+
+        if is_disk_path and not self._disk_formatted:
+            return 0
+
+        if path == "/temp" or (is_disk_path and path == disk_mount):
             return 0
 
         host_path = self._guest_to_host(path, must_exist=True)
@@ -2178,6 +2322,11 @@ class CLeonOSWineNative:
 
     def _guest_to_host(self, guest_path: str, *, must_exist: bool) -> Optional[Path]:
         norm = self._normalize_guest_path(guest_path)
+        disk_host = self._disk_guest_to_host(norm, must_exist=must_exist)
+
+        if disk_host is not None:
+            return disk_host
+
         if norm == "/":
             return self.rootfs if (not must_exist or self.rootfs.exists()) else None
 

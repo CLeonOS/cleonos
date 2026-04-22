@@ -371,3 +371,35 @@ u64 cleonos_sys_fb_clear(u64 rgb) {
 u64 cleonos_sys_kernel_version(char *out_version, u64 out_size) {
     return cleonos_syscall(CLEONOS_SYSCALL_KERNEL_VERSION, (u64)out_version, out_size, 0ULL);
 }
+
+u64 cleonos_sys_disk_present(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_PRESENT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_size_bytes(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_SIZE_BYTES, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_sector_count(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_SECTOR_COUNT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_formatted(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_FORMATTED, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_format_fat32(const char *label) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_FORMAT_FAT32, (u64)label, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_mount(const char *mount_path) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_MOUNT, (u64)mount_path, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_mounted(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_MOUNTED, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_MOUNT_PATH, (u64)out_path, out_size, 0ULL);
+}

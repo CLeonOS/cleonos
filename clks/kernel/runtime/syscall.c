@@ -1,5 +1,6 @@
 #include <clks/cpu.h>
 #include <clks/audio.h>
+#include <clks/disk.h>
 #include <clks/exec.h>
 #include <clks/framebuffer.h>
 #include <clks/fs.h>
@@ -36,7 +37,7 @@
 #define CLKS_SYSCALL_KDBG_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_SYSCALL_KERNEL_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_SYSCALL_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
-#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_KERNEL_VERSION
+#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_DISK_MOUNT_PATH
 #define CLKS_SYSCALL_STATS_RING_SIZE 256U
 #define CLKS_SYSCALL_USC_MAX_ALLOWED_APPS 64U
 
@@ -477,6 +478,56 @@ static u64 clks_syscall_kernel_version(u64 arg0, u64 arg1) {
     /* Version query: tiny syscall, huge bike-shed potential. */
     usize len = clks_strlen(CLKS_VERSION_STRING);
     return clks_syscall_copy_text_to_user(arg0, arg1, CLKS_VERSION_STRING, len);
+}
+
+static u64 clks_syscall_disk_present(void) {
+    return (clks_disk_present() == CLKS_TRUE) ? 1ULL : 0ULL;
+}
+
+static u64 clks_syscall_disk_size_bytes(void) {
+    return clks_disk_size_bytes();
+}
+
+static u64 clks_syscall_disk_sector_count(void) {
+    return clks_disk_sector_count();
+}
+
+static u64 clks_syscall_disk_formatted(void) {
+    return (clks_disk_is_formatted_fat32() == CLKS_TRUE) ? 1ULL : 0ULL;
+}
+
+static u64 clks_syscall_disk_format_fat32(u64 arg0) {
+    char label[16];
+
+    if (clks_syscall_copy_user_optional_string(arg0, label, sizeof(label)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    return (clks_disk_format_fat32((label[0] != '\0') ? label : CLKS_NULL) == CLKS_TRUE) ? 1ULL : 0ULL;
+}
+
+static u64 clks_syscall_disk_mount(u64 arg0) {
+    char path[CLKS_SYSCALL_PATH_MAX];
+
+    if (clks_syscall_copy_user_string(arg0, path, sizeof(path)) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    return (clks_disk_mount(path) == CLKS_TRUE) ? 1ULL : 0ULL;
+}
+
+static u64 clks_syscall_disk_mounted(void) {
+    return (clks_disk_is_mounted() == CLKS_TRUE) ? 1ULL : 0ULL;
+}
+
+static u64 clks_syscall_disk_mount_path(u64 arg0, u64 arg1) {
+    const char *mount_path = clks_disk_mount_path();
+
+    if (mount_path == CLKS_NULL || mount_path[0] == '\0') {
+        return 0ULL;
+    }
+
+    return clks_syscall_copy_text_to_user(arg0, arg1, mount_path, clks_strlen(mount_path));
 }
 
 static u64 clks_syscall_fd_open(u64 arg0, u64 arg1, u64 arg2) {
@@ -1994,6 +2045,22 @@ static const char *clks_syscall_usc_syscall_name(u64 id) {
         return "SHUTDOWN";
     case CLKS_SYSCALL_RESTART:
         return "RESTART";
+    case CLKS_SYSCALL_DISK_PRESENT:
+        return "DISK_PRESENT";
+    case CLKS_SYSCALL_DISK_SIZE_BYTES:
+        return "DISK_SIZE_BYTES";
+    case CLKS_SYSCALL_DISK_SECTOR_COUNT:
+        return "DISK_SECTOR_COUNT";
+    case CLKS_SYSCALL_DISK_FORMATTED:
+        return "DISK_FORMATTED";
+    case CLKS_SYSCALL_DISK_FORMAT_FAT32:
+        return "DISK_FORMAT_FAT32";
+    case CLKS_SYSCALL_DISK_MOUNT:
+        return "DISK_MOUNT";
+    case CLKS_SYSCALL_DISK_MOUNTED:
+        return "DISK_MOUNTED";
+    case CLKS_SYSCALL_DISK_MOUNT_PATH:
+        return "DISK_MOUNT_PATH";
     default:
         return "UNKNOWN";
     }
@@ -2025,6 +2092,8 @@ static clks_bool clks_syscall_usc_is_dangerous(u64 id) {
         return (CLKS_CFG_USC_SC_SHUTDOWN != 0) ? CLKS_TRUE : CLKS_FALSE;
     case CLKS_SYSCALL_RESTART:
         return (CLKS_CFG_USC_SC_RESTART != 0) ? CLKS_TRUE : CLKS_FALSE;
+    case CLKS_SYSCALL_DISK_FORMAT_FAT32:
+        return CLKS_TRUE;
     default:
         return CLKS_FALSE;
     }
@@ -2528,6 +2597,22 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
         return clks_syscall_fb_clear(frame->rbx);
     case CLKS_SYSCALL_KERNEL_VERSION:
         return clks_syscall_kernel_version(frame->rbx, frame->rcx);
+    case CLKS_SYSCALL_DISK_PRESENT:
+        return clks_syscall_disk_present();
+    case CLKS_SYSCALL_DISK_SIZE_BYTES:
+        return clks_syscall_disk_size_bytes();
+    case CLKS_SYSCALL_DISK_SECTOR_COUNT:
+        return clks_syscall_disk_sector_count();
+    case CLKS_SYSCALL_DISK_FORMATTED:
+        return clks_syscall_disk_formatted();
+    case CLKS_SYSCALL_DISK_FORMAT_FAT32:
+        return clks_syscall_disk_format_fat32(frame->rbx);
+    case CLKS_SYSCALL_DISK_MOUNT:
+        return clks_syscall_disk_mount(frame->rbx);
+    case CLKS_SYSCALL_DISK_MOUNTED:
+        return clks_syscall_disk_mounted();
+    case CLKS_SYSCALL_DISK_MOUNT_PATH:
+        return clks_syscall_disk_mount_path(frame->rbx, frame->rcx);
     default:
         return (u64)-1;
     }

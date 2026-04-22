@@ -8,6 +8,7 @@ Experimental x86_64 operating system project with a C kernel, Rust-assisted runt
 
 - x86_64 kernel booted by Limine
 - RAM-disk VFS layout (`/system`, `/shell`, `/temp`, `/driver`)
+- Virtual disk backend with FAT32 format + mount support (default mount path: `/temp/disk`)
 - Virtual TTY subsystem (multi TTY, ANSI handling, cursor, PSF font support)
 - Keyboard and mouse input stack, plus desktop mode on TTY2
 - User-space ELF app model with syscall ABI (`int 0x80`)
@@ -60,6 +61,12 @@ git submodule update --init --recursive
 make run
 ```
 
+`make run` now auto-prepares `build/x86_64/cleonos_disk.img` (if missing) and attaches it as a QEMU emulated physical disk (`-drive ... if=ide`).
+This disk is **not** packed into the ISO and is **not** loaded through Limine modules.
+Kernel currently uses an in-memory disk cache window (default up to 8MB) for metadata/file operations.
+You can override disk size (MB), for example: `make run DISK_IMAGE_MB=128`.
+Inside CLeonOS, use `diskinfo` to confirm the disk is visible.
+
 If you already have Limine artifacts and want to skip configure:
 
 ```bash
@@ -72,6 +79,7 @@ make run LIMINE_SKIP_CONFIGURE=1
 - `make kernel` - build kernel ELF
 - `make userapps` - build user-space ELF apps
 - `make ramdisk` - package runtime ramdisk
+- `make disk-image` - create/resize runtime disk image (`build/x86_64/cleonos_disk.img`)
 - `make iso` - build bootable ISO
 - `make run` - launch QEMU
 - `make debug` - launch QEMU with `-s -S` for GDB
@@ -102,6 +110,10 @@ cat /shell/init.cmd
 grep -n exec /shell/init.cmd
 cat /shell/init.cmd | grep -n exec
 ls /shell > /temp/shell_list.txt
+diskinfo
+mkfsfat32 CLEONOS
+mount /temp/disk
+write /temp/disk/hello.txt hello-disk
 ```
 
 ## Documentation

@@ -145,6 +145,14 @@ typedef struct cleonos_fb_blit_req {
 #define CLEONOS_SYSCALL_FB_BLIT 82ULL
 #define CLEONOS_SYSCALL_FB_CLEAR 83ULL
 #define CLEONOS_SYSCALL_KERNEL_VERSION 84ULL
+#define CLEONOS_SYSCALL_DISK_PRESENT 85ULL
+#define CLEONOS_SYSCALL_DISK_SIZE_BYTES 86ULL
+#define CLEONOS_SYSCALL_DISK_SECTOR_COUNT 87ULL
+#define CLEONOS_SYSCALL_DISK_FORMATTED 88ULL
+#define CLEONOS_SYSCALL_DISK_FORMAT_FAT32 89ULL
+#define CLEONOS_SYSCALL_DISK_MOUNT 90ULL
+#define CLEONOS_SYSCALL_DISK_MOUNTED 91ULL
+#define CLEONOS_SYSCALL_DISK_MOUNT_PATH 92ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -232,5 +240,13 @@ u64 cleonos_sys_fb_info(cleonos_fb_info *out_info);
 u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req);
 u64 cleonos_sys_fb_clear(u64 rgb);
 u64 cleonos_sys_kernel_version(char *out_version, u64 out_size);
+u64 cleonos_sys_disk_present(void);
+u64 cleonos_sys_disk_size_bytes(void);
+u64 cleonos_sys_disk_sector_count(void);
+u64 cleonos_sys_disk_formatted(void);
+u64 cleonos_sys_disk_format_fat32(const char *label);
+u64 cleonos_sys_disk_mount(const char *mount_path);
+u64 cleonos_sys_disk_mounted(void);
+u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size);
 
 #endif

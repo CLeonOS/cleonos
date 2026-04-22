@@ -8,6 +8,7 @@
 
 - 基于 Limine 启动的 x86_64 内核
 - RAM-disk VFS 目录布局（`/system`、`/shell`、`/temp`、`/driver`）
+- 虚拟磁盘后端，支持 FAT32 格式化与挂载（默认挂载点：`/temp/disk`）
 - 虚拟 TTY 子系统（多 TTY、ANSI、光标、PSF 字体）
 - 键盘/鼠标输入栈，TTY2 提供桌面模式
 - 用户态 ELF 应用模型，syscall ABI 使用 `int 0x80`
@@ -60,6 +61,12 @@ git submodule update --init --recursive
 make run
 ```
 
+`make run` 现在会自动准备 `build/x86_64/cleonos_disk.img`（不存在时自动创建），并以 QEMU 模拟物理硬盘方式挂载（`-drive ... if=ide`）。
+该磁盘**不会**打包进 ISO，也**不会**通过 Limine `module_path` 注入。
+内核当前通过内存缓存窗口处理磁盘元数据/文件（默认最多约 8MB）。
+你也可以覆盖磁盘大小（MB），例如：`make run DISK_IMAGE_MB=128`。
+进入系统后可先执行 `diskinfo` 确认磁盘已识别。
+
 如果你已经准备好 Limine 产物，可跳过 configure：
 
 ```bash
@@ -72,6 +79,7 @@ make run LIMINE_SKIP_CONFIGURE=1
 - `make kernel` - 构建内核 ELF
 - `make userapps` - 构建用户态 ELF 应用
 - `make ramdisk` - 打包运行时 ramdisk
+- `make disk-image` - 创建/调整运行时磁盘镜像（`build/x86_64/cleonos_disk.img`）
 - `make iso` - 生成可启动 ISO
 - `make run` - 启动 QEMU
 - `make debug` - 以 `-s -S` 启动 QEMU 供 GDB 附加
@@ -102,6 +110,10 @@ cat /shell/init.cmd
 grep -n exec /shell/init.cmd
 cat /shell/init.cmd | grep -n exec
 ls /shell > /temp/shell_list.txt
+diskinfo
+mkfsfat32 CLEONOS
+mount /temp/disk
+write /temp/disk/hello.txt hello-disk
 ```
 
 ## 文档

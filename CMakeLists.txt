@@ -93,6 +93,8 @@ set(ISO_ROOT "${BUILD_ROOT}/iso_root")
 set(RAMDISK_ROOT "${BUILD_ROOT}/ramdisk_root")
 set(KERNEL_ELF "${BUILD_ROOT}/clks_kernel.elf")
 set(RAMDISK_IMAGE "${BUILD_ROOT}/cleonos_ramdisk.tar")
+set(DISK_IMAGE "${BUILD_ROOT}/cleonos_disk.img")
+set(CLEONOS_DISK_IMAGE_MB "64" CACHE STRING "Default runtime disk image size in MB")
 set(ISO_IMAGE "${CMAKE_SOURCE_DIR}/build/CLeonOS-x86_64.iso")
 set(KERNEL_SYMBOLS_FILE "${BUILD_ROOT}/kernel.sym")
 
@@ -457,6 +459,15 @@ add_custom_command(
         -P "${CL_LOG_EMIT_SCRIPT}"
 )
 
+add_custom_target(disk-image
+    COMMAND ${CMAKE_COMMAND}
+        "-DDISK_IMAGE=${DISK_IMAGE}"
+        "-DDISK_MB=${CLEONOS_DISK_IMAGE_MB}"
+        -P "${CMAKE_SOURCE_DIR}/cmake/ensure_disk_image.cmake"
+    BYPRODUCTS "${DISK_IMAGE}"
+    VERBATIM
+)
+
 add_custom_command(
     OUTPUT "${ISO_IMAGE}"
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${ISO_ROOT}"
@@ -511,8 +522,8 @@ add_custom_target(run
         "-DLOG_LEVEL=STEP"
         "-DLOG_TEXT=launching qemu run"
         -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND ${QEMU_X86_64} -M q35 -m 1024M -cdrom "${ISO_IMAGE}" -serial stdio
-    DEPENDS iso
+    COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio
+    DEPENDS iso disk-image
     USES_TERMINAL
 )
 
@@ -522,8 +533,8 @@ add_custom_target(debug
         "-DLOG_LEVEL=STEP"
         "-DLOG_TEXT=launching qemu debug (-s -S)"
         -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND ${QEMU_X86_64} -M q35 -m 1024M -cdrom "${ISO_IMAGE}" -serial stdio -s -S
-    DEPENDS iso
+    COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio -s -S
+    DEPENDS iso disk-image
     USES_TERMINAL
 )
 
@@ -586,5 +597,6 @@ add_custom_target(cleonos-help
     COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target iso"
     COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target run"
     COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target debug"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target disk-image"
 )
 

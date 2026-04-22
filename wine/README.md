@@ -38,10 +38,10 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 ## 支持
 
 - ELF64 (x86_64) PT_LOAD 段装载
-- CLeonOS `int 0x80` syscall 0..84（含 `FD_*`、`DL_*`、`FB_*`、`PROC_*`、`STATS_*`、`EXEC_PATHV_IO`、`KERNEL_VERSION`）
+- CLeonOS `int 0x80` syscall 0..92（含 `FD_*`、`DL_*`、`FB_*`、`PROC_*`、`STATS_*`、`EXEC_PATHV_IO`、`KERNEL_VERSION`、`DISK_*`）
 - TTY 输出与键盘输入队列
 - rootfs 文件/目录访问（`FS_*`）
-- `/temp` 写入限制（`FS_MKDIR/WRITE/APPEND/REMOVE`）
+- `/temp` 与已挂载磁盘路径写入限制（`FS_MKDIR/WRITE/APPEND/REMOVE`）
 - `EXEC_PATH/EXEC_PATHV` 执行 ELF（带深度限制）
 - `EXEC_PATHV_IO`（支持 stdio fd 继承/重定向）
 - `SPAWN_PATH/SPAWN_PATHV/WAITPID/EXIT/SLEEP_TICKS/YIELD`
@@ -52,12 +52,14 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 - 动态库兼容加载（`DL_OPEN/DL_CLOSE/DL_SYM`，基于 ELF 符号解析）
 - framebuffer 兼容（`FB_INFO/FB_BLIT/FB_CLEAR`，支持内存缓冲与窗口显示）
 - 内核版本查询（`KERNEL_VERSION`）
+- 磁盘接口兼容（`DISK_PRESENT/SIZE_BYTES/SECTOR_COUNT/FORMATTED/FORMAT_FAT32/MOUNT/MOUNTED/MOUNT_PATH`）
+- Wine 虚拟磁盘目录默认位于 `<rootfs>/__clks_disk0__`（格式化标记文件 `.fat32`）
 - 异常退出状态编码与故障元信息（`PROC_LAST_SIGNAL/PROC_FAULT_*`）
 
 ## 版本策略
 
 - CLeonOS-Wine 版本号固定为：`85.0.0-wine`
-- 该值来源于“当前实现 syscall 数量 = 85（0..84）”，按项目约定后续不再变更
+- 该值按项目策略固定，不再随新增 syscall 变更（即使当前实现范围已扩展到 `0..92`）
 
 ## 参数
 
@@ -71,6 +73,7 @@ python wine/cleonos_wine.py build/x86_64/ramdisk_root/shell/shell.elf --rootfs b
 - `--` 之后内容：作为 guest argv 透传（推荐）
 - `--max-exec-depth N`：设置 exec 嵌套深度上限
 - `--verbose`：打印更多日志
+- 环境变量 `CLEONOS_WINE_DISK_SIZE_MB`：设置 Wine 虚拟磁盘容量（MB，默认 `64`）
 
 ## `execv/spawnv` 参数格式
 

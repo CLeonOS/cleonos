@@ -29,6 +29,9 @@ static int ush_cmd_help(void) {
     ush_writeln("  cp <src> <dst>   (dst /temp only)");
     ush_writeln("  mv <src> <dst>   (/temp only)");
     ush_writeln("  rm <path>        (/temp only)");
+    ush_writeln("  diskinfo");
+    ush_writeln("  mkfsfat32 [label]");
+    ush_writeln("  mount [path]     (default suggested: /temp/disk)");
     ush_writeln("  pid");
     ush_writeln("  spawn <path|name> [args...] / bg <path|name> [args...]");
     ush_writeln("  wait <pid> / fg [pid]");

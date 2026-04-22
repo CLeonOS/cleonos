@@ -18,6 +18,7 @@ READELF_FOR_TARGET ?=
 PYTHON ?= python3
 MENUCONFIG_ARGS ?=
 MENUCONFIG_PRESET ?=
+DISK_IMAGE_MB ?=
 
 ifeq ($(strip $(CMAKE_GENERATOR)),)
 GEN_ARG :=
@@ -52,8 +53,11 @@ endif
 ifneq ($(strip $(READELF_FOR_TARGET)),)
 CMAKE_PASSTHROUGH_ARGS += -DREADELF_FOR_TARGET=$(READELF_FOR_TARGET)
 endif
+ifneq ($(strip $(DISK_IMAGE_MB)),)
+CMAKE_PASSTHROUGH_ARGS += -DCLEONOS_DISK_IMAGE_MB=$(DISK_IMAGE_MB)
+endif
 
-.PHONY: all configure reconfigure menuconfig menuconfig-gui setup setup-tools setup-limine kernel userapps ramdisk-root ramdisk iso run debug clean clean-all help
+.PHONY: all configure reconfigure menuconfig menuconfig-gui setup setup-tools setup-limine kernel userapps ramdisk-root ramdisk disk-image iso run debug clean clean-all help
 
 all: iso
 
@@ -107,6 +111,9 @@ ramdisk-root: configure
 ramdisk: configure
 > @$(CMAKE) --build $(CMAKE_BUILD_DIR) --target ramdisk
 
+disk-image: configure
+> @$(CMAKE) --build $(CMAKE_BUILD_DIR) --target disk-image
+
 iso: configure
 > @$(CMAKE) --build $(CMAKE_BUILD_DIR) --target iso
 
@@ -137,6 +144,7 @@ help:
 > @echo "  make menuconfig-gui"
 > @echo "  make setup"
 > @echo "  make userapps"
+> @echo "  make disk-image"
 > @echo "  make iso"
 > @echo "  make run"
 > @echo "  make debug"
@@ -147,6 +155,8 @@ help:
 > @echo "  make configure CMAKE_EXTRA_ARGS='-DLIMINE_SKIP_CONFIGURE=1 -DOBJCOPY_FOR_TARGET=objcopy'"
 > @echo "Direct passthrough is also supported:"
 > @echo "  make run LIMINE_SKIP_CONFIGURE=1"
+> @echo "Disk image size example:"
+> @echo "  make run DISK_IMAGE_MB=128"
 > @echo "Preset examples:"
 > @echo "  make menuconfig MENUCONFIG_PRESET=full"
 > @echo "  make menuconfig MENUCONFIG_PRESET=minimal"

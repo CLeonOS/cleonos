@@ -73,7 +73,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 文件系统写入类 syscall 的权限限制：
 
-- `FS_MKDIR` / `FS_WRITE` / `FS_APPEND` / `FS_REMOVE` 仅允许 `/temp` 树下路径。
+- `FS_MKDIR` / `FS_WRITE` / `FS_APPEND` / `FS_REMOVE` 仅允许 `/temp` 树下路径，或已挂载磁盘路径树下（默认挂载点通常为 `/temp/disk`）。
 
 `/proc` 虚拟目录（由 syscall 层动态导出）：
 
@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~84）
+## 4. Syscall 列表（0~92）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -667,6 +667,54 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：实际写入字节数（不含终止符），失败返回 `0`
 - 说明：返回 CLKS 内核版本字符串（当前默认 `1.0.0-alpha`），内核会保证输出以 `\0` 结尾。
 
+### 85 `CLEONOS_SYSCALL_DISK_PRESENT`
+
+- 参数：无
+- 返回：`1` 表示存在可用磁盘后端，`0` 表示不存在。
+- 说明：在 QEMU 运行时，磁盘后端来自模拟物理硬盘（`-drive`），不是 ISO/Limine module。
+
+### 86 `CLEONOS_SYSCALL_DISK_SIZE_BYTES`
+
+- 参数：无
+- 返回：磁盘容量（字节）；无磁盘时返回 `0`。
+
+### 87 `CLEONOS_SYSCALL_DISK_SECTOR_COUNT`
+
+- 参数：无
+- 返回：扇区总数（按 512 字节扇区）；无磁盘时返回 `0`。
+
+### 88 `CLEONOS_SYSCALL_DISK_FORMATTED`
+
+- 参数：无
+- 返回：`1` 表示当前磁盘已识别为 FAT32，`0` 表示未格式化/不识别。
+
+### 89 `CLEONOS_SYSCALL_DISK_FORMAT_FAT32`
+
+- 参数：
+- `arg0`: `const char *label`（可为 `0` 或空字符串）
+- 返回：成功 `1`，失败 `0`
+- 说明：将当前磁盘格式化为 FAT32；此操作会清空已有磁盘数据。该 syscall 在 USC 策略中默认视为高风险操作。
+
+### 90 `CLEONOS_SYSCALL_DISK_MOUNT`
+
+- 参数：
+- `arg0`: `const char *mount_path`（绝对路径）
+- 返回：成功 `1`，失败 `0`
+- 说明：将 FAT32 磁盘挂载到指定路径（不能是 `/`）。挂载成功后，`FS_*` 接口可通过该路径访问磁盘内容。
+
+### 91 `CLEONOS_SYSCALL_DISK_MOUNTED`
+
+- 参数：无
+- 返回：`1` 表示已挂载，`0` 表示未挂载。
+
+### 92 `CLEONOS_SYSCALL_DISK_MOUNT_PATH`
+
+- 参数：
+- `arg0`: `char *out_path`
+- `arg1`: `u64 out_size`
+- 返回：实际写入字节数（不含终止符），失败返回 `0`
+- 说明：查询当前挂载点路径；返回值为写入长度，且内核保证 `\0` 终止。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -696,17 +744,19 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_exec_pathv_io()`
 - `cleonos_sys_fb_info()` / `cleonos_sys_fb_blit()` / `cleonos_sys_fb_clear()`
 - `cleonos_sys_kernel_version()`
+- `cleonos_sys_disk_present()` / `cleonos_sys_disk_size_bytes()` / `cleonos_sys_disk_sector_count()`
+- `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
 
 ## 6. 开发注意事项
 
 - 传入的字符串/缓冲指针目前按“同地址空间可直接访问”模型处理，后续若引入严格用户态地址隔离，需要补充用户内存校验。
 - `FS_READ` 不保证文本终止符；读取文本请预留 1 字节并手动 `buf[n] = '\0'`。
-- `FS_WRITE`/`FS_APPEND` 仅允许 `/temp`；大数据写入由内核自动分块处理。
+- `FS_WRITE`/`FS_APPEND` 仅允许 `/temp` 或已挂载磁盘路径；大数据写入由内核自动分块处理。
 - `/proc` 由 syscall 层虚拟导出，不占用 RAMDISK 节点，也不能通过写入类 syscall 修改。
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..84`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..92`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -718,6 +768,10 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 配合 Wine 参数 `--fb-window` 可将 framebuffer 实时显示到主机窗口（pygame 后端）；未启用时保持内存缓冲模式。
 - `FB_CLEAR` 支持清屏颜色写入。
 - `KERNEL_VERSION`（`84`）在 Wine 中返回内核版本字符串（当前默认 `1.0.0-alpha`）。
+- `DISK_*`（`85..92`）在 Wine 中已实现：
+- 提供虚拟磁盘容量信息与 FAT32 格式化状态查询。
+- `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
+- `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理，并与 `FS_MKDIR/WRITE/APPEND/REMOVE` 的路径规则联动。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
-- Wine 版本号策略固定为 `85.0.0-wine`（`85` = 当前实现 syscall 数量，后续保持不变）。
+- Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
