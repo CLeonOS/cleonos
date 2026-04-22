@@ -153,6 +153,8 @@ typedef struct cleonos_fb_blit_req {
 #define CLEONOS_SYSCALL_DISK_MOUNT 90ULL
 #define CLEONOS_SYSCALL_DISK_MOUNTED 91ULL
 #define CLEONOS_SYSCALL_DISK_MOUNT_PATH 92ULL
+#define CLEONOS_SYSCALL_DISK_READ_SECTOR 93ULL
+#define CLEONOS_SYSCALL_DISK_WRITE_SECTOR 94ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -248,5 +250,7 @@ u64 cleonos_sys_disk_format_fat32(const char *label);
 u64 cleonos_sys_disk_mount(const char *mount_path);
 u64 cleonos_sys_disk_mounted(void);
 u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size);
+u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector);
+u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data);
 
 #endif

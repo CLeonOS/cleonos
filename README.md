@@ -111,6 +111,10 @@ grep -n exec /shell/init.cmd
 cat /shell/init.cmd | grep -n exec
 ls /shell > /temp/shell_list.txt
 diskinfo
+partctl list
+partctl init-mbr
+partctl create 1 2048 32768 0x0C 1
+partctl delete 1
 mkfsfat32 CLEONOS
 mount /temp/disk
 write /temp/disk/hello.txt hello-disk

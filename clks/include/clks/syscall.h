@@ -96,6 +96,8 @@
 #define CLKS_SYSCALL_DISK_MOUNT 90ULL
 #define CLKS_SYSCALL_DISK_MOUNTED 91ULL
 #define CLKS_SYSCALL_DISK_MOUNT_PATH 92ULL
+#define CLKS_SYSCALL_DISK_READ_SECTOR 93ULL
+#define CLKS_SYSCALL_DISK_WRITE_SECTOR 94ULL
 
 void clks_syscall_init(void);
 u64 clks_syscall_dispatch(void *frame_ptr);

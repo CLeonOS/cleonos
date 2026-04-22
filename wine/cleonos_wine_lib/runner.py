@@ -69,8 +69,10 @@ from .constants import (
     SYS_DISK_MOUNTED,
     SYS_DISK_MOUNT_PATH,
     SYS_DISK_PRESENT,
+    SYS_DISK_READ_SECTOR,
     SYS_DISK_SECTOR_COUNT,
     SYS_DISK_SIZE_BYTES,
+    SYS_DISK_WRITE_SECTOR,
     SYS_GETPID,
     SYS_KERNEL_VERSION,
     SYS_KBD_BUFFERED,
@@ -286,10 +288,12 @@ class CLeonOSWineNative:
         self._disk_mount_path = "/temp/disk"
         self._disk_root = (self.rootfs / "__clks_disk0__").resolve()
         self._disk_marker = self._disk_root / ".fat32"
+        self._disk_image_file = self._disk_root / ".rawdisk.img"
         self._disk_formatted = False
         self._disk_mounted = False
         try:
             self._disk_root.mkdir(parents=True, exist_ok=True)
+            self._disk_prepare_raw_image()
             if self._disk_marker.exists():
                 self._disk_formatted = True
                 self._disk_mounted = True
@@ -762,6 +766,16 @@ class CLeonOSWineNative:
             return 1 if self._disk_mounted else 0
         if sid == SYS_DISK_MOUNT_PATH:
             return self._disk_mount_path_query(uc, arg0, arg1)
+        if sid == SYS_DISK_READ_SECTOR:
+            sector_data = self._disk_read_sector_raw(int(arg0))
+            if sector_data is None:
+                return 0
+            return 1 if self._write_guest_bytes(uc, int(arg1), sector_data) else 0
+        if sid == SYS_DISK_WRITE_SECTOR:
+            sector_data = self._read_guest_bytes_exact(uc, int(arg1), 512)
+            if sector_data is None:
+                return 0
+            return 1 if self._disk_write_sector_raw(int(arg0), sector_data) else 0
 
         return u64_neg1()
 
@@ -1080,20 +1094,78 @@ class CLeonOSWineNative:
             return None
         return host
 
+    def _disk_prepare_raw_image(self) -> None:
+        target_size = int(self._disk_size_bytes)
+
+        if target_size < 512:
+            raise RuntimeError("wine disk image size too small")
+
+        if not self._disk_image_file.exists():
+            with open(self._disk_image_file, "wb") as fp:
+                fp.truncate(target_size)
+            return
+
+        current_size = int(self._disk_image_file.stat().st_size)
+        if current_size != target_size:
+            with open(self._disk_image_file, "r+b") as fp:
+                fp.truncate(target_size)
+
+    def _disk_read_sector_raw(self, lba: int) -> Optional[bytes]:
+        if not self._disk_present:
+            return None
+        if lba < 0:
+            return None
+        offset = int(lba) * 512
+        if offset + 512 > int(self._disk_size_bytes):
+            return None
+        try:
+            with open(self._disk_image_file, "rb") as fp:
+                fp.seek(offset)
+                data = fp.read(512)
+            if len(data) != 512:
+                return None
+            return data
+        except Exception:
+            return None
+
+    def _disk_write_sector_raw(self, lba: int, data: bytes) -> bool:
+        if not self._disk_present:
+            return False
+        if lba < 0:
+            return False
+        if len(data) != 512:
+            return False
+        offset = int(lba) * 512
+        if offset + 512 > int(self._disk_size_bytes):
+            return False
+        try:
+            with open(self._disk_image_file, "r+b") as fp:
+                fp.seek(offset)
+                fp.write(data)
+                fp.flush()
+            return True
+        except Exception:
+            return False
+
     def _disk_format_fat32(self, label: str) -> int:
         _ = label
         if not self._disk_present:
             return 0
 
         try:
+            self._disk_prepare_raw_image()
             self._disk_root.mkdir(parents=True, exist_ok=True)
             for child in list(self._disk_root.iterdir()):
-                if child.name == self._disk_marker.name:
+                if child.name == self._disk_marker.name or child.name == self._disk_image_file.name:
                     continue
                 if child.is_dir():
                     shutil.rmtree(child)
                 else:
                     child.unlink()
+            with open(self._disk_image_file, "r+b") as fp:
+                fp.seek(0)
+                fp.write(b"\x00" * 512)
+                fp.flush()
             self._disk_marker.write_text("FAT32\n", encoding="utf-8")
             self._disk_formatted = True
             return 1

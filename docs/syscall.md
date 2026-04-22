@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~92）
+## 4. Syscall 列表（0~94）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -715,6 +715,22 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：实际写入字节数（不含终止符），失败返回 `0`
 - 说明：查询当前挂载点路径；返回值为写入长度，且内核保证 `\0` 终止。
 
+### 93 `CLEONOS_SYSCALL_DISK_READ_SECTOR`
+
+- 参数：
+- `arg0`: `u64 lba`
+- `arg1`: `void *out_sector`（512 字节缓冲区）
+- 返回：成功 `1`，失败 `0`
+- 说明：按 LBA 读取单个扇区（512B）到用户缓冲区，常用于分区表/低级磁盘工具。
+
+### 94 `CLEONOS_SYSCALL_DISK_WRITE_SECTOR`
+
+- 参数：
+- `arg0`: `u64 lba`
+- `arg1`: `const void *sector_data`（512 字节缓冲区）
+- 返回：成功 `1`，失败 `0`
+- 说明：按 LBA 写入单个扇区（512B）。该 syscall 在 USC 策略中默认视为高风险操作。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -746,6 +762,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_kernel_version()`
 - `cleonos_sys_disk_present()` / `cleonos_sys_disk_size_bytes()` / `cleonos_sys_disk_sector_count()`
 - `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
+- `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()`
 
 ## 6. 开发注意事项
 
@@ -756,7 +773,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..92`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..94`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -768,10 +785,11 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 配合 Wine 参数 `--fb-window` 可将 framebuffer 实时显示到主机窗口（pygame 后端）；未启用时保持内存缓冲模式。
 - `FB_CLEAR` 支持清屏颜色写入。
 - `KERNEL_VERSION`（`84`）在 Wine 中返回内核版本字符串（当前默认 `1.0.0-alpha`）。
-- `DISK_*`（`85..92`）在 Wine 中已实现：
+- `DISK_*`（`85..94`）在 Wine 中已实现：
 - 提供虚拟磁盘容量信息与 FAT32 格式化状态查询。
 - `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
 - `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理，并与 `FS_MKDIR/WRITE/APPEND/REMOVE` 的路径规则联动。
+- `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。

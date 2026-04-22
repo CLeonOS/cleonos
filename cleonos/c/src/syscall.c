@@ -403,3 +403,11 @@ u64 cleonos_sys_disk_mounted(void) {
 u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size) {
     return cleonos_syscall(CLEONOS_SYSCALL_DISK_MOUNT_PATH, (u64)out_path, out_size, 0ULL);
 }
+
+u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_READ_SECTOR, lba, (u64)out_sector, 0ULL);
+}
+
+u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISK_WRITE_SECTOR, lba, (u64)sector_data, 0ULL);
+}

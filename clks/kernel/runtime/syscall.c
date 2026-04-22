@@ -37,7 +37,8 @@
 #define CLKS_SYSCALL_KDBG_STACK_WINDOW_BYTES (128ULL * 1024ULL)
 #define CLKS_SYSCALL_KERNEL_SYMBOL_FILE "/system/kernel.sym"
 #define CLKS_SYSCALL_KERNEL_ADDR_BASE 0xFFFF800000000000ULL
-#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_DISK_MOUNT_PATH
+#define CLKS_SYSCALL_STATS_MAX_ID CLKS_SYSCALL_DISK_WRITE_SECTOR
+#define CLKS_SYSCALL_DISK_SECTOR_BYTES 512U
 #define CLKS_SYSCALL_STATS_RING_SIZE 256U
 #define CLKS_SYSCALL_USC_MAX_ALLOWED_APPS 64U
 
@@ -528,6 +529,40 @@ static u64 clks_syscall_disk_mount_path(u64 arg0, u64 arg1) {
     }
 
     return clks_syscall_copy_text_to_user(arg0, arg1, mount_path, clks_strlen(mount_path));
+}
+
+static u64 clks_syscall_disk_read_sector(u64 arg0, u64 arg1) {
+    u8 sector[CLKS_SYSCALL_DISK_SECTOR_BYTES];
+
+    if (arg1 == 0ULL) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_writable(arg1, (u64)CLKS_SYSCALL_DISK_SECTOR_BYTES) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    if (clks_disk_read_sector(arg0, (void *)sector) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    clks_memcpy((void *)arg1, sector, (usize)CLKS_SYSCALL_DISK_SECTOR_BYTES);
+    return 1ULL;
+}
+
+static u64 clks_syscall_disk_write_sector(u64 arg0, u64 arg1) {
+    u8 sector[CLKS_SYSCALL_DISK_SECTOR_BYTES];
+
+    if (arg1 == 0ULL) {
+        return 0ULL;
+    }
+
+    if (clks_syscall_user_ptr_readable(arg1, (u64)CLKS_SYSCALL_DISK_SECTOR_BYTES) == CLKS_FALSE) {
+        return 0ULL;
+    }
+
+    clks_memcpy(sector, (const void *)arg1, (usize)CLKS_SYSCALL_DISK_SECTOR_BYTES);
+    return (clks_disk_write_sector(arg0, (const void *)sector) == CLKS_TRUE) ? 1ULL : 0ULL;
 }
 
 static u64 clks_syscall_fd_open(u64 arg0, u64 arg1, u64 arg2) {
@@ -2061,6 +2096,10 @@ static const char *clks_syscall_usc_syscall_name(u64 id) {
         return "DISK_MOUNTED";
     case CLKS_SYSCALL_DISK_MOUNT_PATH:
         return "DISK_MOUNT_PATH";
+    case CLKS_SYSCALL_DISK_READ_SECTOR:
+        return "DISK_READ_SECTOR";
+    case CLKS_SYSCALL_DISK_WRITE_SECTOR:
+        return "DISK_WRITE_SECTOR";
     default:
         return "UNKNOWN";
     }
@@ -2093,6 +2132,8 @@ static clks_bool clks_syscall_usc_is_dangerous(u64 id) {
     case CLKS_SYSCALL_RESTART:
         return (CLKS_CFG_USC_SC_RESTART != 0) ? CLKS_TRUE : CLKS_FALSE;
     case CLKS_SYSCALL_DISK_FORMAT_FAT32:
+        return CLKS_TRUE;
+    case CLKS_SYSCALL_DISK_WRITE_SECTOR:
         return CLKS_TRUE;
     default:
         return CLKS_FALSE;
@@ -2613,6 +2654,10 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
         return clks_syscall_disk_mounted();
     case CLKS_SYSCALL_DISK_MOUNT_PATH:
         return clks_syscall_disk_mount_path(frame->rbx, frame->rcx);
+    case CLKS_SYSCALL_DISK_READ_SECTOR:
+        return clks_syscall_disk_read_sector(frame->rbx, frame->rcx);
+    case CLKS_SYSCALL_DISK_WRITE_SECTOR:
+        return clks_syscall_disk_write_sector(frame->rbx, frame->rcx);
     default:
         return (u64)-1;
     }
