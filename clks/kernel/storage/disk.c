@@ -740,8 +740,7 @@ static i32 clks_disk_alloc_slot(void) {
     return (i32)(clks_disk_nodes_used - 1U);
 }
 
-static i32 clks_disk_create_or_update_node(const char *relative_path, u8 type, u16 parent, const void *data,
-                                           u64 size) {
+static i32 clks_disk_create_or_update_node(const char *relative_path, u8 type, u16 parent, const void *data, u64 size) {
     i32 existing;
     i32 slot;
     usize path_len;
@@ -851,7 +850,8 @@ static clks_bool clks_disk_ensure_dir_hierarchy(const char *relative_dir_path) {
         node_index = clks_disk_find_node_by_relative(prefix);
 
         if (node_index < 0) {
-            node_index = clks_disk_create_or_update_node(prefix, (u8)CLKS_DISK_NODE_DIR, current_parent, CLKS_NULL, 0ULL);
+            node_index =
+                clks_disk_create_or_update_node(prefix, (u8)CLKS_DISK_NODE_DIR, current_parent, CLKS_NULL, 0ULL);
 
             if (node_index < 0) {
                 return CLKS_FALSE;
@@ -1013,8 +1013,7 @@ static clks_bool clks_disk_meta_load(void) {
     }
 
     for (i = 0ULL; i < entry_count; i++) {
-        const u8 *entry_ptr =
-            meta_base + CLKS_DISK_META_HEADER_SIZE + (usize)(i * (u64)CLKS_DISK_META_ENTRY_SIZE);
+        const u8 *entry_ptr = meta_base + CLKS_DISK_META_HEADER_SIZE + (usize)(i * (u64)CLKS_DISK_META_ENTRY_SIZE);
         u8 type = entry_ptr[0];
         u64 size = clks_disk_read_u64(entry_ptr + 4U);
         u64 data_offset = clks_disk_read_u64(entry_ptr + 12U);
@@ -1497,7 +1496,8 @@ clks_bool clks_disk_stat(const char *path, u64 *out_type, u64 *out_size) {
     char relative[CLKS_DISK_PATH_MAX];
     i32 node_index;
 
-    if (out_type == CLKS_NULL || out_size == CLKS_NULL || clks_disk_path_to_relative(path, relative, sizeof(relative)) == CLKS_FALSE) {
+    if (out_type == CLKS_NULL || out_size == CLKS_NULL ||
+        clks_disk_path_to_relative(path, relative, sizeof(relative)) == CLKS_FALSE) {
         return CLKS_FALSE;
     }
 
@@ -1511,7 +1511,8 @@ clks_bool clks_disk_stat(const char *path, u64 *out_type, u64 *out_size) {
         return CLKS_FALSE;
     }
 
-    *out_type = (clks_disk_nodes[(u16)node_index].type == (u8)CLKS_DISK_NODE_DIR) ? CLKS_DISK_NODE_DIR : CLKS_DISK_NODE_FILE;
+    *out_type =
+        (clks_disk_nodes[(u16)node_index].type == (u8)CLKS_DISK_NODE_DIR) ? CLKS_DISK_NODE_DIR : CLKS_DISK_NODE_FILE;
     *out_size = clks_disk_nodes[(u16)node_index].size;
     return CLKS_TRUE;
 }
@@ -1610,7 +1611,8 @@ clks_bool clks_disk_get_child_name(const char *dir_path, u64 index, char *out_na
         const char *base;
         usize base_len;
 
-        if (clks_disk_nodes[i].used == CLKS_FALSE || clks_disk_nodes[i].parent != (u16)dir_index || i == (u16)dir_index) {
+        if (clks_disk_nodes[i].used == CLKS_FALSE || clks_disk_nodes[i].parent != (u16)dir_index ||
+            i == (u16)dir_index) {
             continue;
         }
 
@@ -1706,7 +1708,8 @@ clks_bool clks_disk_write_all(const char *path, const void *data, u64 size) {
         clks_disk_node_release_heap_data((u16)node_index);
     }
 
-    node_index = clks_disk_create_or_update_node(relative, (u8)CLKS_DISK_NODE_FILE, (u16)parent_index, payload_data, size);
+    node_index =
+        clks_disk_create_or_update_node(relative, (u8)CLKS_DISK_NODE_FILE, (u16)parent_index, payload_data, size);
 
     if (node_index < 0) {
         if (payload_heap_owned == CLKS_TRUE) {
