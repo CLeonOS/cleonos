@@ -11,10 +11,13 @@
 #include <clks/types.h>
 #include <clks/tty.h>
 
+/* Process runtime core: this is where tiny mistakes become giant explosions. */
+
 typedef u64 (*clks_exec_entry_fn)(void);
 
 #define CLKS_EXEC_RUN_STACK_BYTES (1024ULL * 1024ULL)
 #define CLKS_EXEC_MAX_PROCS 64U
+/* 64 is a compromise: enough to be useful, small enough to not eat RAM for breakfast. */
 #define CLKS_EXEC_MAX_DEPTH 16U
 #define CLKS_EXEC_PATH_MAX 192U
 #define CLKS_EXEC_ARG_LINE_MAX 256U
@@ -206,6 +209,7 @@ static void clks_exec_serial_write_hex64(u64 value) {
 }
 
 static void clks_exec_log_info_serial(const char *message) {
+    /* Serial logs stay because they save our ass when TTY is dead. */
     if (CLKS_CFG_EXEC_SERIAL_LOG == 0) {
         (void)message;
         return;
@@ -886,6 +890,7 @@ static i32 clks_exec_proc_find_slot_by_pid(u64 pid) {
 static i32 clks_exec_proc_alloc_slot(void) {
     u32 i;
 
+    /* First pass: find free slot. Second pass: recycle corpses. Brutal but effective. */
     for (i = 0U; i < CLKS_EXEC_MAX_PROCS; i++) {
         if (clks_exec_proc_table[i].used == CLKS_FALSE) {
             return (i32)i;
@@ -1569,6 +1574,7 @@ static clks_bool clks_exec_dispatch_pending_once(void) {
         return CLKS_FALSE;
     }
 
+    /* One pending process per tick keeps latency sane and avoids scheduler chaos. */
     for (i = 0U; i < CLKS_EXEC_MAX_PROCS; i++) {
         if (clks_exec_proc_table[i].used == CLKS_TRUE && clks_exec_proc_table[i].state == CLKS_EXEC_PROC_PENDING) {
             u64 ignored_status = (u64)-1;
@@ -1600,6 +1606,7 @@ static clks_bool clks_exec_run_path_internal(const char *path, const char *argv_
         *out_pid = (u64)-1;
     }
 
+    /* Count every request, even bad ones, so metrics don't lie to our face. */
     clks_exec_requests++;
 
     if (path == CLKS_NULL || path[0] != '/') {
@@ -2701,6 +2708,7 @@ u64 clks_exec_yield(void) {
 
 void clks_exec_tick(u64 tick) {
     (void)tick;
+    /* Background pump: boring, repetitive, absolutely necessary. */
     (void)clks_exec_dispatch_pending_once();
 }
 

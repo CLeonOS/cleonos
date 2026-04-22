@@ -6,6 +6,8 @@
 #include <clks/string.h>
 #include <clks/types.h>
 
+/* Tiny in-memory FS: simple enough to reason about, still easy to screw up. */
+
 #define CLKS_FS_MAX_NODES 512U
 #define CLKS_FS_PATH_MAX CLKS_RAMDISK_PATH_MAX
 
@@ -47,6 +49,7 @@ static clks_bool clks_fs_normalize_external_path(const char *path, char *out_int
         in_pos++;
     }
 
+    /* Normalize aggressively; weird paths are where bugs and exploits like to party. */
     while (path[in_pos] != '\0') {
         usize comp_start = in_pos;
         usize comp_len;
@@ -71,6 +74,7 @@ static clks_bool clks_fs_normalize_external_path(const char *path, char *out_int
             continue;
         }
 
+        /* No parent traversal here. Not today, not ever. */
         if (comp_len == 2U && path[comp_start] == '.' && path[comp_start + 1U] == '.') {
             return CLKS_FALSE;
         }
@@ -99,6 +103,7 @@ static clks_bool clks_fs_normalize_external_path(const char *path, char *out_int
 }
 
 static clks_bool clks_fs_internal_in_temp_tree(const char *internal_path) {
+    /* Write access is fenced into /temp so random code can't trash the world. */
     if (internal_path == CLKS_NULL) {
         return CLKS_FALSE;
     }
@@ -125,6 +130,7 @@ static clks_bool clks_fs_internal_is_temp_file_path(const char *internal_path) {
 static i32 clks_fs_find_node_by_internal(const char *internal_path) {
     u16 i;
 
+    /* Linear scan is boring, but with this node count it's fine as hell. */
     for (i = 0U; i < clks_fs_nodes_used; i++) {
         if (clks_fs_nodes[i].used == CLKS_FALSE) {
             continue;
@@ -186,6 +192,7 @@ static clks_bool clks_fs_split_parent(const char *internal_path, char *parent_ou
         return CLKS_TRUE;
     }
 
+    /* Manual split is ugly, but it avoids allocator drama during path ops. */
     for (i = len; i != 0U; i--) {
         if (internal_path[i - 1U] == '/') {
             usize parent_len = i - 1U;

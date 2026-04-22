@@ -26,6 +26,8 @@
 #include <clks/types.h>
 #include <clks/userland.h>
 
+/* Boot orchestration file: one wrong init order and the whole damn thing faceplants. */
+
 #ifndef CLKS_CFG_AUDIO
 #define CLKS_CFG_AUDIO 1
 #endif
@@ -189,8 +191,10 @@ void clks_kernel_main(void) {
     u64 syscall_ticks;
     u64 fs_root_children;
 
+    /* Serial first, because when graphics dies we still need a heartbeat. */
     clks_serial_init();
 
+    /* If boot protocol handshake fails, continuing would be pure fantasy. */
     if (clks_boot_base_revision_supported() == CLKS_FALSE) {
         clks_serial_write("[ERROR][BOOT] LIMINE BASE REVISION NOT SUPPORTED\n");
         clks_cpu_halt_forever();
@@ -198,6 +202,7 @@ void clks_kernel_main(void) {
 
     boot_fb = clks_boot_get_framebuffer();
 
+    /* TTY comes up only when framebuffer exists; no pixels, no pretty lies. */
     if (boot_fb != CLKS_NULL) {
         clks_fb_init(boot_fb);
         clks_tty_init();
@@ -349,6 +354,7 @@ void clks_kernel_main(void) {
     clks_log(CLKS_LOG_WARN, "CFG", "KELF DISABLED BY MENUCONFIG");
 #endif
 
+    /* Scheduler init is the "okay, now this mess is actually alive" moment. */
     clks_scheduler_init();
 
 #if CLKS_CFG_KLOGD_TASK
@@ -453,6 +459,7 @@ void clks_kernel_main(void) {
     clks_log(CLKS_LOG_DEBUG, "KERNEL", "IDLE LOOP ENTER");
 #endif
 
+    /* Infinite idle loop: glamorous name for "wait forever and hope interrupts behave". */
     for (;;) {
         u64 tick_now = clks_interrupts_timer_ticks();
         clks_scheduler_dispatch_current(tick_now);

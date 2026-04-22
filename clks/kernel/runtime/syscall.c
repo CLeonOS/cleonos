@@ -18,6 +18,8 @@
 #include <clks/userland.h>
 #include <cleonos_version.h>
 
+/* Yes, this file is a syscall kitchen sink and nobody is pretending otherwise. */
+
 #define CLKS_SYSCALL_LOG_MAX_LEN 191U
 #define CLKS_SYSCALL_PATH_MAX 192U
 #define CLKS_SYSCALL_NAME_MAX 96U
@@ -180,6 +182,7 @@ static inline void clks_syscall_outw(u16 port, u16 value) {
 #endif
 
 static clks_bool clks_syscall_in_user_exec_context(void) {
+    /* If this says "no", we're basically in trust-me-bro kernel mode. */
     return (clks_exec_is_running() == CLKS_TRUE && clks_exec_current_path_is_user() == CLKS_TRUE) ? CLKS_TRUE
                                                                                                   : CLKS_FALSE;
 }
@@ -215,6 +218,7 @@ static clks_bool clks_syscall_copy_user_string(u64 src_addr, char *dst, usize ds
         return CLKS_FALSE;
     }
 
+    /* Byte-by-byte copy is slow as hell, but crashing on bad pointers is worse. */
     while (i + 1U < dst_size) {
         u64 char_addr = src_addr + (u64)i;
         char ch;
@@ -263,6 +267,7 @@ static u64 clks_syscall_copy_text_to_user(u64 dst_addr, u64 dst_size, const char
 
     copy_len = src_len;
 
+    /* Leave room for NUL, because "almost a string" is just pain. */
     if (copy_len + 1U > (usize)dst_size) {
         copy_len = (usize)dst_size - 1U;
     }
@@ -469,6 +474,7 @@ static u64 clks_syscall_fb_blit(u64 arg0) {
 }
 
 static u64 clks_syscall_kernel_version(u64 arg0, u64 arg1) {
+    /* Version query: tiny syscall, huge bike-shed potential. */
     usize len = clks_strlen(CLKS_VERSION_STRING);
     return clks_syscall_copy_text_to_user(arg0, arg1, CLKS_VERSION_STRING, len);
 }
@@ -2343,6 +2349,7 @@ u64 clks_syscall_dispatch(void *frame_ptr) {
         return (u64)-1;
     }
 
+    /* Giant switch, yeah. Ugly, explicit, and easy to grep at 3 AM. */
     switch (id) {
     case CLKS_SYSCALL_LOG_WRITE:
         return clks_syscall_log_write(frame->rbx, frame->rcx);

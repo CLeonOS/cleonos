@@ -4,6 +4,8 @@
 #include <clks/tty.h>
 #include <clks/types.h>
 
+/* Terminal code: where simple text output turns into a whole damn life choice. */
+
 #define CLKS_TTY_COUNT 4
 #define CLKS_TTY_MAX_ROWS 128
 #define CLKS_TTY_MAX_COLS 256
@@ -69,6 +71,7 @@ static clks_bool clks_tty_scrollback_is_active(u32 tty_index);
 static void clks_tty_redraw_active(void);
 
 static u32 clks_tty_ansi_palette(u32 index) {
+    /* Good-enough ANSI colors, because perfect fidelity can wait until never. */
     static const u32 palette[16] = {0x00000000U, 0x00CD3131U, 0x000DBC79U, 0x00E5E510U, 0x002472C8U, 0x00BC3FBCU,
                                     0x0011A8CDU, 0x00E5E5E5U, 0x00666666U, 0x00F14C4CU, 0x0023D18BU, 0x00F5F543U,
                                     0x003B8EEAU, 0x00D670D6U, 0x0029B8DBU, 0x00FFFFFFU};
@@ -132,6 +135,7 @@ static void clks_tty_flush_dirty(void) {
         return;
     }
 
+    /* Dirty-row redraw: cheap as hell, but it keeps typing snappy. */
     for (row = 0U; row < clks_tty_content_rows(); row++) {
         if (clks_tty_dirty_rows[row] != CLKS_TRUE) {
             continue;
@@ -172,6 +176,7 @@ static u32 clks_tty_scrollback_clamped_offset(u32 tty_index) {
 static void clks_tty_scrollback_push_row(u32 tty_index, u32 row) {
     u32 slot = clks_tty_scrollback_head[tty_index];
 
+    /* Save the line before scroll nukes it, because users always want it back. */
     clks_memcpy(clks_tty_scrollback_cells[tty_index][slot], clks_tty_cells[tty_index][row], clks_tty_cols);
     clks_memcpy(clks_tty_scrollback_fg[tty_index][slot], clks_tty_cell_fg[tty_index][row],
                 (usize)clks_tty_cols * sizeof(u32));
@@ -427,6 +432,7 @@ static void clks_tty_redraw_active(void) {
     u32 scroll_offset = clks_tty_scrollback_clamped_offset(tty_index);
     u32 start_doc = (scroll_count >= scroll_offset) ? (scroll_count - scroll_offset) : 0U;
 
+    /* Full redraw is expensive, but sometimes the least cursed option. */
     clks_fb_clear(CLKS_TTY_BG);
     clks_tty_cursor_visible = CLKS_FALSE;
     clks_tty_dirty_reset();
@@ -471,6 +477,7 @@ static void clks_tty_redraw_active(void) {
 static void clks_tty_scroll_up(u32 tty_index) {
     u32 row;
 
+    /* Classic terminal move: throw top line away, pretend everything is fine. */
     clks_tty_scrollback_push_row(tty_index, 0U);
 
     for (row = 1; row < clks_tty_content_rows(); row++) {
@@ -1167,6 +1174,7 @@ void clks_tty_init(void) {
         return;
     }
 
+    /* If framebuffer lies here, the whole UI goes to hell immediately. */
     info = clks_fb_info();
     clks_tty_cell_width = clks_fb_cell_width();
     clks_tty_cell_height = clks_fb_cell_height();
