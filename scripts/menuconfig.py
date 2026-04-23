@@ -5,6 +5,10 @@ CLeonOS menuconfig
 Interactive feature selector that writes:
   - configs/menuconfig/.config.json
   - configs/menuconfig/config.cmake
+  - configs/menuconfig/.config.clks.json
+  - configs/menuconfig/config.clks.cmake
+  - configs/menuconfig/.config.cleonos.json
+  - configs/menuconfig/config.cleonos.cmake
 
 Design:
   - CLKS options come from configs/menuconfig/clks_features.json
@@ -44,6 +48,10 @@ MENUCONFIG_DIR = ROOT_DIR / "configs" / "menuconfig"
 CLKS_FEATURES_PATH = MENUCONFIG_DIR / "clks_features.json"
 CONFIG_JSON_PATH = MENUCONFIG_DIR / ".config.json"
 CONFIG_CMAKE_PATH = MENUCONFIG_DIR / "config.cmake"
+CONFIG_CLKS_JSON_PATH = MENUCONFIG_DIR / ".config.clks.json"
+CONFIG_CLEONOS_JSON_PATH = MENUCONFIG_DIR / ".config.cleonos.json"
+CONFIG_CLKS_CMAKE_PATH = MENUCONFIG_DIR / "config.clks.cmake"
+CONFIG_CLEONOS_CMAKE_PATH = MENUCONFIG_DIR / "config.cleonos.cmake"
 
 
 @dataclass(frozen=True)
@@ -388,11 +396,11 @@ def discover_user_apps() -> List[OptionItem]:
     return options
 
 
-def load_previous_values() -> Dict[str, int]:
-    if not CONFIG_JSON_PATH.exists():
+def _load_values_from_json(path: Path) -> Dict[str, int]:
+    if not path.exists():
         return {}
     try:
-        raw = json.loads(CONFIG_JSON_PATH.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -404,6 +412,16 @@ def load_previous_values() -> Dict[str, int]:
         if not isinstance(key, str):
             continue
         out[key] = normalize_tri(value, TRI_N, "tristate")
+    return out
+
+
+def load_previous_values(include_user: bool) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    # Merge order: legacy combined -> split CLKS -> split CLeonOS.
+    out.update(_load_values_from_json(CONFIG_JSON_PATH))
+    out.update(_load_values_from_json(CONFIG_CLKS_JSON_PATH))
+    if include_user:
+        out.update(_load_values_from_json(CONFIG_CLEONOS_JSON_PATH))
     return out
 
 
@@ -1368,12 +1386,15 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         total_items = len(clks_options) + len(user_options)
         total_on = clks_on + user_on
 
-        items = [
-            f"CLKS features ({clks_on}/{len(clks_options)} enabled)",
-            f"User apps ({user_on}/{len(user_options)} enabled)",
-            "Save and Exit",
-            "Quit without Saving",
+        menu_entries: List[Tuple[str, str]] = [
+            ("clks", f"CLKS features ({clks_on}/{len(clks_options)} enabled)"),
         ]
+        if user_options:
+            menu_entries.append(("user", f"User apps ({user_on}/{len(user_options)} enabled)"))
+        else:
+            menu_entries.append(("user-disabled", "User apps (CLKS-only mode)"))
+        menu_entries.append(("save", "Save and Exit"))
+        menu_entries.append(("quit", "Quit without Saving"))
 
         if h < 12 or w < 58:
             _safe_addnstr(stdscr, 0, 0, "Terminal too small for menuconfig (need >= 58x12).", theme["status_warn"])
@@ -1387,7 +1408,7 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         _draw_box(stdscr, 2, 0, h - 5, w, "Main", theme["panel_border"], theme["panel_title"])
 
         base = 4
-        for i, text in enumerate(items):
+        for i, (_action, text) in enumerate(menu_entries):
             prefix = ">" if i == selected else " "
             row_text = f"{prefix} {text}"
             attr = theme["selected"] if i == selected else theme["value_label"]
@@ -1406,7 +1427,10 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         )
 
         _safe_addnstr(stdscr, h - 2, 0, " Arrows/jk move  Enter select  s save  q quit ", theme["help"])
-        _safe_addnstr(stdscr, h - 1, 0, " Tip: open CLKS/USER section then use Space to toggle options. ", theme["help"])
+        if user_options:
+            _safe_addnstr(stdscr, h - 1, 0, " Tip: open CLKS/USER section then use Space to toggle options. ", theme["help"])
+        else:
+            _safe_addnstr(stdscr, h - 1, 0, " Tip: CLKS-only mode, open CLKS section then use Space to toggle options. ", theme["help"])
         stdscr.refresh()
 
         key = stdscr.getch()
@@ -1416,20 +1440,23 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         if key in (ord("s"), ord("S")):
             return True
         if key in (curses.KEY_UP, ord("k"), ord("K")):
-            selected = (selected - 1) % len(items)
+            selected = (selected - 1) % len(menu_entries)
             continue
         if key in (curses.KEY_DOWN, ord("j"), ord("J")):
-            selected = (selected + 1) % len(items)
+            selected = (selected + 1) % len(menu_entries)
             continue
         if key in (curses.KEY_ENTER, 10, 13):
-            if selected == 0:
+            action = menu_entries[selected][0]
+            if action == "clks":
                 _run_ncurses_grouped_section(stdscr, theme, "CLKS", clks_options, all_options, values)
-            elif selected == 1:
+            elif action == "user":
                 _run_ncurses_section(stdscr, theme, "USER", user_options, all_options, values)
-            elif selected == 2:
+            elif action == "save":
                 return True
-            else:
+            elif action == "quit":
                 return False
+            else:
+                continue
             continue
 
 
@@ -1501,7 +1528,10 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     header_title.setFont(header_font)
     root_layout.addWidget(header_title)
 
-    root_layout.addWidget(QtWidgets.QLabel("Window mode (PySide): configure CLKS features and user apps, then save."))
+    if user_options:
+        root_layout.addWidget(QtWidgets.QLabel("Window mode (PySide): configure CLKS features and user apps, then save."))
+    else:
+        root_layout.addWidget(QtWidgets.QLabel("Window mode (PySide): CLKS-only mode (user app options unavailable)."))
 
     summary_label = QtWidgets.QLabel("")
     root_layout.addWidget(summary_label)
@@ -1743,9 +1773,10 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
         for group_name, group_items in clks_groups:
             clks_tabs.addTab(_SectionPanel(f"CLKS Features / {group_name}", group_items), group_name)
 
-    user_panel = _SectionPanel("User Apps", user_options)
     tabs.addTab(clks_panel, "CLKS")
-    tabs.addTab(user_panel, "USER")
+    if user_options:
+        user_panel = _SectionPanel("User Apps", user_options)
+        tabs.addTab(user_panel, "USER")
     update_summary()
 
     footer = QtWidgets.QHBoxLayout()
@@ -1777,31 +1808,31 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     return result["save"]
 
 
-def write_outputs(all_values: Dict[str, int], ordered_options: List[OptionItem]) -> None:
-    MENUCONFIG_DIR.mkdir(parents=True, exist_ok=True)
-
+def _write_json_config(path: Path, values: Dict[str, int], options: List[OptionItem]) -> None:
     output_values: Dict[str, object] = {}
-    for item in ordered_options:
-        if item.key not in all_values:
+    for item in options:
+        if item.key not in values:
             continue
-        value = normalize_tri(all_values[item.key], item.default, item.kind)
+        value = normalize_tri(values[item.key], item.default, item.kind)
         if item.kind == "bool":
             output_values[item.key] = value == TRI_Y
         else:
             output_values[item.key] = tri_char(value)
 
-    CONFIG_JSON_PATH.write_text(
+    path.write_text(
         json.dumps(output_values, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
+
+def _write_cmake_config(path: Path, values: Dict[str, int], options: List[OptionItem], loaded_var: str) -> None:
     lines = [
         "# Auto-generated by scripts/menuconfig.py",
         "# Do not edit manually unless you know what you are doing.",
-        'set(CLEONOS_MENUCONFIG_LOADED ON CACHE BOOL "CLeonOS menuconfig loaded" FORCE)',
+        f'set({loaded_var} ON CACHE BOOL "CLeonOS menuconfig loaded" FORCE)',
     ]
-    for item in ordered_options:
-        value = normalize_tri(all_values.get(item.key, item.default), item.default, item.kind)
+    for item in options:
+        value = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
         if item.kind == "bool":
             cmake_value = "ON" if value == TRI_Y else "OFF"
             lines.append(f'set({item.key} {cmake_value} CACHE BOOL "{item.title}" FORCE)')
@@ -1813,6 +1844,39 @@ def write_outputs(all_values: Dict[str, int], ordered_options: List[OptionItem])
                 f'CACHE BOOL "{item.title} enabled(y|m)" FORCE)'
             )
 
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_outputs(all_values: Dict[str, int], clks_options: List[OptionItem], user_options: List[OptionItem]) -> None:
+    MENUCONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    ordered_options = clks_options + user_options
+
+    _write_json_config(CONFIG_JSON_PATH, all_values, ordered_options)
+    _write_json_config(CONFIG_CLKS_JSON_PATH, all_values, clks_options)
+    _write_cmake_config(CONFIG_CLKS_CMAKE_PATH, all_values, clks_options, "CLEONOS_MENUCONFIG_CLKS_LOADED")
+
+    if user_options:
+        _write_json_config(CONFIG_CLEONOS_JSON_PATH, all_values, user_options)
+        _write_cmake_config(
+            CONFIG_CLEONOS_CMAKE_PATH,
+            all_values,
+            user_options,
+            "CLEONOS_MENUCONFIG_CLEONOS_LOADED",
+        )
+    else:
+        if CONFIG_CLEONOS_JSON_PATH.exists():
+            CONFIG_CLEONOS_JSON_PATH.unlink()
+        if CONFIG_CLEONOS_CMAKE_PATH.exists():
+            CONFIG_CLEONOS_CMAKE_PATH.unlink()
+
+    # Backward-compatible aggregator for existing CMake include path.
+    lines = [
+        "# Auto-generated by scripts/menuconfig.py",
+        "# Backward-compatible aggregate include.",
+        'set(CLEONOS_MENUCONFIG_LOADED ON CACHE BOOL "CLeonOS menuconfig loaded" FORCE)',
+        'include("${CMAKE_CURRENT_LIST_DIR}/config.clks.cmake" OPTIONAL)',
+        'include("${CMAKE_CURRENT_LIST_DIR}/config.cleonos.cmake" OPTIONAL)',
+    ]
     CONFIG_CMAKE_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -1826,21 +1890,28 @@ def show_summary(clks_options: List[OptionItem], user_options: List[OptionItem],
     print()
     print("========== CLeonOS menuconfig ==========")
     print(f"1) CLKS features : on={clks_on} m={clks_m} total={len(clks_options)}")
-    print(f"2) User features : on={user_on} m={user_m} total={len(user_options)}")
+    if user_options:
+        print(f"2) User features : on={user_on} m={user_m} total={len(user_options)}")
+    else:
+        print("2) User features : unavailable (CLKS-only mode)")
     print("s) Save and exit")
     print("q) Quit without saving")
 
 
 def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     all_options = clks_options + user_options
+    has_user = len(user_options) > 0
     while True:
         show_summary(clks_options, user_options, values)
         choice = input("Select> ").strip().lower()
         if choice == "1":
             grouped_section_loop("CLKS", clks_options, all_options, values)
             continue
-        if choice == "2":
+        if choice == "2" and has_user:
             section_loop("USER", user_options, all_options, values)
+            continue
+        if choice == "2" and not has_user:
+            print("user features unavailable in CLKS-only mode")
             continue
         if choice in {"s", "save"}:
             return True
@@ -1870,6 +1941,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--non-interactive", action="store_true", help="save config without opening interactive menu")
     parser.add_argument("--plain", action="store_true", help="use legacy plain-text menu instead of ncurses")
     parser.add_argument("--gui", action="store_true", help="use GUI window mode (PySide)")
+    parser.add_argument("--clks-only", action="store_true", help="only expose CLKS options and emit CLKS-only config")
     parser.add_argument(
         "--preset",
         choices=["full", "minimal", "dev"],
@@ -1892,10 +1964,13 @@ def main() -> int:
         raise RuntimeError("--gui and --plain cannot be used together")
 
     clks_options = load_clks_options()
-    user_options = discover_user_apps()
+    clks_only_mode = args.clks_only or not APPS_DIR.exists()
+    if clks_only_mode and not args.clks_only:
+        print(f"menuconfig: cleonos app directory not found, switching to CLKS-only mode ({APPS_DIR})")
+    user_options = [] if clks_only_mode else discover_user_apps()
     all_options = clks_options + user_options
 
-    previous = load_previous_values()
+    previous = load_previous_values(include_user=not clks_only_mode)
     values = init_values(all_options, previous, use_defaults=args.defaults)
 
     if args.preset:
@@ -1921,9 +1996,16 @@ def main() -> int:
         return 0
 
     final_eval = evaluate_config(all_options, values)
-    write_outputs(final_eval.effective, all_options)
+    write_outputs(final_eval.effective, clks_options, user_options)
     print(f"menuconfig: wrote {CONFIG_JSON_PATH}")
     print(f"menuconfig: wrote {CONFIG_CMAKE_PATH}")
+    print(f"menuconfig: wrote {CONFIG_CLKS_JSON_PATH}")
+    print(f"menuconfig: wrote {CONFIG_CLKS_CMAKE_PATH}")
+    if user_options:
+        print(f"menuconfig: wrote {CONFIG_CLEONOS_JSON_PATH}")
+        print(f"menuconfig: wrote {CONFIG_CLEONOS_CMAKE_PATH}")
+    else:
+        print("menuconfig: CLeonOS app config skipped (CLKS-only mode)")
     return 0
 
 

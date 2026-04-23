@@ -27,6 +27,20 @@ set(READELF_FOR_TARGET "llvm-readelf" CACHE STRING "readelf tool for limine conf
 
 set(QEMU_X86_64 "qemu-system-x86_64" CACHE STRING "QEMU executable")
 
+set(CLEONOS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/cleonos")
+if(EXISTS "${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
+    set(_cleonos_enable_default ON)
+else()
+    set(_cleonos_enable_default OFF)
+endif()
+set(CLEONOS_ENABLE ${_cleonos_enable_default} CACHE BOOL "Enable CLeonOS userland/ramdisk/iso integration")
+if(CLEONOS_ENABLE AND NOT EXISTS "${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
+    cl_log_error("CLEONOS_ENABLE=ON but missing ${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
+endif()
+if(NOT CLEONOS_ENABLE)
+    cl_log_warn("CLEONOS_ENABLE=OFF, running in CLKS-only build mode")
+endif()
+
 set(LIMINE_DIR "limine" CACHE STRING "Limine source directory")
 set(LIMINE_REPO "https://gh-proxy.com/https://github.com/limine-bootloader/limine.git" CACHE STRING "Limine git repository")
 set(LIMINE_REF "" CACHE STRING "Optional Limine branch or tag")
@@ -108,8 +122,10 @@ set(KERNEL_RUST_LIB "${BUILD_ROOT}/libclks_kernel_rust.a")
 resolve_tool_with_fallback(CC gcc cc clang)
 resolve_tool_with_fallback(KERNEL_CXX g++ clang++ x86_64-elf-g++)
 resolve_tool_with_fallback(LD ld.lld ld)
-resolve_tool_with_fallback(USER_CC cc gcc clang)
-resolve_tool_with_fallback(USER_LD ld.lld ld)
+if(CLEONOS_ENABLE)
+    resolve_tool_with_fallback(USER_CC cc gcc clang)
+    resolve_tool_with_fallback(USER_LD ld.lld ld)
+endif()
 resolve_tool_with_fallback(NM llvm-nm x86_64-elf-nm nm)
 resolve_tool_with_fallback(ADDR2LINE llvm-addr2line x86_64-elf-addr2line addr2line)
 resolve_tool_with_fallback(OBJCOPY_FOR_TARGET llvm-objcopy x86_64-linux-gnu-objcopy objcopy)
@@ -211,6 +227,13 @@ cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG ON "Print scheduler t
 cl_set_bool_cache(CLEONOS_CLKS_ENABLE_INTERRUPT_READY_LOG ON "Print interrupt ready log after IDT/PIC init")
 cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG ON "Print default shell mode log during boot")
 
+if(NOT CLEONOS_ENABLE)
+    set(CLEONOS_CLKS_ENABLE_KELF OFF CACHE BOOL "Enable KELF app dispatcher" FORCE)
+    set(CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC OFF CACHE BOOL "Auto exec /shell/shell.elf on boot" FORCE)
+    set(CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE OFF CACHE BOOL "Probe /shell/init.cmd during userland init" FORCE)
+    set(CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE OFF CACHE BOOL "Probe /system apps (elfrunner/memc) during userland init" FORCE)
+endif()
+
 cl_bool_to_int(CLEONOS_CLKS_ENABLE_AUDIO CLKS_CFG_AUDIO_INT)
 cl_bool_to_int(CLEONOS_CLKS_ENABLE_MOUSE CLKS_CFG_MOUSE_INT)
 cl_bool_to_int(CLEONOS_CLKS_ENABLE_DESKTOP CLKS_CFG_DESKTOP_INT)
@@ -267,7 +290,6 @@ set(CFLAGS_COMMON
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/clks/include"
-    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(CXXFLAGS_COMMON
@@ -284,7 +306,6 @@ set(CXXFLAGS_COMMON
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/clks/include"
-    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(ARCH_CFLAGS
@@ -361,7 +382,6 @@ set(USER_CFLAGS
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/cleonos/c/include"
-    "-I${CMAKE_SOURCE_DIR}/common/include"
 )
 
 set(USER_CFLAGS_DOOM
@@ -377,7 +397,6 @@ set(USER_CFLAGS_DOOM
     -Wno-sign-compare
     -D_DEFAULT_SOURCE
     -D_POSIX_C_SOURCE=200809L
-    "-I${CMAKE_SOURCE_DIR}/common/include"
     "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/doomgeneric/doomgeneric"
     "-include"
     "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/doom_shim.h"
@@ -404,10 +423,13 @@ if(NOT CLKS_ARCH STREQUAL "x86_64")
 endif()
 
 include("${CMAKE_SOURCE_DIR}/clks/CMakeLists.txt")
-include("${CMAKE_SOURCE_DIR}/cleonos/CMakeLists.txt")
+if(CLEONOS_ENABLE)
+    include("${CMAKE_SOURCE_DIR}/cleonos/CMakeLists.txt")
+endif()
 
 add_custom_target(setup-tools
     COMMAND ${CMAKE_COMMAND}
+        "-DCLEONOS_ENABLE=${CLEONOS_ENABLE}"
         "-DGIT_TOOL=${GIT_TOOL}"
         "-DTAR_TOOL=${TAR}"
         "-DXORRISO_TOOL=${XORRISO}"
@@ -459,84 +481,88 @@ add_custom_command(
         -P "${CL_LOG_EMIT_SCRIPT}"
 )
 
-add_custom_target(disk-image
-    COMMAND ${CMAKE_COMMAND}
-        "-DDISK_IMAGE=${DISK_IMAGE}"
-        "-DDISK_MB=${CLEONOS_DISK_IMAGE_MB}"
-        -P "${CMAKE_SOURCE_DIR}/cmake/ensure_disk_image.cmake"
-    BYPRODUCTS "${DISK_IMAGE}"
-    VERBATIM
-)
+if(CLEONOS_ENABLE)
+    add_custom_target(disk-image
+        COMMAND ${CMAKE_COMMAND}
+            "-DDISK_IMAGE=${DISK_IMAGE}"
+            "-DDISK_MB=${CLEONOS_DISK_IMAGE_MB}"
+            -P "${CMAKE_SOURCE_DIR}/cmake/ensure_disk_image.cmake"
+        BYPRODUCTS "${DISK_IMAGE}"
+        VERBATIM
+    )
 
-add_custom_command(
-    OUTPUT "${ISO_IMAGE}"
-    COMMAND ${CMAKE_COMMAND} -E rm -rf "${ISO_ROOT}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${ISO_ROOT}/boot/limine" "${ISO_ROOT}/EFI/BOOT"
-    COMMAND ${CMAKE_COMMAND} -E copy "${KERNEL_ELF}" "${ISO_ROOT}/boot/clks_kernel.elf"
-    COMMAND ${CMAKE_COMMAND} -E copy "${RAMDISK_IMAGE}" "${ISO_ROOT}/boot/cleonos_ramdisk.tar"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/boot/limine/limine.conf"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/EFI/BOOT/limine.conf"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/limine.conf"
-    COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-bios.sys" "${ISO_ROOT}/boot/limine/limine-bios.sys"
-    COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-bios-cd.bin" "${ISO_ROOT}/boot/limine/limine-bios-cd.bin"
-    COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-uefi-cd.bin" "${ISO_ROOT}/boot/limine/limine-uefi-cd.bin"
-    COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/BOOTX64.EFI" "${ISO_ROOT}/EFI/BOOT/BOOTX64.EFI"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/build"
-    COMMAND ${CMAKE_COMMAND}
-        "-DNO_COLOR=${NO_COLOR}"
-        "-DLOG_LEVEL=STEP"
-        "-DLOG_TEXT=building iso -> ${ISO_IMAGE}"
-        -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND ${XORRISO} -as mkisofs
-        -b boot/limine/limine-bios-cd.bin
-        -no-emul-boot
-        -boot-load-size 4
-        -boot-info-table
-        --efi-boot boot/limine/limine-uefi-cd.bin
-        -efi-boot-part
-        --efi-boot-image
-        --protective-msdos-label
-        "${ISO_ROOT}"
-        -o "${ISO_IMAGE}"
-    COMMAND ${CMAKE_COMMAND}
-        "-DNO_COLOR=${NO_COLOR}"
-        "-DLOG_LEVEL=STEP"
-        "-DLOG_TEXT=installing limine boot sectors"
-        -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND "${LIMINE_BIN_DIR_ABS}/limine" bios-install "${ISO_IMAGE}"
-    COMMAND ${CMAKE_COMMAND}
-        "-DNO_COLOR=${NO_COLOR}"
-        "-DLOG_LEVEL=INFO"
-        "-DLOG_TEXT=iso ready: ${ISO_IMAGE}"
-        -P "${CL_LOG_EMIT_SCRIPT}"
-    DEPENDS "${KERNEL_ELF}" "${RAMDISK_IMAGE}" "${CMAKE_SOURCE_DIR}/configs/limine.conf"
-    VERBATIM
-)
+    add_custom_command(
+        OUTPUT "${ISO_IMAGE}"
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${ISO_ROOT}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${ISO_ROOT}/boot/limine" "${ISO_ROOT}/EFI/BOOT"
+        COMMAND ${CMAKE_COMMAND} -E copy "${KERNEL_ELF}" "${ISO_ROOT}/boot/clks_kernel.elf"
+        COMMAND ${CMAKE_COMMAND} -E copy "${RAMDISK_IMAGE}" "${ISO_ROOT}/boot/cleonos_ramdisk.tar"
+        COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/boot/limine/limine.conf"
+        COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/EFI/BOOT/limine.conf"
+        COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/configs/limine.conf" "${ISO_ROOT}/limine.conf"
+        COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-bios.sys" "${ISO_ROOT}/boot/limine/limine-bios.sys"
+        COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-bios-cd.bin" "${ISO_ROOT}/boot/limine/limine-bios-cd.bin"
+        COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/limine-uefi-cd.bin" "${ISO_ROOT}/boot/limine/limine-uefi-cd.bin"
+        COMMAND ${CMAKE_COMMAND} -E copy "${LIMINE_BIN_DIR_ABS}/BOOTX64.EFI" "${ISO_ROOT}/EFI/BOOT/BOOTX64.EFI"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/build"
+        COMMAND ${CMAKE_COMMAND}
+            "-DNO_COLOR=${NO_COLOR}"
+            "-DLOG_LEVEL=STEP"
+            "-DLOG_TEXT=building iso -> ${ISO_IMAGE}"
+            -P "${CL_LOG_EMIT_SCRIPT}"
+        COMMAND ${XORRISO} -as mkisofs
+            -b boot/limine/limine-bios-cd.bin
+            -no-emul-boot
+            -boot-load-size 4
+            -boot-info-table
+            --efi-boot boot/limine/limine-uefi-cd.bin
+            -efi-boot-part
+            --efi-boot-image
+            --protective-msdos-label
+            "${ISO_ROOT}"
+            -o "${ISO_IMAGE}"
+        COMMAND ${CMAKE_COMMAND}
+            "-DNO_COLOR=${NO_COLOR}"
+            "-DLOG_LEVEL=STEP"
+            "-DLOG_TEXT=installing limine boot sectors"
+            -P "${CL_LOG_EMIT_SCRIPT}"
+        COMMAND "${LIMINE_BIN_DIR_ABS}/limine" bios-install "${ISO_IMAGE}"
+        COMMAND ${CMAKE_COMMAND}
+            "-DNO_COLOR=${NO_COLOR}"
+            "-DLOG_LEVEL=INFO"
+            "-DLOG_TEXT=iso ready: ${ISO_IMAGE}"
+            -P "${CL_LOG_EMIT_SCRIPT}"
+        DEPENDS "${KERNEL_ELF}" "${RAMDISK_IMAGE}" "${CMAKE_SOURCE_DIR}/configs/limine.conf"
+        VERBATIM
+    )
 
-add_custom_target(iso ALL DEPENDS "${ISO_IMAGE}")
-add_dependencies(iso setup-tools setup-limine kernel ramdisk)
+    add_custom_target(iso ALL DEPENDS "${ISO_IMAGE}")
+    add_dependencies(iso setup-tools setup-limine kernel ramdisk)
 
-add_custom_target(run
-    COMMAND ${CMAKE_COMMAND}
-        "-DNO_COLOR=${NO_COLOR}"
-        "-DLOG_LEVEL=STEP"
-        "-DLOG_TEXT=launching qemu run"
-        -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio
-    DEPENDS iso disk-image
-    USES_TERMINAL
-)
+    add_custom_target(run
+        COMMAND ${CMAKE_COMMAND}
+            "-DNO_COLOR=${NO_COLOR}"
+            "-DLOG_LEVEL=STEP"
+            "-DLOG_TEXT=launching qemu run"
+            -P "${CL_LOG_EMIT_SCRIPT}"
+        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio
+        DEPENDS iso disk-image
+        USES_TERMINAL
+    )
 
-add_custom_target(debug
-    COMMAND ${CMAKE_COMMAND}
-        "-DNO_COLOR=${NO_COLOR}"
-        "-DLOG_LEVEL=STEP"
-        "-DLOG_TEXT=launching qemu debug (-s -S)"
-        -P "${CL_LOG_EMIT_SCRIPT}"
-    COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio -s -S
-    DEPENDS iso disk-image
-    USES_TERMINAL
-)
+    add_custom_target(debug
+        COMMAND ${CMAKE_COMMAND}
+            "-DNO_COLOR=${NO_COLOR}"
+            "-DLOG_LEVEL=STEP"
+            "-DLOG_TEXT=launching qemu debug (-s -S)"
+            -P "${CL_LOG_EMIT_SCRIPT}"
+        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=ide,index=0,media=disk" -serial stdio -s -S
+        DEPENDS iso disk-image
+        USES_TERMINAL
+    )
+else()
+    add_custom_target(clks-default ALL DEPENDS kernel)
+endif()
 
 add_custom_target(clean-x86
     COMMAND ${CMAKE_COMMAND}
@@ -568,12 +594,31 @@ add_custom_target(clean-all
 
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
-    add_custom_target(menuconfig
-        COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py"
+    if(CLEONOS_ENABLE)
+        add_custom_target(menuconfig
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py"
+            USES_TERMINAL
+        )
+        add_custom_target(menuconfig-gui
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --gui
+            USES_TERMINAL
+        )
+    else()
+        add_custom_target(menuconfig
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --clks-only
+            USES_TERMINAL
+        )
+        add_custom_target(menuconfig-gui
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --gui --clks-only
+            USES_TERMINAL
+        )
+    endif()
+    add_custom_target(menuconfig-clks
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --clks-only
         USES_TERMINAL
     )
-    add_custom_target(menuconfig-gui
-        COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --gui
+    add_custom_target(menuconfig-gui-clks
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/menuconfig.py" --gui --clks-only
         USES_TERMINAL
     )
 else()
@@ -585,18 +630,45 @@ else()
         COMMAND ${CMAKE_COMMAND} -E echo "python3 not found; run scripts/menuconfig.py --gui manually"
         USES_TERMINAL
     )
+    add_custom_target(menuconfig-clks
+        COMMAND ${CMAKE_COMMAND} -E echo "python3 not found; run scripts/menuconfig.py --clks-only manually"
+        USES_TERMINAL
+    )
+    add_custom_target(menuconfig-gui-clks
+        COMMAND ${CMAKE_COMMAND} -E echo "python3 not found; run scripts/menuconfig.py --gui --clks-only manually"
+        USES_TERMINAL
+    )
 endif()
 
-add_custom_target(cleonos-help
-    COMMAND ${CMAKE_COMMAND} -E echo "CLeonOS CMake build system (x86_64 only)"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -S . -B build-cmake"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-gui"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target setup"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target userapps"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target iso"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target run"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target debug"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target disk-image"
-)
+if(CLEONOS_ENABLE)
+    add_custom_target(cleonos-help
+        COMMAND ${CMAKE_COMMAND} -E echo "CLeonOS CMake build system (x86_64 only)"
+        COMMAND ${CMAKE_COMMAND} -E echo "  CLEONOS_ENABLE=${CLEONOS_ENABLE}"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake -S . -B build-cmake"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-gui"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-clks"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-gui-clks"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target setup"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target kernel"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target userapps"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target iso"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target run"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target debug"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target disk-image"
+    )
+else()
+    add_custom_target(cleonos-help
+        COMMAND ${CMAKE_COMMAND} -E echo "CLeonOS CMake build system (x86_64 only)"
+        COMMAND ${CMAKE_COMMAND} -E echo "  CLEONOS_ENABLE=${CLEONOS_ENABLE}"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake -S . -B build-cmake"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-gui"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-clks"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target menuconfig-gui-clks"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target setup"
+        COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-cmake --target kernel"
+        COMMAND ${CMAKE_COMMAND} -E echo "  (CLKS-only mode: userapps/iso/run/debug/disk-image are disabled)"
+    )
+endif()
 

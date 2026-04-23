@@ -17,7 +17,7 @@
 #include <clks/tty.h>
 #include <clks/types.h>
 #include <clks/userland.h>
-#include <cleonos_version.h>
+#include <clks/version.h>
 
 /* Yes, this file is a syscall kitchen sink and nobody is pretending otherwise. */
 
