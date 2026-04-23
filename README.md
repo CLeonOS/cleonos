@@ -22,6 +22,7 @@ Experimental x86_64 operating system project with a C kernel, Rust-assisted runt
 .
 |- clks/                 # CLKS kernel submodule (standalone kernel repository)
 |- cleonos/              # Userland runtime, libc-like layer, user apps, Rust user library
+|- kit/                  # Standalone user-app SDK (build ELF without kernel source tree)
 |- ramdisk/              # Static files copied into runtime ramdisk
 |- configs/              # Boot configuration (Limine)
 |- cmake/                # Shared CMake scripts (tool checks, logging, limine setup)

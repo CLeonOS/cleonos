@@ -22,6 +22,7 @@
 .
 |- clks/                 # CLKS 内核子模块（独立内核仓库）
 |- cleonos/              # 用户态运行时、基础库、用户应用、Rust 用户库
+|- kit/                  # 独立用户态应用 SDK（无需内核源码树即可构建 ELF）
 |- ramdisk/              # 运行时 ramdisk 的静态文件
 |- configs/              # 启动配置（Limine）
 |- cmake/                # CMake 公共脚本（工具检查、日志、limine 初始化）
