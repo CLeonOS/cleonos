@@ -10,3 +10,6 @@
 [submodule "wine"]
 	path = wine
 	url = https://github.com/CLeonOS/wine
+[submodule "kit"]
+	path = kit
+	url = https://github.com/CLeonOS/kit.git
