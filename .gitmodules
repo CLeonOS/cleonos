@@ -7,3 +7,6 @@
 [submodule "cleonos/third-party/doomgeneric"]
 	path = cleonos/third-party/doomgeneric
 	url = https://github.com/CLeonOS/doom.git
+[submodule "wine"]
+	path = wine
+	url = https://github.com/CLeonOS/wine
