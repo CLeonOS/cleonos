@@ -138,7 +138,6 @@ set(LIMINE_SETUP_STAMP "${LIMINE_DIR_ABS}/.cleonos-limine-setup.stamp")
 set(LIMINE_BUILD_STAMP "${LIMINE_DIR_ABS}/.cleonos-limine-build.stamp")
 
 set(CLKS_ARCH "x86_64" CACHE STRING "Target CLKS arch")
-set(LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/clks/arch/${CLKS_ARCH}/linker.ld")
 set(USER_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cleonos/c/user.ld")
 set(KELF_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cleonos/c/kelf.ld")
 set(CLEONOS_MENUCONFIG_CMAKE "${CMAKE_SOURCE_DIR}/configs/menuconfig/config.cmake" CACHE FILEPATH "menuconfig generated CMake config")
@@ -148,231 +147,7 @@ if(EXISTS "${CLEONOS_MENUCONFIG_CMAKE}")
     cl_log_info("menuconfig loaded from ${CLEONOS_MENUCONFIG_CMAKE}")
 endif()
 
-function(cl_set_bool_cache VAR_NAME DEFAULT_VALUE DOC_TEXT)
-    set(_raw_value "")
-    set(_has_value OFF)
-
-    if(DEFINED ${VAR_NAME})
-        set(_raw_value "${${VAR_NAME}}")
-        set(_has_value ON)
-    elseif(DEFINED ${VAR_NAME}_IS_ENABLED)
-        set(_raw_value "${${VAR_NAME}_IS_ENABLED}")
-        set(_has_value ON)
-    endif()
-
-    if(NOT _has_value)
-        set(${VAR_NAME} ${DEFAULT_VALUE} CACHE BOOL "${DOC_TEXT}")
-    else()
-        string(TOUPPER "${_raw_value}" _raw_upper)
-        if(_raw_upper STREQUAL "Y" OR _raw_upper STREQUAL "M" OR _raw_upper STREQUAL "ON" OR _raw_upper STREQUAL "TRUE" OR _raw_upper STREQUAL "1")
-            set(_bool_value ON)
-        else()
-            set(_bool_value OFF)
-        endif()
-        set(${VAR_NAME} ${_bool_value} CACHE BOOL "${DOC_TEXT}" FORCE)
-    endif()
-endfunction()
-
-function(cl_bool_to_int BOOL_VAR OUT_VAR)
-    if(${BOOL_VAR})
-        set(${OUT_VAR} 1 PARENT_SCOPE)
-    else()
-        set(${OUT_VAR} 0 PARENT_SCOPE)
-    endif()
-endfunction()
-
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_AUDIO ON "Initialize kernel audio subsystem")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_MOUSE ON "Initialize kernel mouse subsystem")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_DESKTOP ON "Initialize desktop compositor subsystem")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_DRIVER_MANAGER ON "Initialize kernel driver manager")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KELF ON "Enable KELF app dispatcher")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC ON "Auto exec /shell/shell.elf on boot")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_HEAP_SELFTEST ON "Run heap selftest at boot")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_EXTERNAL_PSF ON "Load /system/tty.psf external font")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KEYBOARD ON "Initialize keyboard input subsystem")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_ELFRUNNER_PROBE ON "Run ELFRUNNER kernel ELF probe")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KLOGD_TASK ON "Enable scheduler klogd task")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KWORKER_TASK ON "Enable scheduler kworker task")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USRD_TASK ON "Enable scheduler usrd task")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_BOOT_VIDEO_LOG ON "Print boot framebuffer geometry logs")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_PMM_STATS_LOG ON "Print PMM stats logs")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_HEAP_STATS_LOG ON "Print heap stats logs")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_FS_ROOT_LOG ON "Print root children FS log")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK ON "Require /system directory sanity check")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT ON "Initialize ELFRUNNER framework")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SYSCALL_TICK_QUERY ON "Query syscall timer ticks at boot")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_TTY_READY_LOG ON "Print TTY ready logs")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG ON "Print idle loop debug log")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_PROCFS ON "Enable virtual /proc procfs syscall layer")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG ON "Enable EXEC info logs on serial output")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC ON "Enable UserSafeController dangerous syscall confirmations")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_FS_MKDIR ON "USC intercept policy: FS_MKDIR")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_FS_WRITE ON "USC intercept policy: FS_WRITE")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_FS_APPEND ON "USC intercept policy: FS_APPEND")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_FS_REMOVE ON "USC intercept policy: FS_REMOVE")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATH ON "USC intercept policy: EXEC_PATH")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV ON "USC intercept policy: EXEC_PATHV")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV_IO ON "USC intercept policy: EXEC_PATHV_IO")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATH ON "USC intercept policy: SPAWN_PATH")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATHV ON "USC intercept policy: SPAWN_PATHV")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_PROC_KILL ON "USC intercept policy: PROC_KILL")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_SHUTDOWN ON "USC intercept policy: SHUTDOWN")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USC_SC_RESTART ON "USC intercept policy: RESTART")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY ON "Enable ALT+F1..F4 TTY switch hotkey")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KBD_CTRL_SHORTCUTS ON "Enable Ctrl+A/C/V keyboard shortcuts")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_KBD_FORCE_STOP_HOTKEY ON "Enable Ctrl+Alt+C force-stop hotkey")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE ON "Probe /shell/init.cmd during userland init")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE ON "Probe /system apps (elfrunner/memc) during userland init")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG ON "Print scheduler task count during boot")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_INTERRUPT_READY_LOG ON "Print interrupt ready log after IDT/PIC init")
-cl_set_bool_cache(CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG ON "Print default shell mode log during boot")
-
-if(NOT CLEONOS_ENABLE)
-    set(CLEONOS_CLKS_ENABLE_KELF OFF CACHE BOOL "Enable KELF app dispatcher" FORCE)
-    set(CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC OFF CACHE BOOL "Auto exec /shell/shell.elf on boot" FORCE)
-    set(CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE OFF CACHE BOOL "Probe /shell/init.cmd during userland init" FORCE)
-    set(CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE OFF CACHE BOOL "Probe /system apps (elfrunner/memc) during userland init" FORCE)
-endif()
-
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_AUDIO CLKS_CFG_AUDIO_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_MOUSE CLKS_CFG_MOUSE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_DESKTOP CLKS_CFG_DESKTOP_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_DRIVER_MANAGER CLKS_CFG_DRIVER_MANAGER_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KELF CLKS_CFG_KELF_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC CLKS_CFG_USERLAND_AUTO_EXEC_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_HEAP_SELFTEST CLKS_CFG_HEAP_SELFTEST_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_EXTERNAL_PSF CLKS_CFG_EXTERNAL_PSF_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KEYBOARD CLKS_CFG_KEYBOARD_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_ELFRUNNER_PROBE CLKS_CFG_ELFRUNNER_PROBE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KLOGD_TASK CLKS_CFG_KLOGD_TASK_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KWORKER_TASK CLKS_CFG_KWORKER_TASK_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USRD_TASK CLKS_CFG_USRD_TASK_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_BOOT_VIDEO_LOG CLKS_CFG_BOOT_VIDEO_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_PMM_STATS_LOG CLKS_CFG_PMM_STATS_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_HEAP_STATS_LOG CLKS_CFG_HEAP_STATS_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_FS_ROOT_LOG CLKS_CFG_FS_ROOT_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK CLKS_CFG_SYSTEM_DIR_CHECK_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT CLKS_CFG_ELFRUNNER_INIT_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_SYSCALL_TICK_QUERY CLKS_CFG_SYSCALL_TICK_QUERY_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_TTY_READY_LOG CLKS_CFG_TTY_READY_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG CLKS_CFG_IDLE_DEBUG_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_PROCFS CLKS_CFG_PROCFS_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG CLKS_CFG_EXEC_SERIAL_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC CLKS_CFG_USC_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_FS_MKDIR CLKS_CFG_USC_SC_FS_MKDIR_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_FS_WRITE CLKS_CFG_USC_SC_FS_WRITE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_FS_APPEND CLKS_CFG_USC_SC_FS_APPEND_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_FS_REMOVE CLKS_CFG_USC_SC_FS_REMOVE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATH CLKS_CFG_USC_SC_EXEC_PATH_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV CLKS_CFG_USC_SC_EXEC_PATHV_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV_IO CLKS_CFG_USC_SC_EXEC_PATHV_IO_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATH CLKS_CFG_USC_SC_SPAWN_PATH_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATHV CLKS_CFG_USC_SC_SPAWN_PATHV_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_PROC_KILL CLKS_CFG_USC_SC_PROC_KILL_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_SHUTDOWN CLKS_CFG_USC_SC_SHUTDOWN_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USC_SC_RESTART CLKS_CFG_USC_SC_RESTART_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY CLKS_CFG_KBD_TTY_SWITCH_HOTKEY_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KBD_CTRL_SHORTCUTS CLKS_CFG_KBD_CTRL_SHORTCUTS_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_KBD_FORCE_STOP_HOTKEY CLKS_CFG_KBD_FORCE_STOP_HOTKEY_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE CLKS_CFG_USER_INIT_SCRIPT_PROBE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE CLKS_CFG_USER_SYSTEM_APP_PROBE_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG CLKS_CFG_SCHED_TASK_COUNT_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_INTERRUPT_READY_LOG CLKS_CFG_INTERRUPT_READY_LOG_INT)
-cl_bool_to_int(CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG CLKS_CFG_SHELL_MODE_LOG_INT)
-
-set(CFLAGS_COMMON
-    -std=c11
-    -ffreestanding
-    -fno-stack-protector
-    -fno-builtin
-    -g
-    -Wall
-    -Wextra
-    -Werror
-    "-I${CMAKE_SOURCE_DIR}/clks/include"
-)
-
-set(CXXFLAGS_COMMON
-    -std=c++17
-    -ffreestanding
-    -fno-stack-protector
-    -fno-builtin
-    -fno-exceptions
-    -fno-rtti
-    -fno-threadsafe-statics
-    -fno-use-cxa-atexit
-    -g
-    -Wall
-    -Wextra
-    -Werror
-    "-I${CMAKE_SOURCE_DIR}/clks/include"
-)
-
-set(ARCH_CFLAGS
-    -DCLKS_ARCH_X86_64=1
-    "-DCLKS_CFG_AUDIO=${CLKS_CFG_AUDIO_INT}"
-    "-DCLKS_CFG_MOUSE=${CLKS_CFG_MOUSE_INT}"
-    "-DCLKS_CFG_DESKTOP=${CLKS_CFG_DESKTOP_INT}"
-    "-DCLKS_CFG_DRIVER_MANAGER=${CLKS_CFG_DRIVER_MANAGER_INT}"
-    "-DCLKS_CFG_KELF=${CLKS_CFG_KELF_INT}"
-    "-DCLKS_CFG_USERLAND_AUTO_EXEC=${CLKS_CFG_USERLAND_AUTO_EXEC_INT}"
-    "-DCLKS_CFG_HEAP_SELFTEST=${CLKS_CFG_HEAP_SELFTEST_INT}"
-    "-DCLKS_CFG_EXTERNAL_PSF=${CLKS_CFG_EXTERNAL_PSF_INT}"
-    "-DCLKS_CFG_KEYBOARD=${CLKS_CFG_KEYBOARD_INT}"
-    "-DCLKS_CFG_ELFRUNNER_PROBE=${CLKS_CFG_ELFRUNNER_PROBE_INT}"
-    "-DCLKS_CFG_KLOGD_TASK=${CLKS_CFG_KLOGD_TASK_INT}"
-    "-DCLKS_CFG_KWORKER_TASK=${CLKS_CFG_KWORKER_TASK_INT}"
-    "-DCLKS_CFG_USRD_TASK=${CLKS_CFG_USRD_TASK_INT}"
-    "-DCLKS_CFG_BOOT_VIDEO_LOG=${CLKS_CFG_BOOT_VIDEO_LOG_INT}"
-    "-DCLKS_CFG_PMM_STATS_LOG=${CLKS_CFG_PMM_STATS_LOG_INT}"
-    "-DCLKS_CFG_HEAP_STATS_LOG=${CLKS_CFG_HEAP_STATS_LOG_INT}"
-    "-DCLKS_CFG_FS_ROOT_LOG=${CLKS_CFG_FS_ROOT_LOG_INT}"
-    "-DCLKS_CFG_SYSTEM_DIR_CHECK=${CLKS_CFG_SYSTEM_DIR_CHECK_INT}"
-    "-DCLKS_CFG_ELFRUNNER_INIT=${CLKS_CFG_ELFRUNNER_INIT_INT}"
-    "-DCLKS_CFG_SYSCALL_TICK_QUERY=${CLKS_CFG_SYSCALL_TICK_QUERY_INT}"
-    "-DCLKS_CFG_TTY_READY_LOG=${CLKS_CFG_TTY_READY_LOG_INT}"
-    "-DCLKS_CFG_IDLE_DEBUG_LOG=${CLKS_CFG_IDLE_DEBUG_LOG_INT}"
-    "-DCLKS_CFG_PROCFS=${CLKS_CFG_PROCFS_INT}"
-    "-DCLKS_CFG_EXEC_SERIAL_LOG=${CLKS_CFG_EXEC_SERIAL_LOG_INT}"
-    "-DCLKS_CFG_USC=${CLKS_CFG_USC_INT}"
-    "-DCLKS_CFG_USC_SC_FS_MKDIR=${CLKS_CFG_USC_SC_FS_MKDIR_INT}"
-    "-DCLKS_CFG_USC_SC_FS_WRITE=${CLKS_CFG_USC_SC_FS_WRITE_INT}"
-    "-DCLKS_CFG_USC_SC_FS_APPEND=${CLKS_CFG_USC_SC_FS_APPEND_INT}"
-    "-DCLKS_CFG_USC_SC_FS_REMOVE=${CLKS_CFG_USC_SC_FS_REMOVE_INT}"
-    "-DCLKS_CFG_USC_SC_EXEC_PATH=${CLKS_CFG_USC_SC_EXEC_PATH_INT}"
-    "-DCLKS_CFG_USC_SC_EXEC_PATHV=${CLKS_CFG_USC_SC_EXEC_PATHV_INT}"
-    "-DCLKS_CFG_USC_SC_EXEC_PATHV_IO=${CLKS_CFG_USC_SC_EXEC_PATHV_IO_INT}"
-    "-DCLKS_CFG_USC_SC_SPAWN_PATH=${CLKS_CFG_USC_SC_SPAWN_PATH_INT}"
-    "-DCLKS_CFG_USC_SC_SPAWN_PATHV=${CLKS_CFG_USC_SC_SPAWN_PATHV_INT}"
-    "-DCLKS_CFG_USC_SC_PROC_KILL=${CLKS_CFG_USC_SC_PROC_KILL_INT}"
-    "-DCLKS_CFG_USC_SC_SHUTDOWN=${CLKS_CFG_USC_SC_SHUTDOWN_INT}"
-    "-DCLKS_CFG_USC_SC_RESTART=${CLKS_CFG_USC_SC_RESTART_INT}"
-    "-DCLKS_CFG_KBD_TTY_SWITCH_HOTKEY=${CLKS_CFG_KBD_TTY_SWITCH_HOTKEY_INT}"
-    "-DCLKS_CFG_KBD_CTRL_SHORTCUTS=${CLKS_CFG_KBD_CTRL_SHORTCUTS_INT}"
-    "-DCLKS_CFG_KBD_FORCE_STOP_HOTKEY=${CLKS_CFG_KBD_FORCE_STOP_HOTKEY_INT}"
-    "-DCLKS_CFG_USER_INIT_SCRIPT_PROBE=${CLKS_CFG_USER_INIT_SCRIPT_PROBE_INT}"
-    "-DCLKS_CFG_USER_SYSTEM_APP_PROBE=${CLKS_CFG_USER_SYSTEM_APP_PROBE_INT}"
-    "-DCLKS_CFG_SCHED_TASK_COUNT_LOG=${CLKS_CFG_SCHED_TASK_COUNT_LOG_INT}"
-    "-DCLKS_CFG_INTERRUPT_READY_LOG=${CLKS_CFG_INTERRUPT_READY_LOG_INT}"
-    "-DCLKS_CFG_SHELL_MODE_LOG=${CLKS_CFG_SHELL_MODE_LOG_INT}"
-    -m64
-    -mno-red-zone
-    -mcmodel=kernel
-    -fno-pic
-    -fno-pie
-)
-
-set(ASFLAGS_COMMON
-    -ffreestanding
-    "-I${CMAKE_SOURCE_DIR}/clks/include"
-)
-
-set(LDFLAGS_COMMON
-    -nostdlib
-    -z
-    max-page-size=0x1000
-)
-
+# CLKS compile flags and feature-to-macro expansion now live in the CLKS submodule build system.
 set(USER_CFLAGS
     -std=c11
     -ffreestanding
@@ -422,7 +197,41 @@ if(NOT CLKS_ARCH STREQUAL "x86_64")
     cl_log_error("CLKS_ARCH=${CLKS_ARCH} is not supported by this CMake build yet; use x86_64")
 endif()
 
-include("${CMAKE_SOURCE_DIR}/clks/CMakeLists.txt")
+set(CLKS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/clks")
+set(CLKS_CMAKE_BUILD_DIR "${CMAKE_BINARY_DIR}/clks-cmake")
+if(NOT EXISTS "${CLKS_SOURCE_DIR}/CMakeLists.txt")
+    cl_log_error("missing CLKS submodule CMakeLists: ${CLKS_SOURCE_DIR}/CMakeLists.txt")
+endif()
+
+set(CLKS_SUBMODULE_CMAKE_ARGS
+    "-DNO_COLOR=${NO_COLOR}"
+    "-DCLKS_ARCH=${CLKS_ARCH}"
+    "-DCLKS_BUILD_ROOT=${BUILD_ROOT}"
+    "-DCLKS_MENUCONFIG_CMAKE=${CMAKE_SOURCE_DIR}/configs/menuconfig/config.cmake"
+    "-DCC=${CC}"
+    "-DKERNEL_CXX=${KERNEL_CXX}"
+    "-DLD=${LD}"
+    "-DRUSTC=${RUSTC}"
+    "-DNM=${NM}"
+    "-DADDR2LINE=${ADDR2LINE}"
+    "-DOBJCOPY_FOR_TARGET=${OBJCOPY_FOR_TARGET}"
+    "-DOBJDUMP_FOR_TARGET=${OBJDUMP_FOR_TARGET}"
+    "-DREADELF_FOR_TARGET=${READELF_FOR_TARGET}"
+)
+
+add_custom_target(kernel
+    COMMAND ${CMAKE_COMMAND} -S "${CLKS_SOURCE_DIR}" -B "${CLKS_CMAKE_BUILD_DIR}" ${CLKS_SUBMODULE_CMAKE_ARGS}
+    COMMAND ${CMAKE_COMMAND} --build "${CLKS_CMAKE_BUILD_DIR}" --target kernel
+    USES_TERMINAL
+)
+
+add_custom_target(kernel-symbols
+    COMMAND ${CMAKE_COMMAND} -S "${CLKS_SOURCE_DIR}" -B "${CLKS_CMAKE_BUILD_DIR}" ${CLKS_SUBMODULE_CMAKE_ARGS}
+    COMMAND ${CMAKE_COMMAND} --build "${CLKS_CMAKE_BUILD_DIR}" --target kernel-symbols
+    USES_TERMINAL
+)
+add_dependencies(kernel-symbols kernel)
+
 if(CLEONOS_ENABLE)
     include("${CMAKE_SOURCE_DIR}/cleonos/CMakeLists.txt")
 endif()

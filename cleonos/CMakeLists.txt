@@ -311,12 +311,13 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy "${KERNEL_SYMBOLS_FILE}" "${RAMDISK_ROOT}/system/kernel.sym"
     ${RAMDISK_COPY_COMMANDS}
     COMMAND ${CMAKE_COMMAND} -E touch "${RAMDISK_ROOT_STAMP}"
-    DEPENDS ${RAMDISK_FILES} ${USER_APP_OUTPUTS} "${KERNEL_SYMBOLS_FILE}"
+    DEPENDS ${RAMDISK_FILES} ${USER_APP_OUTPUTS} kernel-symbols
     VERBATIM
 )
 
 add_custom_target(ramdisk-root DEPENDS "${RAMDISK_ROOT_STAMP}")
 add_dependencies(ramdisk-root userapps)
+add_dependencies(ramdisk-root kernel-symbols)
 
 add_custom_command(
     OUTPUT "${RAMDISK_IMAGE}"

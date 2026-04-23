@@ -20,7 +20,7 @@ Experimental x86_64 operating system project with a C kernel, Rust-assisted runt
 
 ```text
 .
-|- clks/                 # Kernel sources (arch, drivers, scheduler, tty, syscall, ...)
+|- clks/                 # CLKS kernel submodule (standalone kernel repository)
 |- cleonos/              # Userland runtime, libc-like layer, user apps, Rust user library
 |- ramdisk/              # Static files copied into runtime ramdisk
 |- configs/              # Boot configuration (Limine)

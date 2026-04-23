@@ -20,7 +20,7 @@
 
 ```text
 .
-|- clks/                 # 内核源码（架构、驱动、调度、TTY、syscall 等）
+|- clks/                 # CLKS 内核子模块（独立内核仓库）
 |- cleonos/              # 用户态运行时、基础库、用户应用、Rust 用户库
 |- ramdisk/              # 运行时 ramdisk 的静态文件
 |- configs/              # 启动配置（Limine）
