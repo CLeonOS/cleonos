@@ -354,7 +354,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu run"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -serial stdio
+        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
         DEPENDS iso disk-image
         USES_TERMINAL
     )
@@ -365,7 +365,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu debug (-s -S)"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -serial stdio -s -S
+        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
         DEPENDS iso disk-image
         USES_TERMINAL
     )

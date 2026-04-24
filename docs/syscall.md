@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~94）
+## 4. Syscall 列表（0~99）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -731,6 +731,38 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：成功 `1`，失败 `0`
 - 说明：按 LBA 写入单个扇区（512B）。该 syscall 在 USC 策略中默认视为高风险操作。
 
+### 95 `CLEONOS_SYSCALL_NET_AVAILABLE`
+
+- 参数：无
+- 返回：`1` 表示网络栈可用（e1000 初始化成功），`0` 表示不可用。
+
+### 96 `CLEONOS_SYSCALL_NET_IPV4_ADDR`
+
+- 参数：无
+- 返回：当前 IPv4 地址（`u32`，以网络字节序放在返回值低 32 位）。
+- 说明：当前默认静态地址为 `10.0.2.15`（QEMU usernet 常见配置）。
+
+### 97 `CLEONOS_SYSCALL_NET_PING`
+
+- 参数：
+- `arg0`: `u64 dst_ipv4_be`（目标 IPv4，网络字节序）
+- `arg1`: `u64 poll_budget`（轮询预算；`0` 使用内核默认）
+- 返回：成功收到 echo reply 返回 `1`，否则返回 `0`。
+
+### 98 `CLEONOS_SYSCALL_NET_UDP_SEND`
+
+- 参数：
+- `arg0`: `const struct { u64 dst_ipv4_be; u64 dst_port; u64 src_port; u64 payload_ptr; u64 payload_len; } *req`
+- 返回：实际发送 payload 字节数；失败返回 `0`。
+- 说明：当前实现为最小 UDP 能力，`payload_len` 建议不超过 MTU 可承载范围。
+
+### 99 `CLEONOS_SYSCALL_NET_UDP_RECV`
+
+- 参数：
+- `arg0`: `struct { u64 out_payload_ptr; u64 payload_capacity; u64 out_src_ipv4_ptr; u64 out_src_port_ptr; u64 out_dst_port_ptr; } *req`
+- 返回：实际拷贝到 `out_payload_ptr` 的字节数；无数据/失败返回 `0`。
+- 说明：`out_src_*`/`out_dst_*` 指针可为 `0`（表示不关心该字段）。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -763,6 +795,8 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_disk_present()` / `cleonos_sys_disk_size_bytes()` / `cleonos_sys_disk_sector_count()`
 - `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
 - `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()`
+- `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_ping()`
+- `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 
 ## 6. 开发注意事项
 
@@ -773,7 +807,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..94`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..99`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -790,6 +824,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
 - `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理，并与 `FS_MKDIR/WRITE/APPEND/REMOVE` 的路径规则联动。
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
+- 网络 syscall（`95..99`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。

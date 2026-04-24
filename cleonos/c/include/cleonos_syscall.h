@@ -60,6 +60,22 @@ typedef struct cleonos_fb_blit_req {
     u64 scale;
 } cleonos_fb_blit_req;
 
+typedef struct cleonos_net_udp_send_req {
+    u64 dst_ipv4_be;
+    u64 dst_port;
+    u64 src_port;
+    u64 payload_ptr;
+    u64 payload_len;
+} cleonos_net_udp_send_req;
+
+typedef struct cleonos_net_udp_recv_req {
+    u64 out_payload_ptr;
+    u64 payload_capacity;
+    u64 out_src_ipv4_ptr;
+    u64 out_src_port_ptr;
+    u64 out_dst_port_ptr;
+} cleonos_net_udp_recv_req;
+
 #define CLEONOS_SYSCALL_LOG_WRITE 0ULL
 #define CLEONOS_SYSCALL_TIMER_TICKS 1ULL
 #define CLEONOS_SYSCALL_TASK_COUNT 2ULL
@@ -155,6 +171,11 @@ typedef struct cleonos_fb_blit_req {
 #define CLEONOS_SYSCALL_DISK_MOUNT_PATH 92ULL
 #define CLEONOS_SYSCALL_DISK_READ_SECTOR 93ULL
 #define CLEONOS_SYSCALL_DISK_WRITE_SECTOR 94ULL
+#define CLEONOS_SYSCALL_NET_AVAILABLE 95ULL
+#define CLEONOS_SYSCALL_NET_IPV4_ADDR 96ULL
+#define CLEONOS_SYSCALL_NET_PING 97ULL
+#define CLEONOS_SYSCALL_NET_UDP_SEND 98ULL
+#define CLEONOS_SYSCALL_NET_UDP_RECV 99ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -252,5 +273,10 @@ u64 cleonos_sys_disk_mounted(void);
 u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size);
 u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector);
 u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data);
+u64 cleonos_sys_net_available(void);
+u64 cleonos_sys_net_ipv4_addr(void);
+u64 cleonos_sys_net_ping(u64 dst_ipv4_be, u64 poll_budget);
+u64 cleonos_sys_net_udp_send(const cleonos_net_udp_send_req *req);
+u64 cleonos_sys_net_udp_recv(cleonos_net_udp_recv_req *req);
 
 #endif

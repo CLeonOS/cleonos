@@ -411,3 +411,23 @@ u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector) {
 u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data) {
     return cleonos_syscall(CLEONOS_SYSCALL_DISK_WRITE_SECTOR, lba, (u64)sector_data, 0ULL);
 }
+
+u64 cleonos_sys_net_available(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_AVAILABLE, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_ipv4_addr(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_IPV4_ADDR, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_ping(u64 dst_ipv4_be, u64 poll_budget) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_PING, dst_ipv4_be, poll_budget, 0ULL);
+}
+
+u64 cleonos_sys_net_udp_send(const cleonos_net_udp_send_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_UDP_SEND, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_udp_recv(cleonos_net_udp_recv_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_UDP_RECV, (u64)req, 0ULL, 0ULL);
+}

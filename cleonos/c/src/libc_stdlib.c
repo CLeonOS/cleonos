@@ -47,6 +47,18 @@ long long llabs(long long value) {
     return (value < 0LL) ? -value : value;
 }
 
+double fabs(double value) {
+    return (value < 0.0) ? -value : value;
+}
+
+float fabsf(float value) {
+    return (value < 0.0f) ? -value : value;
+}
+
+long double fabsl(long double value) {
+    return (value < 0.0L) ? -value : value;
+}
+
 int atoi(const char *text) {
     return (int)strtol(text, (char **)0, 10);
 }
