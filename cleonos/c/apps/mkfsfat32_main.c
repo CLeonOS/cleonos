@@ -1,6 +1,14 @@
 #include "cmd_runtime.h"
 #include <stdio.h>
 
+static void ush_mkfs_println(const char *text) {
+    if (text == (const char *)0) {
+        return;
+    }
+
+    ush_writeln(text);
+}
+
 static int ush_arg_parse_label(const char *arg, char *out_label, u64 out_label_size) {
     char first[USH_ARG_MAX];
     const char *rest = (const char *)0;
@@ -34,30 +42,50 @@ static int ush_arg_parse_label(const char *arg, char *out_label, u64 out_label_s
 static int ush_cmd_mkfsfat32(const char *arg) {
     char label[16];
     u64 ok;
+    u64 present;
+    u64 size_bytes;
+    u64 sectors;
+    u64 formatted;
+    u64 mounted;
 
-    if (cleonos_sys_disk_present() == 0ULL) {
-        (void)fputs("mkfsfat32: disk not present\n", 1);
+    present = cleonos_sys_disk_present();
+    if (present == 0ULL) {
+        ush_mkfs_println("mkfsfat32: disk not present");
         return 0;
     }
 
     if (ush_arg_parse_label(arg, label, (u64)sizeof(label)) == 0) {
-        (void)fputs("mkfsfat32: usage mkfsfat32 [label]\n", 1);
+        ush_mkfs_println("mkfsfat32: usage mkfsfat32 [label]");
         return 0;
     }
 
     ok = cleonos_sys_disk_format_fat32((label[0] != '\0') ? label : (const char *)0);
     if (ok == 0ULL) {
-        (void)fputs("mkfsfat32: format failed\n", 1);
+        char line[USH_LINE_MAX];
+
+        size_bytes = cleonos_sys_disk_size_bytes();
+        sectors = cleonos_sys_disk_sector_count();
+        formatted = cleonos_sys_disk_formatted();
+        mounted = cleonos_sys_disk_mounted();
+        ush_mkfs_println("mkfsfat32: format failed");
+        (void)snprintf(line, (unsigned long)sizeof(line),
+                       "mkfsfat32: disk.present=%llu size=%llu sectors=%llu formatted=%llu mounted=%llu",
+                       (unsigned long long)present, (unsigned long long)size_bytes, (unsigned long long)sectors,
+                       (unsigned long long)formatted, (unsigned long long)mounted);
+        ush_mkfs_println(line);
         return 0;
     }
 
     if (label[0] != '\0') {
-        (void)printf("mkfsfat32: formatted (label=%s)\n", label);
+        char line[USH_LINE_MAX];
+
+        (void)snprintf(line, (unsigned long)sizeof(line), "mkfsfat32: formatted (label=%s)", label);
+        ush_mkfs_println(line);
     } else {
-        (void)fputs("mkfsfat32: formatted\n", 1);
+        ush_mkfs_println("mkfsfat32: formatted");
     }
 
-    (void)fputs("mkfsfat32: now run 'mount /temp/disk' (or another mount path)\n", 1);
+    ush_mkfs_println("mkfsfat32: now run 'mount /temp/disk' (or another mount path)");
     return 1;
 }
 

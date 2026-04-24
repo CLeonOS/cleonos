@@ -3,21 +3,27 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_AUDIO",
       "title": "Audio Driver Init",
+      "title_zh": "音频驱动初始化",
       "description": "Initialize kernel audio subsystem during boot.",
+      "description_zh": "在启动阶段初始化内核音频子系统。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_MOUSE",
       "title": "PS/2 Mouse Input",
+      "title_zh": "PS/2 鼠标输入",
       "description": "Initialize kernel PS/2 mouse input subsystem.",
+      "description_zh": "初始化内核 PS/2 鼠标输入子系统。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_DESKTOP",
       "title": "TTY2 Desktop",
+      "title_zh": "TTY2 桌面",
       "description": "Enable desktop compositor tick/update path on TTY2.",
+      "description_zh": "在 TTY2 启用桌面合成器 tick/更新路径。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_MOUSE"
@@ -25,14 +31,18 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER",
       "title": "Driver Manager",
+      "title_zh": "驱动管理器",
       "description": "Initialize kernel ELF driver manager.",
+      "description_zh": "初始化内核 ELF 驱动管理器。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KELF",
       "title": "KELF Executor",
+      "title_zh": "KELF 执行器",
       "description": "Enable kernel ELF app dispatcher and kelfd task.",
+      "description_zh": "启用内核 ELF 应用分发器和 kelfd 任务。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER && CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT",
@@ -44,7 +54,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC",
       "title": "Auto Enter User Shell",
+      "title_zh": "自动进入用户 Shell",
       "description": "Auto-exec /shell/shell.elf after kernel boot.",
+      "description_zh": "内核启动后自动执行 /shell/shell.elf。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USRD_TASK && CLEONOS_CLKS_ENABLE_KEYBOARD",
@@ -60,21 +72,27 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_HEAP_SELFTEST",
       "title": "Heap Selftest",
+      "title_zh": "堆自检",
       "description": "Run kmalloc/kfree selftest during kernel boot.",
+      "description_zh": "在内核启动期间运行 kmalloc/kfree 自检。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_EXTERNAL_PSF",
       "title": "Load External PSF Font",
+      "title_zh": "加载外部 PSF 字体",
       "description": "Load /system/tty.psf and apply it to framebuffer TTY.",
+      "description_zh": "加载 /system/tty.psf 并应用到 framebuffer TTY。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KEYBOARD",
       "title": "PS/2 Keyboard Input",
+      "title_zh": "PS/2 键盘输入",
       "description": "Initialize PS/2 keyboard input subsystem.",
+      "description_zh": "初始化 PS/2 键盘输入子系统。",
       "type": "bool",
       "default": true,
       "imply": [
@@ -85,7 +103,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_ELFRUNNER_PROBE",
       "title": "ELFRUNNER Probe",
+      "title_zh": "ELFRUNNER 探测",
       "description": "Probe kernel ELF runtime metadata after ELFRUNNER init.",
+      "description_zh": "在 ELFRUNNER 初始化后探测内核 ELF 运行时元数据。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT && CLEONOS_CLKS_ENABLE_KELF"
@@ -93,49 +113,63 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_KLOGD_TASK",
       "title": "Scheduler Task: klogd",
+      "title_zh": "调度任务：klogd",
       "description": "Enable periodic klogd maintenance task.",
+      "description_zh": "启用周期性 klogd 维护任务。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KWORKER_TASK",
       "title": "Scheduler Task: kworker",
+      "title_zh": "调度任务：kworker",
       "description": "Enable periodic kernel worker service-heartbeat task.",
+      "description_zh": "启用周期性内核 worker 服务心跳任务。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USRD_TASK",
       "title": "Scheduler Task: usrd",
+      "title_zh": "调度任务：usrd",
       "description": "Enable user/runtime dispatch task (shell tick, tty tick, exec tick).",
+      "description_zh": "启用用户/运行时分发任务（shell tick、tty tick、exec tick）。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_BOOT_VIDEO_LOG",
       "title": "Boot Video Geometry Logs",
+      "title_zh": "启动视频几何日志",
       "description": "Print framebuffer width/height/pitch/bpp logs at boot.",
+      "description_zh": "在启动时打印 framebuffer 宽/高/pitch/bpp 日志。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_PMM_STATS_LOG",
       "title": "PMM Stats Logs",
+      "title_zh": "PMM 统计日志",
       "description": "Print PMM managed/free/used/dropped pages at boot.",
+      "description_zh": "在启动时打印 PMM 托管/空闲/已用/丢弃页数。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_HEAP_STATS_LOG",
       "title": "Heap Stats Logs",
+      "title_zh": "堆统计日志",
       "description": "Print heap total/free bytes at boot.",
+      "description_zh": "在启动时打印堆总字节/空闲字节。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_FS_ROOT_LOG",
       "title": "FS Root Children Log",
+      "title_zh": "FS 根目录子项日志",
       "description": "Print root directory children count during FS init.",
+      "description_zh": "在文件系统初始化时打印根目录子项数量。",
       "type": "tristate",
       "default": "y",
       "depends_on": "CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK"
@@ -143,21 +177,27 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_SYSTEM_DIR_CHECK",
       "title": "FS /SYSTEM Sanity Check",
+      "title_zh": "FS /SYSTEM 健全性检查",
       "description": "Require /system directory check during boot.",
+      "description_zh": "在启动时要求通过 /system 目录检查。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_ELFRUNNER_INIT",
       "title": "ELFRUNNER Init",
+      "title_zh": "ELFRUNNER 初始化",
       "description": "Initialize ELFRUNNER framework in kernel boot path.",
+      "description_zh": "在内核启动路径中初始化 ELFRUNNER 框架。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SYSCALL_TICK_QUERY",
       "title": "SYSCALL Tick Query",
+      "title_zh": "SYSCALL Tick 查询",
       "description": "Query timer ticks via syscall and log result during boot.",
+      "description_zh": "在启动时通过 syscall 查询定时器 tick 并记录日志。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_PROCFS"
@@ -165,152 +205,300 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_TTY_READY_LOG",
       "title": "TTY Ready Logs",
+      "title_zh": "TTY 就绪日志",
       "description": "Print TTY count/active/cursor ready logs.",
+      "description_zh": "打印 TTY 数量/活动终端/光标就绪日志。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG",
       "title": "Idle Loop Debug Log",
+      "title_zh": "空闲循环调试日志",
       "description": "Print debug log before entering kernel idle loop.",
+      "description_zh": "进入内核空闲循环前打印调试日志。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_PROCFS",
       "title": "Virtual /proc",
+      "title_zh": "虚拟 /proc",
       "description": "Enable virtual procfs paths (/proc, /proc/list, /proc/self, /proc/<pid>) in syscall FS layer.",
+      "description_zh": "在 syscall 文件系统层启用虚拟 procfs 路径（/proc、/proc/list、/proc/self、/proc/<pid>）。",
       "type": "bool",
       "default": true
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG",
       "title": "EXEC Serial Logs",
+      "title_zh": "EXEC 串口日志",
       "description": "Print EXEC run/return/path logs to serial output.",
+      "description_zh": "将 EXEC run/return/path 日志输出到串口。",
       "type": "tristate",
       "default": "y"
     },
     {
+      "key": "CLEONOS_CLKS_ENABLE_SYSCALL_SERIAL_LOG",
+      "title": "SYSCALL Serial Logs",
+      "title_zh": "SYSCALL 串口日志",
+      "description": "Print user syscall CALL/RET trace logs to serial output.",
+      "description_zh": "将用户态 syscall 的 CALL/RET 跟踪日志输出到串口。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_SYSCALL_USERID_SERIAL_LOG",
+      "title": "SYSCALL USER_ID Serial Logs",
+      "title_zh": "SYSCALL USER_ID 串口日志",
+      "description": "Print USER_TRACE_BEGIN/END, PID, and USER_ID trace logs to serial output.",
+      "description_zh": "将 USER_TRACE_BEGIN/END、PID 与 USER_ID 跟踪日志输出到串口。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_LEVEL_DEBUG",
+      "title": "Kernel Log Level: DEBUG",
+      "title_zh": "内核日志级别：DEBUG",
+      "description": "Allow CLKS_LOG_DEBUG messages to be emitted by clks_log/clks_log_hex.",
+      "description_zh": "允许 clks_log/clks_log_hex 输出 CLKS_LOG_DEBUG 消息。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_LEVEL_INFO",
+      "title": "Kernel Log Level: INFO",
+      "title_zh": "内核日志级别：INFO",
+      "description": "Allow CLKS_LOG_INFO messages to be emitted by clks_log/clks_log_hex.",
+      "description_zh": "允许 clks_log/clks_log_hex 输出 CLKS_LOG_INFO 消息。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_LEVEL_WARN",
+      "title": "Kernel Log Level: WARN",
+      "title_zh": "内核日志级别：WARN",
+      "description": "Allow CLKS_LOG_WARN messages to be emitted by clks_log/clks_log_hex.",
+      "description_zh": "允许 clks_log/clks_log_hex 输出 CLKS_LOG_WARN 消息。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_LEVEL_ERROR",
+      "title": "Kernel Log Level: ERROR",
+      "title_zh": "内核日志级别：ERROR",
+      "description": "Allow CLKS_LOG_ERROR messages to be emitted by clks_log/clks_log_hex.",
+      "description_zh": "允许 clks_log/clks_log_hex 输出 CLKS_LOG_ERROR 消息。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_OUTPUT_SERIAL",
+      "title": "Kernel Log Output: Serial",
+      "title_zh": "内核日志输出：串口",
+      "description": "Send clks_log/clks_log_hex output to serial port.",
+      "description_zh": "将 clks_log/clks_log_hex 输出发送到串口。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_OUTPUT_TTY",
+      "title": "Kernel Log Output: TTY",
+      "title_zh": "内核日志输出：TTY",
+      "description": "Render clks_log/clks_log_hex output to TTY with ANSI colors.",
+      "description_zh": "将 clks_log/clks_log_hex 输出渲染到 TTY（含 ANSI 颜色）。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_LOG_OUTPUT_JOURNAL",
+      "title": "Kernel Log Output: Journal",
+      "title_zh": "内核日志输出：日志缓冲",
+      "description": "Store clks_log/clks_log_hex lines into in-memory log journal for dmesg/procfs reads.",
+      "description_zh": "将 clks_log/clks_log_hex 行写入内存日志缓冲，供 dmesg/procfs 读取。",
+      "type": "bool",
+      "default": true,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
       "key": "CLEONOS_CLKS_ENABLE_USC",
       "title": "UserSafeController (USC)",
+      "title_zh": "用户安全控制器（USC）",
       "description": "Prompt before dangerous user syscalls and remember per-app approval for current boot.",
+      "description_zh": "在危险用户态 syscall 执行前弹出确认，并在本次启动期间按应用记住授权。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_MKDIR",
       "title": "Intercept FS_MKDIR",
+      "title_zh": "拦截 FS_MKDIR",
       "description": "USC prompt for syscall FS_MKDIR.",
+      "description_zh": "USC 对 FS_MKDIR syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_WRITE",
       "title": "Intercept FS_WRITE",
+      "title_zh": "拦截 FS_WRITE",
       "description": "USC prompt for syscall FS_WRITE.",
+      "description_zh": "USC 对 FS_WRITE syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_APPEND",
       "title": "Intercept FS_APPEND",
+      "title_zh": "拦截 FS_APPEND",
       "description": "USC prompt for syscall FS_APPEND.",
+      "description_zh": "USC 对 FS_APPEND syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_FS_REMOVE",
       "title": "Intercept FS_REMOVE",
+      "title_zh": "拦截 FS_REMOVE",
       "description": "USC prompt for syscall FS_REMOVE.",
+      "description_zh": "USC 对 FS_REMOVE syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATH",
       "title": "Intercept EXEC_PATH",
+      "title_zh": "拦截 EXEC_PATH",
       "description": "USC prompt for syscall EXEC_PATH.",
+      "description_zh": "USC 对 EXEC_PATH syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV",
       "title": "Intercept EXEC_PATHV",
+      "title_zh": "拦截 EXEC_PATHV",
       "description": "USC prompt for syscall EXEC_PATHV.",
+      "description_zh": "USC 对 EXEC_PATHV syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_EXEC_PATHV_IO",
       "title": "Intercept EXEC_PATHV_IO",
+      "title_zh": "拦截 EXEC_PATHV_IO",
       "description": "USC prompt for syscall EXEC_PATHV_IO.",
+      "description_zh": "USC 对 EXEC_PATHV_IO syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATH",
       "title": "Intercept SPAWN_PATH",
+      "title_zh": "拦截 SPAWN_PATH",
       "description": "USC prompt for syscall SPAWN_PATH.",
+      "description_zh": "USC 对 SPAWN_PATH syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_SPAWN_PATHV",
       "title": "Intercept SPAWN_PATHV",
+      "title_zh": "拦截 SPAWN_PATHV",
       "description": "USC prompt for syscall SPAWN_PATHV.",
+      "description_zh": "USC 对 SPAWN_PATHV syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_PROC_KILL",
       "title": "Intercept PROC_KILL",
+      "title_zh": "拦截 PROC_KILL",
       "description": "USC prompt for syscall PROC_KILL.",
+      "description_zh": "USC 对 PROC_KILL syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_SHUTDOWN",
       "title": "Intercept SHUTDOWN",
+      "title_zh": "拦截 SHUTDOWN",
       "description": "USC prompt for syscall SHUTDOWN.",
+      "description_zh": "USC 对 SHUTDOWN syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_USC_SC_RESTART",
       "title": "Intercept RESTART",
+      "title_zh": "拦截 RESTART",
       "description": "USC prompt for syscall RESTART.",
+      "description_zh": "USC 对 RESTART syscall 弹出确认。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USC",
-      "group": "USC Syscall Policy"
+      "group": "USC Syscall Policy",
+      "group_zh": "USC 系统调用策略"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_TTY_SWITCH_HOTKEY",
       "title": "Keyboard TTY Switch Hotkey",
+      "title_zh": "键盘 TTY 切换热键",
       "description": "Enable ALT+F1..F4 keyboard hotkey for active TTY switching.",
+      "description_zh": "启用 ALT+F1..F4 热键切换当前活动 TTY。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD"
@@ -318,7 +506,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_CTRL_SHORTCUTS",
       "title": "Keyboard Ctrl Shortcuts",
+      "title_zh": "键盘 Ctrl 快捷键",
       "description": "Enable Ctrl+A/C/V shortcuts for input selection/copy/paste.",
+      "description_zh": "启用 Ctrl+A/C/V 输入区全选/复制/粘贴快捷键。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD",
@@ -329,7 +519,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_KBD_FORCE_STOP_HOTKEY",
       "title": "Keyboard Force-Stop Hotkey",
+      "title_zh": "键盘强制停止热键",
       "description": "Enable Ctrl+Alt+C force-stop for current running user process.",
+      "description_zh": "启用 Ctrl+Alt+C 强制停止当前运行的用户进程。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_KEYBOARD && CLEONOS_CLKS_ENABLE_PROCFS"
@@ -337,7 +529,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_USER_INIT_SCRIPT_PROBE",
       "title": "User Init Script Probe",
+      "title_zh": "用户初始化脚本探测",
       "description": "Probe and log /shell/init.cmd presence during userland init.",
+      "description_zh": "在用户态初始化期间探测并记录 /shell/init.cmd 是否存在。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC"
@@ -345,7 +539,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE",
       "title": "User System App Probe",
+      "title_zh": "用户系统应用探测",
       "description": "Probe /system/elfrunner.elf and /system/memc.elf during userland init.",
+      "description_zh": "在用户态初始化期间探测 /system/elfrunner.elf 与 /system/memc.elf。",
       "type": "bool",
       "default": true,
       "depends_on": "CLEONOS_CLKS_ENABLE_KELF"
@@ -353,7 +549,9 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG",
       "title": "Scheduler Task Count Log",
+      "title_zh": "调度任务数量日志",
       "description": "Print scheduler task count after scheduler initialization.",
+      "description_zh": "在调度器初始化后打印任务数量。",
       "type": "tristate",
       "default": "y",
       "depends_on": "CLEONOS_CLKS_ENABLE_KLOGD_TASK || CLEONOS_CLKS_ENABLE_KWORKER_TASK || CLEONOS_CLKS_ENABLE_USRD_TASK"
@@ -361,14 +559,18 @@
     {
       "key": "CLEONOS_CLKS_ENABLE_INTERRUPT_READY_LOG",
       "title": "Interrupt Ready Log",
+      "title_zh": "中断就绪日志",
       "description": "Print IDT/PIC initialized log after interrupt setup.",
+      "description_zh": "在完成中断初始化后打印 IDT/PIC 就绪日志。",
       "type": "tristate",
       "default": "y"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SHELL_MODE_LOG",
       "title": "Shell Mode Log",
+      "title_zh": "Shell 模式日志",
       "description": "Print whether boot default mode is user shell or kernel shell.",
+      "description_zh": "打印默认启动模式是用户 Shell 还是内核 Shell。",
       "type": "tristate",
       "default": "y"
     }

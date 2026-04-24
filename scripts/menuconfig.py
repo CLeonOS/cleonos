@@ -53,6 +53,38 @@ CONFIG_CLEONOS_JSON_PATH = MENUCONFIG_DIR / ".config.cleonos.json"
 CONFIG_CLKS_CMAKE_PATH = MENUCONFIG_DIR / "config.clks.cmake"
 CONFIG_CLEONOS_CMAKE_PATH = MENUCONFIG_DIR / "config.cleonos.cmake"
 
+MENUCONFIG_LANG = "en"
+
+
+def _is_zh() -> bool:
+    return MENUCONFIG_LANG == "zh-CN"
+
+
+def _t(en: str, zh: str) -> str:
+    return zh if _is_zh() else en
+
+
+def _resolve_language(requested: str) -> str:
+    token = str(requested or "auto").strip().lower()
+
+    if token in {"zh", "zh-cn", "zh_cn"}:
+        return "zh-CN"
+    if token == "en":
+        return "en"
+    if token != "auto":
+        return "en"
+
+    env_candidates = (
+        os.environ.get("LC_ALL", ""),
+        os.environ.get("LC_MESSAGES", ""),
+        os.environ.get("LANG", ""),
+    )
+    for value in env_candidates:
+        text = str(value).strip().lower()
+        if text.startswith("zh"):
+            return "zh-CN"
+    return "en"
+
 
 @dataclass(frozen=True)
 class OptionItem:
@@ -314,14 +346,20 @@ def load_clks_options() -> List[OptionItem]:
         if not isinstance(entry, dict):
             continue
         key = str(entry.get("key", "")).strip()
-        title = str(entry.get("title", key)).strip()
-        description = str(entry.get("description", "")).strip()
+        title_key = "title_zh" if _is_zh() else "title"
+        desc_key = "description_zh" if _is_zh() else "description"
+        group_key = "group_zh" if _is_zh() else "group"
+
+        title = str(entry.get(title_key, entry.get("title", key))).strip()
+        description = str(entry.get(desc_key, entry.get("description", ""))).strip()
         kind = normalize_kind(entry.get("type", "bool"))
         default = normalize_tri(entry.get("default", TRI_Y), TRI_Y, kind)
         depends_on = str(entry.get("depends_on", entry.get("depends", ""))).strip()
         selects = _normalize_key_list(entry.get("select", entry.get("selects", ())))
         implies = _normalize_key_list(entry.get("imply", entry.get("implies", ())))
-        group = str(entry.get("group", entry.get("menu", "General"))).strip() or "General"
+        group = str(entry.get(group_key, entry.get("group", entry.get("menu", _t("General", "通用"))))).strip() or _t(
+            "General", "通用"
+        )
         if not key:
             continue
         options.append(
@@ -378,7 +416,10 @@ def discover_user_apps() -> List[OptionItem]:
     for app, section in final_apps:
         key = f"CLEONOS_USER_APP_{sanitize_token(app)}"
         title = f"{app}.elf [{section}]"
-        description = f"Build and package user app '{app}' into ramdisk/{section}."
+        if _is_zh():
+            description = f"构建并打包用户应用 '{app}' 到 ramdisk/{section}。"
+        else:
+            description = f"Build and package user app '{app}' into ramdisk/{section}."
         options.append(
             OptionItem(
                 key=key,
@@ -729,34 +770,34 @@ def _detail_lines(item: OptionItem, values: Dict[str, int], ev: EvalResult) -> L
     allowed = ",".join(tri_char(v) for v in _allowed_values(item, floor_val, ceil_val))
 
     lines = [
-        f"kind: {item.kind}",
-        f"requested: {tri_char(req)}",
-        f"effective: {tri_char(eff)}",
-        f"visible: {'yes' if visible else 'no'}",
-        f"allowed: {allowed}",
-        f"depends: {item.depends_on or '<none>'}",
+        f"{_t('kind', '类型')}: {item.kind}",
+        f"{_t('requested', '请求值')}: {tri_char(req)}",
+        f"{_t('effective', '生效值')}: {tri_char(eff)}",
+        f"{_t('visible', '可见')}: {_t('yes', '是') if visible else _t('no', '否')}",
+        f"{_t('allowed', '可选')}: {allowed}",
+        f"{_t('depends', '依赖')}: {item.depends_on or _t('<none>', '<无>')}",
     ]
 
     symbols = ev.depends_symbols.get(item.key, [])
     if symbols:
         parts = [f"{sym}={tri_char(ev.effective.get(sym, TRI_N))}" for sym in symbols]
-        lines.append("depends values: " + ", ".join(parts))
+        lines.append(_t("depends values: ", "依赖值: ") + ", ".join(parts))
     else:
-        lines.append("depends values: <none>")
+        lines.append(_t("depends values: <none>", "依赖值: <无>"))
 
     sel = ev.selected_by.get(item.key, [])
     imp = ev.implied_by.get(item.key, [])
-    lines.append("selected by: " + (", ".join(sel) if sel else "<none>"))
-    lines.append("implied by: " + (", ".join(imp) if imp else "<none>"))
+    lines.append(_t("selected by: ", "被选择自: ") + (", ".join(sel) if sel else _t("<none>", "<无>")))
+    lines.append(_t("implied by: ", "被蕴含自: ") + (", ".join(imp) if imp else _t("<none>", "<无>")))
     return lines
 
 
 def _tri_word(value: int) -> str:
     if value >= TRI_Y:
-        return "Enabled"
+        return _t("Enabled", "启用")
     if value >= TRI_M:
-        return "Module"
-    return "Disabled"
+        return _t("Module", "模块")
+    return _t("Disabled", "禁用")
 
 
 def _detail_lines_human(item: OptionItem, values: Dict[str, int], ev: EvalResult) -> List[str]:
@@ -771,26 +812,26 @@ def _detail_lines_human(item: OptionItem, values: Dict[str, int], ev: EvalResult
     if symbols:
         dep_values = ", ".join(f"{sym}={tri_char(ev.effective.get(sym, TRI_N))}" for sym in symbols)
     else:
-        dep_values = "<none>"
+        dep_values = _t("<none>", "<无>")
 
-    selected_chain = ", ".join(ev.selected_by.get(item.key, [])) or "<none>"
-    implied_chain = ", ".join(ev.implied_by.get(item.key, [])) or "<none>"
+    selected_chain = ", ".join(ev.selected_by.get(item.key, [])) or _t("<none>", "<无>")
+    implied_chain = ", ".join(ev.implied_by.get(item.key, [])) or _t("<none>", "<无>")
     allowed_text = "/".join(f"{tri_char(v)}({_tri_word(v)})" for v in allowed_vals)
 
     return [
-        "State:",
-        f"  Running now   : {tri_char(eff)} ({_tri_word(eff)})",
-        f"  Your choice   : {tri_char(req)} ({_tri_word(req)})",
-        f"  Type          : {item.kind}",
-        f"  Visible       : {'yes' if visible else 'no'}",
-        f"  Allowed now   : {allowed_text}",
-        "Why:",
-        f"  depends on    : {item.depends_on or '<none>'}",
-        f"  depends value : {dep_values}",
-        f"  selected by   : {selected_chain}",
-        f"  implied by    : {implied_chain}",
-        "Notes:",
-        "  [a/b] in list means [effective/requested].",
+        _t("State:", "状态:"),
+        f"  {_t('Running now', '当前生效'):12s} : {tri_char(eff)} ({_tri_word(eff)})",
+        f"  {_t('Your choice', '你的选择'):12s} : {tri_char(req)} ({_tri_word(req)})",
+        f"  {_t('Type', '类型'):12s} : {item.kind}",
+        f"  {_t('Visible', '可见'):12s} : {_t('yes', '是') if visible else _t('no', '否')}",
+        f"  {_t('Allowed now', '当前可选'):12s} : {allowed_text}",
+        _t("Why:", "原因:"),
+        f"  {_t('depends on', '依赖于'):12s} : {item.depends_on or _t('<none>', '<无>')}",
+        f"  {_t('depends value', '依赖值'):12s} : {dep_values}",
+        f"  {_t('selected by', '被选择自'):12s} : {selected_chain}",
+        f"  {_t('implied by', '被蕴含自'):12s} : {implied_chain}",
+        _t("Notes:", "说明:"),
+        _t("  [a/b] in list means [effective/requested].", "  列表中的 [a/b] 表示 [生效值/请求值]。"),
         f"  {item.description}",
     ]
 
@@ -817,15 +858,20 @@ def print_section(title: str, section_options: List[OptionItem], all_options: Li
             flags.append("implied")
         flag_text = f" ({', '.join(flags)})" if flags else ""
         print(f"{idx:3d}. [{tri_char(eff)}|{tri_char(req)}] {item.title}{flag_text}")
-    print("Commands: <number> cycle, a all->y, n all->n, m all->m, i <n> info, b back")
-    print("Legend: [effective|requested], states: y/m/n")
+    print(
+        _t(
+            "Commands: <number> cycle, a all->y, n all->n, m all->m, i <n> info, b back",
+            "命令: <编号> 切换, a 全部->y, n 全部->n, m 全部->m, i <n> 详情, b 返回",
+        )
+    )
+    print(_t("Legend: [effective|requested], states: y/m/n", "图例: [生效值|请求值], 状态: y/m/n"))
 
 
 def section_loop(title: str, section_options: List[OptionItem], all_options: List[OptionItem], values: Dict[str, int]) -> None:
     while True:
         ev = evaluate_config(all_options, values)
         print_section(title, section_options, all_options, values)
-        raw = input(f"{title}> ").strip()
+        raw = input(f"{title}{_t('> ', '> ')}").strip()
         if not raw:
             continue
         lower = raw.lower()
@@ -852,12 +898,12 @@ def section_loop(title: str, section_options: List[OptionItem], all_options: Lis
                     item = section_options[idx - 1]
                     print()
                     print(f"[{idx}] {item.title}")
-                    print(f"key: {item.key}")
+                    print(f"{_t('key', '键名')}: {item.key}")
                     for line in _detail_lines(item, values, ev):
                         print(line)
-                    print(f"desc: {item.description}")
+                    print(f"{_t('desc', '描述')}: {item.description}")
                     continue
-            print("invalid info index")
+            print(_t("invalid info index", "无效的详情编号"))
             continue
 
         if raw.isdigit():
@@ -866,10 +912,10 @@ def section_loop(title: str, section_options: List[OptionItem], all_options: Lis
                 item = section_options[idx - 1]
                 _cycle_option_value(values, item, ev)
             else:
-                print("invalid index")
+                print(_t("invalid index", "无效编号"))
             continue
 
-        print("unknown command")
+        print(_t("unknown command", "未知命令"))
 
 
 def grouped_section_loop(
@@ -887,19 +933,22 @@ def grouped_section_loop(
     while True:
         ev = evaluate_config(all_options, values)
         print()
-        print(f"== {title} / Groups ==")
-        print(f"  0. All ({_group_enabled_count(section_options, ev)}/{len(section_options)} enabled)")
+        print(f"== {title} / {_t('Groups', '分组')} ==")
+        print(
+            f"  0. {_t('All', '全部')} ({_group_enabled_count(section_options, ev)}/{len(section_options)} "
+            f"{_t('enabled', '已启用')})"
+        )
         for idx, (name, opts) in enumerate(groups, start=1):
-            print(f"{idx:3d}. {name} ({_group_enabled_count(opts, ev)}/{len(opts)} enabled)")
-        print("Commands: <number> open, b back")
+            print(f"{idx:3d}. {name} ({_group_enabled_count(opts, ev)}/{len(opts)} {_t('enabled', '已启用')})")
+        print(_t("Commands: <number> open, b back", "命令: <编号> 打开, b 返回"))
 
-        raw = input(f"{title}/groups> ").strip().lower()
+        raw = input(f"{title}/{_t('groups', 'groups')}> ").strip().lower()
         if not raw:
             continue
         if raw in {"b", "back", "q", "quit"}:
             return
         if not raw.isdigit():
-            print("invalid selection")
+            print(_t("invalid selection", "无效选择"))
             continue
 
         idx = int(raw)
@@ -910,7 +959,7 @@ def grouped_section_loop(
             group_name, group_items = groups[idx - 1]
             section_loop(f"{title}/{group_name}", group_items, all_options, values)
             continue
-        print("invalid selection")
+        print(_t("invalid selection", "无效选择"))
 
 
 def _safe_addnstr(stdscr, y: int, x: int, text: str, attr: int = 0) -> None:
@@ -1122,8 +1171,14 @@ def _run_ncurses_section(
         h, w = stdscr.getmaxyx()
 
         if h < 14 or w < 70:
-            _safe_addnstr(stdscr, 0, 0, "Terminal too small for rich UI (need >= 70x14).", theme["status_warn"])
-            _safe_addnstr(stdscr, 2, 0, "Resize terminal then press any key, or ESC to go back.")
+            _safe_addnstr(
+                stdscr,
+                0,
+                0,
+                _t("Terminal too small for rich UI (need >= 70x14).", "终端太小，无法显示完整界面（至少需要 70x14）。"),
+                theme["status_warn"],
+            )
+            _safe_addnstr(stdscr, 2, 0, _t("Resize terminal then press any key, or ESC to go back.", "请调整终端大小后按任意键，或按 ESC 返回。"))
             key = stdscr.getch()
             if key in (27,):
                 return
@@ -1152,12 +1207,33 @@ def _run_ncurses_section(
             stdscr,
             1,
             0,
-            f" on:{enabled_count} mod:{module_count} total:{len(section_options)}  |  Space cycle  a/n/m all  Enter/ESC back ",
+            (
+                f" {_t('on', '开')}:{enabled_count} {_t('mod', '模')}:{module_count} {_t('total', '总数')}:{len(section_options)}"
+                f"  |  {_t('Space cycle', '空格切换')}  a/n/m {_t('all', '全部')}  Enter/ESC {_t('back', '返回')} "
+            ),
             theme["subtitle"],
         )
 
-        _draw_box(stdscr, list_box_y, list_box_x, list_box_h, list_box_w, "Options", theme["panel_border"], theme["panel_title"])
-        _draw_box(stdscr, detail_box_y, detail_box_x, detail_box_h, detail_box_w, "Details", theme["panel_border"], theme["panel_title"])
+        _draw_box(
+            stdscr,
+            list_box_y,
+            list_box_x,
+            list_box_h,
+            list_box_w,
+            _t("Options", "选项"),
+            theme["panel_border"],
+            theme["panel_title"],
+        )
+        _draw_box(
+            stdscr,
+            detail_box_y,
+            detail_box_x,
+            detail_box_h,
+            detail_box_w,
+            _t("Details", "详情"),
+            theme["panel_border"],
+            theme["panel_title"],
+        )
 
         list_inner_y = list_box_y + 1
         list_inner_x = list_box_x + 1
@@ -1219,12 +1295,12 @@ def _run_ncurses_section(
 
             _safe_addnstr(stdscr, detail_inner_y + 0, detail_inner_x, cur.title, theme["value_label"])
             _safe_addnstr(stdscr, detail_inner_y + 1, detail_inner_x, cur.key, theme["value_key"])
-            _safe_addnstr(stdscr, detail_inner_y + 2, detail_inner_x, f"State: {state_text}", state_attr)
+            _safe_addnstr(stdscr, detail_inner_y + 2, detail_inner_x, f"{_t('State', '状态')}: {state_text}", state_attr)
             _safe_addnstr(
                 stdscr,
                 detail_inner_y + 3,
                 detail_inner_x,
-                f"Item: {selected + 1}/{len(section_options)}  flags: {_option_flags(cur, ev)}",
+                f"{_t('Item', '条目')}: {selected + 1}/{len(section_options)}  {_t('flags', '标记')}: {_option_flags(cur, ev)}",
                 theme["value_label"],
             )
             _draw_progress_bar(
@@ -1239,7 +1315,7 @@ def _run_ncurses_section(
             )
 
             desc_title_y = detail_inner_y + 6
-            _safe_addnstr(stdscr, desc_title_y, detail_inner_x, "Details:", theme["value_label"])
+            _safe_addnstr(stdscr, desc_title_y, detail_inner_x, f"{_t('Details', '详情')}:", theme["value_label"])
             raw_lines = _detail_lines_human(cur, values, ev)
             wrapped_lines: List[str] = []
             wrap_width = max(12, detail_inner_w)
@@ -1256,7 +1332,16 @@ def _run_ncurses_section(
             for i, part in enumerate(wrapped_lines[:max_desc_lines]):
                 _safe_addnstr(stdscr, desc_title_y + 1 + i, detail_inner_x, part, 0)
 
-        _safe_addnstr(stdscr, h - 1, 0, " Space:cycle  a:all-y  n:all-n  m:all-m  Enter/ESC:back ", theme["help"])
+        _safe_addnstr(
+            stdscr,
+            h - 1,
+            0,
+            _t(
+                " Space:cycle  a:all-y  n:all-n  m:all-m  Enter/ESC:back ",
+                " 空格:切换  a:全y  n:全n  m:全m  Enter/ESC:返回 ",
+            ),
+            theme["help"],
+        )
 
         stdscr.refresh()
         key = stdscr.getch()
@@ -1319,17 +1404,23 @@ def _run_ncurses_grouped_section(
         items: List[Tuple[str, List[OptionItem]]] = [("All", section_options)] + groups
 
         if h < 12 or w < 56:
-            _safe_addnstr(stdscr, 0, 0, "Terminal too small for grouped view (need >= 56x12).", theme["status_warn"])
-            _safe_addnstr(stdscr, 2, 0, "Resize terminal then press any key, or ESC to go back.")
+            _safe_addnstr(
+                stdscr,
+                0,
+                0,
+                _t("Terminal too small for grouped view (need >= 56x12).", "终端太小，无法显示分组视图（至少需要 56x12）。"),
+                theme["status_warn"],
+            )
+            _safe_addnstr(stdscr, 2, 0, _t("Resize terminal then press any key, or ESC to go back.", "请调整终端大小后按任意键，或按 ESC 返回。"))
             key = stdscr.getch()
             if key in (27,):
                 return
             continue
 
-        _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} / Groups ", theme["header"])
-        _safe_addnstr(stdscr, 1, 0, " Enter: open group  ESC: back ", theme["subtitle"])
+        _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} / {_t('Groups', '分组')} ", theme["header"])
+        _safe_addnstr(stdscr, 1, 0, _t(" Enter: open group  ESC: back ", " Enter:打开分组  ESC:返回 "), theme["subtitle"])
 
-        _draw_box(stdscr, 2, 0, h - 4, w, "CLKS Groups", theme["panel_border"], theme["panel_title"])
+        _draw_box(stdscr, 2, 0, h - 4, w, _t("CLKS Groups", "CLKS 分组"), theme["panel_border"], theme["panel_title"])
 
         if selected < 0:
             selected = 0
@@ -1341,11 +1432,12 @@ def _run_ncurses_grouped_section(
             if row >= h - 2:
                 break
             on_count = _group_enabled_count(opts, ev)
-            line = f"{'>' if i == selected else ' '} {i:02d}  {name}  ({on_count}/{len(opts)} enabled)"
+            localized_name = _t("All", "全部") if name == "All" else name
+            line = f"{'>' if i == selected else ' '} {i:02d}  {localized_name}  ({on_count}/{len(opts)} {_t('enabled', '已启用')})"
             attr = theme["selected"] if i == selected else theme["value_label"]
             _safe_addnstr(stdscr, row, 2, line, attr)
 
-        _safe_addnstr(stdscr, h - 1, 0, " Arrows/jk move  Enter open  ESC back ", theme["help"])
+        _safe_addnstr(stdscr, h - 1, 0, _t(" Arrows/jk move  Enter open  ESC back ", " 方向键/jk移动  Enter打开  ESC返回 "), theme["help"])
         stdscr.refresh()
         key = stdscr.getch()
 
@@ -1387,25 +1479,37 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
         total_on = clks_on + user_on
 
         menu_entries: List[Tuple[str, str]] = [
-            ("clks", f"CLKS features ({clks_on}/{len(clks_options)} enabled)"),
+            ("clks", f"{_t('CLKS features', 'CLKS 功能')} ({clks_on}/{len(clks_options)} {_t('enabled', '已启用')})"),
         ]
         if user_options:
-            menu_entries.append(("user", f"User apps ({user_on}/{len(user_options)} enabled)"))
+            menu_entries.append(("user", f"{_t('User apps', '用户应用')} ({user_on}/{len(user_options)} {_t('enabled', '已启用')})"))
         else:
-            menu_entries.append(("user-disabled", "User apps (CLKS-only mode)"))
-        menu_entries.append(("save", "Save and Exit"))
-        menu_entries.append(("quit", "Quit without Saving"))
+            menu_entries.append(("user-disabled", _t("User apps (CLKS-only mode)", "用户应用（仅 CLKS 模式）")))
+        menu_entries.append(("save", _t("Save and Exit", "保存并退出")))
+        menu_entries.append(("quit", _t("Quit without Saving", "不保存退出")))
 
         if h < 12 or w < 58:
-            _safe_addnstr(stdscr, 0, 0, "Terminal too small for menuconfig (need >= 58x12).", theme["status_warn"])
-            _safe_addnstr(stdscr, 2, 0, "Resize terminal then press any key.")
+            _safe_addnstr(
+                stdscr,
+                0,
+                0,
+                _t("Terminal too small for menuconfig (need >= 58x12).", "终端太小，无法显示 menuconfig（至少需要 58x12）。"),
+                theme["status_warn"],
+            )
+            _safe_addnstr(stdscr, 2, 0, _t("Resize terminal then press any key.", "请调整终端大小后按任意键。"))
             stdscr.getch()
             continue
 
         _safe_addnstr(stdscr, 0, 0, " CLeonOS menuconfig ", theme["header"])
-        _safe_addnstr(stdscr, 1, 0, " Stylish ncurses UI  |  Enter: open/select  s: save  q: quit ", theme["subtitle"])
+        _safe_addnstr(
+            stdscr,
+            1,
+            0,
+            _t(" Stylish ncurses UI  |  Enter: open/select  s: save  q: quit ", " 现代 ncurses 界面  |  Enter:打开/选择  s:保存  q:退出 "),
+            theme["subtitle"],
+        )
 
-        _draw_box(stdscr, 2, 0, h - 5, w, "Main", theme["panel_border"], theme["panel_title"])
+        _draw_box(stdscr, 2, 0, h - 5, w, _t("Main", "主菜单"), theme["panel_border"], theme["panel_title"])
 
         base = 4
         for i, (_action, text) in enumerate(menu_entries):
@@ -1414,7 +1518,7 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             attr = theme["selected"] if i == selected else theme["value_label"]
             _safe_addnstr(stdscr, base + i, 2, row_text, attr)
 
-        _safe_addnstr(stdscr, base + 6, 2, "Global Progress:", theme["value_label"])
+        _safe_addnstr(stdscr, base + 6, 2, _t("Global Progress:", "全局进度:"), theme["value_label"])
         _draw_progress_bar(
             stdscr,
             base + 7,
@@ -1426,11 +1530,29 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             theme["progress_off"],
         )
 
-        _safe_addnstr(stdscr, h - 2, 0, " Arrows/jk move  Enter select  s save  q quit ", theme["help"])
+        _safe_addnstr(stdscr, h - 2, 0, _t(" Arrows/jk move  Enter select  s save  q quit ", " 方向键/jk移动  Enter选择  s保存  q退出 "), theme["help"])
         if user_options:
-            _safe_addnstr(stdscr, h - 1, 0, " Tip: open CLKS/USER section then use Space to toggle options. ", theme["help"])
+            _safe_addnstr(
+                stdscr,
+                h - 1,
+                0,
+                _t(
+                    " Tip: open CLKS/USER section then use Space to toggle options. ",
+                    " 提示: 进入 CLKS/USER 分区后，用空格切换选项。",
+                ),
+                theme["help"],
+            )
         else:
-            _safe_addnstr(stdscr, h - 1, 0, " Tip: CLKS-only mode, open CLKS section then use Space to toggle options. ", theme["help"])
+            _safe_addnstr(
+                stdscr,
+                h - 1,
+                0,
+                _t(
+                    " Tip: CLKS-only mode, open CLKS section then use Space to toggle options. ",
+                    " 提示: 当前是仅 CLKS 模式，进入 CLKS 分区后用空格切换选项。",
+                ),
+                theme["help"],
+            )
         stdscr.refresh()
 
         key = stdscr.getch()
@@ -1462,18 +1584,18 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
 
 def interactive_menu_ncurses(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     if curses is None:
-        raise RuntimeError("python curses module unavailable (install python3-curses / ncurses)")
+        raise RuntimeError(_t("python curses module unavailable (install python3-curses / ncurses)", "缺少 python curses 模块（请安装 python3-curses / ncurses）"))
     if "TERM" not in os.environ or not os.environ["TERM"]:
-        raise RuntimeError("TERM is not set; cannot start ncurses UI")
+        raise RuntimeError(_t("TERM is not set; cannot start ncurses UI", "TERM 未设置，无法启动 ncurses 界面"))
     return bool(curses.wrapper(lambda stdscr: _run_ncurses_main(stdscr, clks_options, user_options, values)))
 
 
 def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
     if QtWidgets is None or QtCore is None:
-        raise RuntimeError("python PySide unavailable (install PySide6, or use --plain)")
+        raise RuntimeError(_t("python PySide unavailable (install PySide6, or use --plain)", "缺少 PySide（请安装 PySide6，或使用 --plain）"))
 
     if os.name != "nt" and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
-        raise RuntimeError("GUI mode requires a desktop display (DISPLAY/WAYLAND_DISPLAY)")
+        raise RuntimeError(_t("GUI mode requires a desktop display (DISPLAY/WAYLAND_DISPLAY)", "GUI 模式需要桌面显示环境（DISPLAY/WAYLAND_DISPLAY）"))
 
     app = QtWidgets.QApplication.instance()
     owns_app = False
@@ -1510,7 +1632,7 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     result = {"save": False}
 
     dialog = QtWidgets.QDialog()
-    dialog.setWindowTitle("CLeonOS menuconfig (PySide)")
+    dialog.setWindowTitle(_t("CLeonOS menuconfig (PySide)", "CLeonOS menuconfig（PySide）"))
     dialog.resize(1180, 760)
     dialog.setMinimumSize(920, 560)
 
@@ -1521,7 +1643,7 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     root_layout.setContentsMargins(12, 10, 12, 12)
     root_layout.setSpacing(8)
 
-    header_title = QtWidgets.QLabel("CLeonOS menuconfig")
+    header_title = QtWidgets.QLabel(_t("CLeonOS menuconfig", "CLeonOS 配置菜单"))
     header_font = header_title.font()
     header_font.setPointSize(header_font.pointSize() + 4)
     header_font.setBold(True)
@@ -1529,9 +1651,13 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
     root_layout.addWidget(header_title)
 
     if user_options:
-        root_layout.addWidget(QtWidgets.QLabel("Window mode (PySide): configure CLKS features and user apps, then save."))
+        root_layout.addWidget(
+            QtWidgets.QLabel(_t("Window mode (PySide): configure CLKS features and user apps, then save.", "窗口模式（PySide）：配置 CLKS 功能和用户应用后保存。"))
+        )
     else:
-        root_layout.addWidget(QtWidgets.QLabel("Window mode (PySide): CLKS-only mode (user app options unavailable)."))
+        root_layout.addWidget(
+            QtWidgets.QLabel(_t("Window mode (PySide): CLKS-only mode (user app options unavailable).", "窗口模式（PySide）：仅 CLKS 模式（用户应用选项不可用）。"))
+        )
 
     summary_label = QtWidgets.QLabel("")
     root_layout.addWidget(summary_label)
@@ -1546,9 +1672,11 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
         user_on = sum(1 for item in user_options if ev.effective.get(item.key, item.default) > TRI_N)
         total = len(clks_options) + len(user_options)
         summary_label.setText(
-            f"CLKS: {clks_on}/{len(clks_options)} on    "
-            f"User: {user_on}/{len(user_options)} on    "
-            f"Total: {clks_on + user_on}/{total}"
+            (
+                f"CLKS: {clks_on}/{len(clks_options)} {_t('on', '开')}    "
+                f"{_t('User', '用户')}: {user_on}/{len(user_options)} {_t('on', '开')}    "
+                f"{_t('Total', '总计')}: {clks_on + user_on}/{total}"
+            )
         )
 
     class _SectionPanel(QtWidgets.QWidget):
@@ -1569,12 +1697,12 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             toolbar.addWidget(title_label)
             toolbar.addStretch(1)
 
-            toggle_btn = QtWidgets.QPushButton("Cycle Selected")
-            set_y_btn = QtWidgets.QPushButton("Set Y")
-            set_m_btn = QtWidgets.QPushButton("Set M")
-            set_n_btn = QtWidgets.QPushButton("Set N")
-            enable_all_btn = QtWidgets.QPushButton("All Y")
-            disable_all_btn = QtWidgets.QPushButton("All N")
+            toggle_btn = QtWidgets.QPushButton(_t("Cycle Selected", "切换选中项"))
+            set_y_btn = QtWidgets.QPushButton(_t("Set Y", "设为 Y"))
+            set_m_btn = QtWidgets.QPushButton(_t("Set M", "设为 M"))
+            set_n_btn = QtWidgets.QPushButton(_t("Set N", "设为 N"))
+            enable_all_btn = QtWidgets.QPushButton(_t("All Y", "全部 Y"))
+            disable_all_btn = QtWidgets.QPushButton(_t("All N", "全部 N"))
             toolbar.addWidget(enable_all_btn)
             toolbar.addWidget(disable_all_btn)
             toolbar.addWidget(set_m_btn)
@@ -1590,7 +1718,7 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             left_layout = QtWidgets.QVBoxLayout(left)
             left_layout.setContentsMargins(0, 0, 0, 0)
             self.table = QtWidgets.QTableWidget(len(options), 3)
-            self.table.setHorizontalHeaderLabels(["Value", "Option", "Status"])
+            self.table.setHorizontalHeaderLabels([_t("Value", "值"), _t("Option", "选项"), _t("Status", "状态")])
             self.table.verticalHeader().setVisible(False)
             self.table.horizontalHeader().setSectionResizeMode(0, resize_to_contents)
             self.table.horizontalHeader().setSectionResizeMode(1, stretch_mode)
@@ -1604,8 +1732,8 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             right = QtWidgets.QWidget()
             right_layout = QtWidgets.QVBoxLayout(right)
             right_layout.setContentsMargins(0, 0, 0, 0)
-            self.state_label = QtWidgets.QLabel("State: -")
-            self.key_label = QtWidgets.QLabel("Key: -")
+            self.state_label = QtWidgets.QLabel(f"{_t('State', '状态')}: -")
+            self.key_label = QtWidgets.QLabel(f"{_t('Key', '键名')}: -")
             self.detail_text = QtWidgets.QPlainTextEdit()
             self.detail_text.setReadOnly(True)
             right_layout.addWidget(self.state_label)
@@ -1646,8 +1774,8 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
 
         def _show_detail(self, row: int) -> None:
             if row < 0 or row >= len(self.options):
-                self.state_label.setText("State: -")
-                self.key_label.setText("Key: -")
+                self.state_label.setText(f"{_t('State', '状态')}: -")
+                self.key_label.setText(f"{_t('Key', '键名')}: -")
                 self.detail_text.setPlainText("")
                 return
 
@@ -1656,9 +1784,9 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
             eff = ev.effective.get(item.key, item.default)
             req = normalize_tri(values.get(item.key, item.default), item.default, item.kind)
             self.state_label.setText(
-                f"State: eff={tri_char(eff)} req={tri_char(req)} kind={item.kind} flags={_option_flags(item, ev)}"
+                f"{_t('State', '状态')}: eff={tri_char(eff)} req={tri_char(req)} kind={item.kind} flags={_option_flags(item, ev)}"
             )
-            self.key_label.setText(f"Key: {item.key}")
+            self.key_label.setText(f"{_t('Key', '键名')}: {item.key}")
             self.detail_text.setPlainText("\n".join([item.title, ""] + _detail_lines(item, values, ev) + ["", item.description]))
 
         def _on_selection_changed(self) -> None:
@@ -1669,9 +1797,14 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
                 return
 
             if len(rows) > 1:
-                self.state_label.setText(f"State: {len(rows)} items selected")
-                self.key_label.setText("Key: <multiple>")
-                self.detail_text.setPlainText("Multiple options selected.\nUse Cycle/Set buttons to update selected entries.")
+                self.state_label.setText(f"{_t('State', '状态')}: {len(rows)} {_t('items selected', '项已选中')}")
+                self.key_label.setText(f"{_t('Key', '键名')}: {_t('<multiple>', '<多项>')}")
+                self.detail_text.setPlainText(
+                    _t(
+                        "Multiple options selected.\nUse Cycle/Set buttons to update selected entries.",
+                        "已选中多个选项。\n使用 Cycle/Set 按钮批量修改。",
+                    )
+                )
                 return
 
             self._show_detail(-1)
@@ -1761,7 +1894,7 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
 
     clks_groups = _grouped_options(clks_options)
     if len(clks_groups) <= 1:
-        clks_panel = _SectionPanel("CLKS Features", clks_options)
+        clks_panel = _SectionPanel(_t("CLKS Features", "CLKS 功能"), clks_options)
     else:
         clks_panel = QtWidgets.QWidget()
         clks_layout = QtWidgets.QVBoxLayout(clks_panel)
@@ -1769,22 +1902,22 @@ def interactive_menu_gui(clks_options: List[OptionItem], user_options: List[Opti
         clks_layout.setSpacing(6)
         clks_tabs = QtWidgets.QTabWidget()
         clks_layout.addWidget(clks_tabs, 1)
-        clks_tabs.addTab(_SectionPanel("CLKS Features / All", clks_options), "All")
+        clks_tabs.addTab(_SectionPanel(_t("CLKS Features / All", "CLKS 功能 / 全部"), clks_options), _t("All", "全部"))
         for group_name, group_items in clks_groups:
-            clks_tabs.addTab(_SectionPanel(f"CLKS Features / {group_name}", group_items), group_name)
+            clks_tabs.addTab(_SectionPanel(f"{_t('CLKS Features', 'CLKS 功能')} / {group_name}", group_items), group_name)
 
     tabs.addTab(clks_panel, "CLKS")
     if user_options:
-        user_panel = _SectionPanel("User Apps", user_options)
-        tabs.addTab(user_panel, "USER")
+        user_panel = _SectionPanel(_t("User Apps", "用户应用"), user_options)
+        tabs.addTab(user_panel, _t("USER", "用户"))
     update_summary()
 
     footer = QtWidgets.QHBoxLayout()
-    footer.addWidget(QtWidgets.QLabel("Tip: double-click a row to cycle, or use Set/Cycle buttons."))
+    footer.addWidget(QtWidgets.QLabel(_t("Tip: double-click a row to cycle, or use Set/Cycle buttons.", "提示：双击一行可切换，或使用 Set/Cycle 按钮。")))
     footer.addStretch(1)
 
-    save_btn = QtWidgets.QPushButton("Save and Exit")
-    quit_btn = QtWidgets.QPushButton("Quit without Saving")
+    save_btn = QtWidgets.QPushButton(_t("Save and Exit", "保存并退出"))
+    quit_btn = QtWidgets.QPushButton(_t("Quit without Saving", "不保存退出"))
     footer.addWidget(save_btn)
     footer.addWidget(quit_btn)
     root_layout.addLayout(footer)
@@ -1888,14 +2021,20 @@ def show_summary(clks_options: List[OptionItem], user_options: List[OptionItem],
     clks_m = sum(1 for item in clks_options if ev.effective.get(item.key, item.default) == TRI_M)
     user_m = sum(1 for item in user_options if ev.effective.get(item.key, item.default) == TRI_M)
     print()
-    print("========== CLeonOS menuconfig ==========")
-    print(f"1) CLKS features : on={clks_on} m={clks_m} total={len(clks_options)}")
+    print(_t("========== CLeonOS menuconfig ==========", "========== CLeonOS 配置菜单 =========="))
+    print(
+        f"1) {_t('CLKS features', 'CLKS 功能')} : "
+        f"{_t('on', '开')}={clks_on} m={clks_m} {_t('total', '总数')}={len(clks_options)}"
+    )
     if user_options:
-        print(f"2) User features : on={user_on} m={user_m} total={len(user_options)}")
+        print(
+            f"2) {_t('User features', '用户功能')} : "
+            f"{_t('on', '开')}={user_on} m={user_m} {_t('total', '总数')}={len(user_options)}"
+        )
     else:
-        print("2) User features : unavailable (CLKS-only mode)")
-    print("s) Save and exit")
-    print("q) Quit without saving")
+        print(_t("2) User features : unavailable (CLKS-only mode)", "2) 用户功能 : 不可用（仅 CLKS 模式）"))
+    print(_t("s) Save and exit", "s) 保存并退出"))
+    print(_t("q) Quit without saving", "q) 不保存退出"))
 
 
 def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionItem], values: Dict[str, int]) -> bool:
@@ -1903,7 +2042,7 @@ def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionIt
     has_user = len(user_options) > 0
     while True:
         show_summary(clks_options, user_options, values)
-        choice = input("Select> ").strip().lower()
+        choice = input(_t("Select> ", "选择> ")).strip().lower()
         if choice == "1":
             grouped_section_loop("CLKS", clks_options, all_options, values)
             continue
@@ -1911,13 +2050,13 @@ def interactive_menu(clks_options: List[OptionItem], user_options: List[OptionIt
             section_loop("USER", user_options, all_options, values)
             continue
         if choice == "2" and not has_user:
-            print("user features unavailable in CLKS-only mode")
+            print(_t("user features unavailable in CLKS-only mode", "仅 CLKS 模式下，用户功能不可用"))
             continue
         if choice in {"s", "save"}:
             return True
         if choice in {"q", "quit"}:
             return False
-        print("unknown selection")
+        print(_t("unknown selection", "未知选择"))
 
 
 def parse_set_overrides(values: Dict[str, int], option_index: Dict[str, OptionItem], kv_pairs: List[str]) -> None:
@@ -1943,6 +2082,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gui", action="store_true", help="use GUI window mode (PySide)")
     parser.add_argument("--clks-only", action="store_true", help="only expose CLKS options and emit CLKS-only config")
     parser.add_argument(
+        "--lang",
+        choices=["auto", "en", "zh", "zh-CN", "zh-cn", "zh_CN", "zh_cn"],
+        default="auto",
+        help="menu language: auto|en|zh-CN",
+    )
+    parser.add_argument(
         "--preset",
         choices=["full", "minimal", "dev"],
         help="apply a built-in preset before interactive edit or save",
@@ -1958,15 +2103,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    global MENUCONFIG_LANG
+
     args = parse_args()
+    MENUCONFIG_LANG = _resolve_language(args.lang)
 
     if args.gui and args.plain:
-        raise RuntimeError("--gui and --plain cannot be used together")
+        raise RuntimeError(_t("--gui and --plain cannot be used together", "--gui 和 --plain 不能同时使用"))
 
     clks_options = load_clks_options()
     clks_only_mode = args.clks_only or not APPS_DIR.exists()
     if clks_only_mode and not args.clks_only:
-        print(f"menuconfig: cleonos app directory not found, switching to CLKS-only mode ({APPS_DIR})")
+        print(
+            _t(
+                f"menuconfig: cleonos app directory not found, switching to CLKS-only mode ({APPS_DIR})",
+                f"menuconfig: 未找到 cleonos 应用目录，切换到仅 CLKS 模式（{APPS_DIR}）",
+            )
+        )
     user_options = [] if clks_only_mode else discover_user_apps()
     all_options = clks_options + user_options
 
@@ -1985,27 +2138,27 @@ def main() -> int:
             should_save = interactive_menu_gui(clks_options, user_options, values)
         else:
             if not sys.stdin.isatty():
-                raise RuntimeError("menuconfig requires interactive tty (or use --non-interactive or --gui)")
+                raise RuntimeError(_t("menuconfig requires interactive tty (or use --non-interactive or --gui)", "menuconfig 需要交互式终端（或使用 --non-interactive / --gui）"))
             if args.plain:
                 should_save = interactive_menu(clks_options, user_options, values)
             else:
                 should_save = interactive_menu_ncurses(clks_options, user_options, values)
 
     if not should_save:
-        print("menuconfig: no changes saved")
+        print(_t("menuconfig: no changes saved", "menuconfig: 未保存任何更改"))
         return 0
 
     final_eval = evaluate_config(all_options, values)
     write_outputs(final_eval.effective, clks_options, user_options)
-    print(f"menuconfig: wrote {CONFIG_JSON_PATH}")
-    print(f"menuconfig: wrote {CONFIG_CMAKE_PATH}")
-    print(f"menuconfig: wrote {CONFIG_CLKS_JSON_PATH}")
-    print(f"menuconfig: wrote {CONFIG_CLKS_CMAKE_PATH}")
+    print(_t(f"menuconfig: wrote {CONFIG_JSON_PATH}", f"menuconfig: 已写入 {CONFIG_JSON_PATH}"))
+    print(_t(f"menuconfig: wrote {CONFIG_CMAKE_PATH}", f"menuconfig: 已写入 {CONFIG_CMAKE_PATH}"))
+    print(_t(f"menuconfig: wrote {CONFIG_CLKS_JSON_PATH}", f"menuconfig: 已写入 {CONFIG_CLKS_JSON_PATH}"))
+    print(_t(f"menuconfig: wrote {CONFIG_CLKS_CMAKE_PATH}", f"menuconfig: 已写入 {CONFIG_CLKS_CMAKE_PATH}"))
     if user_options:
-        print(f"menuconfig: wrote {CONFIG_CLEONOS_JSON_PATH}")
-        print(f"menuconfig: wrote {CONFIG_CLEONOS_CMAKE_PATH}")
+        print(_t(f"menuconfig: wrote {CONFIG_CLEONOS_JSON_PATH}", f"menuconfig: 已写入 {CONFIG_CLEONOS_JSON_PATH}"))
+        print(_t(f"menuconfig: wrote {CONFIG_CLEONOS_CMAKE_PATH}", f"menuconfig: 已写入 {CONFIG_CLEONOS_CMAKE_PATH}"))
     else:
-        print("menuconfig: CLeonOS app config skipped (CLKS-only mode)")
+        print(_t("menuconfig: CLeonOS app config skipped (CLKS-only mode)", "menuconfig: 已跳过 CLeonOS 应用配置（仅 CLKS 模式）"))
     return 0
 
 
@@ -2013,5 +2166,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except RuntimeError as exc:
-        print(f"menuconfig error: {exc}", file=sys.stderr)
+        print(_t(f"menuconfig error: {exc}", f"menuconfig 错误: {exc}"), file=sys.stderr)
         raise SystemExit(1)
