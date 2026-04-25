@@ -209,7 +209,8 @@ static int ush_vim_insert_char(ush_vim_editor *ed, char ch) {
     }
 
     if (ed->cursor_col < line->len) {
-        (void)memmove(line->text + ed->cursor_col + 1ULL, line->text + ed->cursor_col, (size_t)(line->len - ed->cursor_col));
+        (void)memmove(line->text + ed->cursor_col + 1ULL, line->text + ed->cursor_col,
+                      (size_t)(line->len - ed->cursor_col));
     }
     line->text[ed->cursor_col] = ch;
     line->len++;
@@ -260,7 +261,8 @@ static int ush_vim_backspace(ush_vim_editor *ed) {
     line = &ed->lines[ed->cursor_line];
     if (ed->cursor_col > 0ULL) {
         if (ed->cursor_col < line->len) {
-            (void)memmove(line->text + ed->cursor_col - 1ULL, line->text + ed->cursor_col, (size_t)(line->len - ed->cursor_col));
+            (void)memmove(line->text + ed->cursor_col - 1ULL, line->text + ed->cursor_col,
+                          (size_t)(line->len - ed->cursor_col));
         }
         line->len--;
         line->text[line->len] = '\0';
@@ -313,7 +315,8 @@ static int ush_vim_delete_char(ush_vim_editor *ed) {
     }
 
     if (ed->cursor_col + 1ULL < line->len) {
-        (void)memmove(line->text + ed->cursor_col, line->text + ed->cursor_col + 1ULL, (size_t)(line->len - ed->cursor_col - 1ULL));
+        (void)memmove(line->text + ed->cursor_col, line->text + ed->cursor_col + 1ULL,
+                      (size_t)(line->len - ed->cursor_col - 1ULL));
     }
     line->len--;
     line->text[line->len] = '\0';
@@ -555,9 +558,8 @@ static void ush_vim_render(const ush_vim_editor *ed) {
                    (ed->modified != 0) ? " [+]" : "");
     ush_vim_write_padded_line(header);
 
-    (void)snprintf(pos, sizeof(pos), "line %llu/%llu col %llu",
-                   (unsigned long long)(ed->cursor_line + 1ULL), (unsigned long long)ed->line_count,
-                   (unsigned long long)(ed->cursor_col + 1ULL));
+    (void)snprintf(pos, sizeof(pos), "line %llu/%llu col %llu", (unsigned long long)(ed->cursor_line + 1ULL),
+                   (unsigned long long)ed->line_count, (unsigned long long)(ed->cursor_col + 1ULL));
     ush_vim_write_padded_line(pos);
     ush_vim_write_separator();
 
