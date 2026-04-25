@@ -2460,6 +2460,18 @@ static int ush_execute_single_command(ush_state *sh, const char *cmd, const char
 
     (void)allow_external;
 
+    /*
+     * Keep cd as a hard builtin so cwd updates never depend on
+     * external command context files.
+     */
+    if (ush_streq(cmd, "cd") != 0) {
+        success = ush_cmd_cd(sh, arg);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
     if (ush_try_exec_external(sh, cmd, arg, &success) != 0) {
         if (out_success != (int *)0) {
             *out_success = success;
