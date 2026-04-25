@@ -2,7 +2,7 @@
 
 static void ush_uwm_usage(void) {
     ush_writeln("usage: uwm");
-    ush_writeln("keys: q quit, tab focus, 1/2/3 restore, wasd/arrow move");
+    ush_writeln("keys: q quit, tab focus, 1/2/3 open apps, wasd/arrow move");
     ush_writeln("keys: m minimize, x close, t pin top, +/- resize");
     ush_writeln("mouse: drag titlebar, resize bottom-right, use taskbar/start");
 }
@@ -150,7 +150,7 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
 
     sess->screen_w = (int)fb.width;
     sess->screen_h = (int)fb.height;
-    sess->active_window = 0;
+    sess->active_window = -1;
     sess->drag_window = -1;
     sess->resize_window = -1;
     sess->tty_before = cleonos_sys_tty_active();
@@ -179,7 +179,7 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
         }
 
         ush_uwm_init_window(&sess->windows[i], USH_UWM_KIND_APP, titles[i], subtitles[i], ush_uwm_clampi(x, 0, max_x),
-                            ush_uwm_clampi(y, USH_UWM_TOP_CLAMP_Y, max_y), base_w, base_h, accents[i], 0, 0);
+                            ush_uwm_clampi(y, USH_UWM_TOP_CLAMP_Y, max_y), base_w, base_h, accents[i], 0, 1);
     }
 
     ush_uwm_init_window(&sess->windows[USH_UWM_TASKBAR_INDEX], USH_UWM_KIND_TASKBAR, "TASKBAR", "", 0,
@@ -200,9 +200,6 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
 }
 
 int ush_uwm_start(ush_uwm_session *sess) {
-    int i;
-    int started = 0;
-
     if (sess == (ush_uwm_session *)0) {
         return 0;
     }
@@ -211,23 +208,7 @@ int ush_uwm_start(ush_uwm_session *sess) {
         return ush_uwm_fail(sess, "uwm: taskbar create failed");
     }
 
-    for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
-        if (ush_uwm_boot_window(sess, i) != 0) {
-            started++;
-        }
-    }
-
-    if (started == 0) {
-        return ush_uwm_fail(sess, "uwm: app window create failed");
-    }
-
-    for (i = (int)USH_UWM_APP_COUNT - 1; i >= 0; i--) {
-        if (sess->windows[i].alive != 0) {
-            ush_uwm_set_active(sess, i);
-            break;
-        }
-    }
-
+    ush_uwm_toggle_start(sess);
     ush_uwm_refresh_taskbar(sess);
     return 1;
 }

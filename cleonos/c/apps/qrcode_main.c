@@ -5,12 +5,154 @@
 #define USH_QRCODE_MAX_VERSION 15
 #define USH_QRCODE_BORDER 4U
 #define USH_QRCODE_MAX_MODULES ((USH_QRCODE_MAX_VERSION * 4U) + 17U + (USH_QRCODE_BORDER * 2U))
-#define USH_QRCODE_CANVAS_MAX 1024U
+#define USH_QRCODE_CANVAS_MAX 640U
+#define USH_QRCODE_TTY_DISPLAY 1ULL
+#define USH_QRCODE_TITLE_H 34
+#define USH_QRCODE_FOOTER_H 34
+#define USH_QRCODE_PAD 24
+#define USH_QRCODE_CLOSE_W 44
+#define USH_QRCODE_WINDOW_DEFAULT_W 520
+#define USH_QRCODE_WINDOW_DEFAULT_H 600
+#define USH_QRCODE_WINDOW_MIN_W 320
+#define USH_QRCODE_WINDOW_MIN_H 380
 
-#define USH_QRCODE_COLOR_DARK 0x00000000ULL
-#define USH_QRCODE_COLOR_LIGHT 0x00FFFFFFULL
+#define USH_QRCODE_COLOR_DARK 0x00000000U
+#define USH_QRCODE_COLOR_LIGHT 0x00FFFFFFU
+#define USH_QRCODE_COLOR_DESKTOP 0x00F3F3F3U
+#define USH_QRCODE_COLOR_TITLE 0x000078D7U
+#define USH_QRCODE_COLOR_CLOSE 0x00E81123U
+#define USH_QRCODE_COLOR_TEXT 0x00232323U
+#define USH_QRCODE_COLOR_MUTED 0x00666666U
+#define USH_QRCODE_COLOR_BORDER 0x00D0D0D0U
+#define USH_QRCODE_COLOR_PANEL 0x00FFFFFFU
+
+#define USH_QRCODE_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                \
+    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) |                              \
+     ((u64)(r4) << 10U) | ((u64)(r5) << 5U) | (u64)(r6))
 
 static unsigned int ush_qrcode_canvas[USH_QRCODE_CANVAS_MAX][USH_QRCODE_CANVAS_MAX];
+
+static int ush_qrcode_clampi(int value, int min_value, int max_value) {
+    if (value < min_value) {
+        return min_value;
+    }
+
+    if (value > max_value) {
+        return max_value;
+    }
+
+    return value;
+}
+
+static int ush_qrcode_u64_as_i32(u64 raw) {
+    return (int)(i64)raw;
+}
+
+static char ush_qrcode_upper_char(char ch) {
+    if (ch >= 'a' && ch <= 'z') {
+        return (char)(ch - ('a' - 'A'));
+    }
+
+    return ch;
+}
+
+static u64 ush_qrcode_glyph_mask(char ch) {
+    switch (ush_qrcode_upper_char(ch)) {
+    case 'C':
+        return USH_QRCODE_GLYPH7(14U, 17U, 16U, 16U, 16U, 17U, 14U);
+    case 'D':
+        return USH_QRCODE_GLYPH7(30U, 17U, 17U, 17U, 17U, 17U, 30U);
+    case 'E':
+        return USH_QRCODE_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 31U);
+    case 'L':
+        return USH_QRCODE_GLYPH7(16U, 16U, 16U, 16U, 16U, 16U, 31U);
+    case 'O':
+        return USH_QRCODE_GLYPH7(14U, 17U, 17U, 17U, 17U, 17U, 14U);
+    case 'P':
+        return USH_QRCODE_GLYPH7(30U, 17U, 17U, 30U, 16U, 16U, 16U);
+    case 'Q':
+        return USH_QRCODE_GLYPH7(14U, 17U, 17U, 17U, 21U, 18U, 13U);
+    case 'R':
+        return USH_QRCODE_GLYPH7(30U, 17U, 17U, 30U, 20U, 18U, 17U);
+    case 'S':
+        return USH_QRCODE_GLYPH7(15U, 16U, 16U, 14U, 1U, 1U, 30U);
+    case 'T':
+        return USH_QRCODE_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 4U);
+    default:
+        return 0ULL;
+    }
+}
+
+static void ush_qrcode_fill_rect(int canvas_w, int canvas_h, int x, int y, int w, int h, unsigned int color) {
+    int left;
+    int top;
+    int right;
+    int bottom;
+    int row;
+
+    if (canvas_w <= 0 || canvas_h <= 0 || canvas_w > (int)USH_QRCODE_CANVAS_MAX ||
+        canvas_h > (int)USH_QRCODE_CANVAS_MAX || w <= 0 || h <= 0) {
+        return;
+    }
+
+    left = ush_qrcode_clampi(x, 0, canvas_w);
+    top = ush_qrcode_clampi(y, 0, canvas_h);
+    right = ush_qrcode_clampi(x + w, 0, canvas_w);
+    bottom = ush_qrcode_clampi(y + h, 0, canvas_h);
+    if (left >= right || top >= bottom) {
+        return;
+    }
+
+    for (row = top; row < bottom; row++) {
+        int col;
+        for (col = left; col < right; col++) {
+            ush_qrcode_canvas[row][col] = color;
+        }
+    }
+}
+
+static void ush_qrcode_stroke_rect(int canvas_w, int canvas_h, int x, int y, int w, int h, unsigned int color) {
+    ush_qrcode_fill_rect(canvas_w, canvas_h, x, y, w, 1, color);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, x, y + h - 1, w, 1, color);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, x, y, 1, h, color);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, x + w - 1, y, 1, h, color);
+}
+
+static void ush_qrcode_draw_char(int canvas_w, int canvas_h, int x, int y, char ch, int scale, unsigned int color) {
+    u64 mask = ush_qrcode_glyph_mask(ch);
+    int row;
+
+    if (mask == 0ULL || scale <= 0) {
+        return;
+    }
+
+    for (row = 0; row < 7; row++) {
+        int col;
+        for (col = 0; col < 5; col++) {
+            unsigned int bit_index = (unsigned int)((6 - row) * 5 + (4 - col));
+            if ((mask & (1ULL << bit_index)) != 0ULL) {
+                ush_qrcode_fill_rect(canvas_w, canvas_h, x + (col * scale), y + (row * scale), scale, scale, color);
+            }
+        }
+    }
+}
+
+static void ush_qrcode_draw_text(int canvas_w, int canvas_h, int x, int y, const char *text, int scale,
+                                 unsigned int color) {
+    int cursor_x = x;
+
+    if (text == (const char *)0 || scale <= 0) {
+        return;
+    }
+
+    while (*text != '\0' && cursor_x + (5 * scale) < canvas_w) {
+        if (*text != ' ') {
+            ush_qrcode_draw_char(canvas_w, canvas_h, cursor_x, y, *text, scale, color);
+        }
+        cursor_x += 6 * scale;
+        text++;
+    }
+}
 
 static int ush_qrcode_streq_ignore_case(const char *left, const char *right) {
     u64 i = 0ULL;
@@ -200,109 +342,268 @@ static void ush_qrcode_emit_ascii(const uint8_t qrcode[]) {
     }
 }
 
-static int ush_qrcode_build_canvas(const uint8_t qrcode[], u64 module_pixels, u64 *out_side_pixels) {
-    int qr_size = qrcodegen_getSize(qrcode);
-    u64 side_modules;
-    u64 side_pixels;
-    u64 y;
-    u64 x;
+static void ush_qrcode_choose_window_geometry(const cleonos_fb_info *fb_info, int *out_x, int *out_y, int *out_w,
+                                              int *out_h) {
+    int screen_w = 800;
+    int screen_h = 600;
+    int max_w;
+    int max_h;
+    int win_w;
+    int win_h;
 
-    if (out_side_pixels == (u64 *)0 || module_pixels == 0ULL || qr_size <= 0) {
+    if (fb_info != (const cleonos_fb_info *)0 && fb_info->width > 0ULL && fb_info->height > 0ULL &&
+        fb_info->width <= 4096ULL && fb_info->height <= 4096ULL) {
+        screen_w = (int)fb_info->width;
+        screen_h = (int)fb_info->height;
+    }
+
+    max_w = screen_w - 80;
+    max_h = screen_h - 96;
+    if (max_w < USH_QRCODE_WINDOW_MIN_W) {
+        max_w = screen_w;
+    }
+    if (max_h < USH_QRCODE_WINDOW_MIN_H) {
+        max_h = screen_h;
+    }
+
+    win_w = ush_qrcode_clampi(USH_QRCODE_WINDOW_DEFAULT_W, USH_QRCODE_WINDOW_MIN_W, max_w);
+    win_h = ush_qrcode_clampi(USH_QRCODE_WINDOW_DEFAULT_H, USH_QRCODE_WINDOW_MIN_H, max_h);
+    if (win_w > (int)USH_QRCODE_CANVAS_MAX) {
+        win_w = (int)USH_QRCODE_CANVAS_MAX;
+    }
+    if (win_h > (int)USH_QRCODE_CANVAS_MAX) {
+        win_h = (int)USH_QRCODE_CANVAS_MAX;
+    }
+
+    *out_w = win_w;
+    *out_h = win_h;
+    *out_x = (screen_w > win_w) ? ((screen_w - win_w) / 2) : 0;
+    *out_y = (screen_h > win_h) ? ((screen_h - win_h) / 2) : 0;
+}
+
+static int ush_qrcode_draw_window_canvas(const uint8_t qrcode[], int canvas_w, int canvas_h) {
+    int qr_size = qrcodegen_getSize(qrcode);
+    int border = (int)USH_QRCODE_BORDER;
+    int side_modules;
+    int content_w;
+    int content_h;
+    int qr_area;
+    int module_pixels;
+    int side_pixels;
+    int qr_x;
+    int qr_y;
+    int y;
+
+    if (qrcode == (const uint8_t *)0 || qr_size <= 0 || canvas_w <= 0 || canvas_h <= 0 ||
+        canvas_w > (int)USH_QRCODE_CANVAS_MAX || canvas_h > (int)USH_QRCODE_CANVAS_MAX) {
         return 0;
     }
 
-    side_modules = (u64)qr_size + (u64)(USH_QRCODE_BORDER * 2U);
-    if (side_modules == 0ULL || side_modules > (u64)USH_QRCODE_MAX_MODULES) {
+    side_modules = qr_size + (border * 2);
+    if (side_modules <= 0 || side_modules > (int)USH_QRCODE_MAX_MODULES) {
+        return 0;
+    }
+
+    content_w = canvas_w - (USH_QRCODE_PAD * 2);
+    content_h = canvas_h - USH_QRCODE_TITLE_H - USH_QRCODE_FOOTER_H - (USH_QRCODE_PAD * 2);
+    qr_area = (content_w < content_h) ? content_w : content_h;
+    module_pixels = qr_area / side_modules;
+    if (module_pixels <= 0) {
         return 0;
     }
 
     side_pixels = side_modules * module_pixels;
-    if (side_pixels == 0ULL || side_pixels > (u64)USH_QRCODE_CANVAS_MAX) {
-        return 0;
-    }
+    qr_x = (canvas_w - side_pixels) / 2;
+    qr_y = USH_QRCODE_TITLE_H + USH_QRCODE_PAD + ((content_h - side_pixels) / 2);
 
-    for (y = 0ULL; y < side_pixels; y++) {
-        for (x = 0ULL; x < side_pixels; x++) {
-            int qx = (int)(x / module_pixels) - (int)USH_QRCODE_BORDER;
-            int qy = (int)(y / module_pixels) - (int)USH_QRCODE_BORDER;
-            int dark =
-                (qx >= 0 && qy >= 0 && qx < qr_size && qy < qr_size && qrcodegen_getModule(qrcode, qx, qy)) ? 1 : 0;
-            ush_qrcode_canvas[y][x] =
-                (dark != 0) ? (unsigned int)USH_QRCODE_COLOR_DARK : (unsigned int)USH_QRCODE_COLOR_LIGHT;
+    ush_qrcode_fill_rect(canvas_w, canvas_h, 0, 0, canvas_w, canvas_h, USH_QRCODE_COLOR_DESKTOP);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, 0, 0, canvas_w, USH_QRCODE_TITLE_H, USH_QRCODE_COLOR_TITLE);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - USH_QRCODE_CLOSE_W, 0, USH_QRCODE_CLOSE_W,
+                         USH_QRCODE_TITLE_H, USH_QRCODE_COLOR_CLOSE);
+    ush_qrcode_draw_text(canvas_w, canvas_h, 14, 10, "QRCODE", 1, USH_QRCODE_COLOR_LIGHT);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - 28, 11, 14, 2, USH_QRCODE_COLOR_LIGHT);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - 28, 22, 14, 2, USH_QRCODE_COLOR_LIGHT);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - 22, 15, 2, 6, USH_QRCODE_COLOR_LIGHT);
+
+    ush_qrcode_fill_rect(canvas_w, canvas_h, qr_x - 10, qr_y - 10, side_pixels + 20, side_pixels + 20,
+                         USH_QRCODE_COLOR_PANEL);
+    ush_qrcode_stroke_rect(canvas_w, canvas_h, qr_x - 10, qr_y - 10, side_pixels + 20, side_pixels + 20,
+                           USH_QRCODE_COLOR_BORDER);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, qr_x, qr_y, side_pixels, side_pixels, USH_QRCODE_COLOR_LIGHT);
+
+    for (y = -border; y < qr_size + border; y++) {
+        int x;
+        for (x = -border; x < qr_size + border; x++) {
+            int dark = (x >= 0 && y >= 0 && x < qr_size && y < qr_size && qrcodegen_getModule(qrcode, x, y)) ? 1 : 0;
+            if (dark != 0) {
+                int px = qr_x + ((x + border) * module_pixels);
+                int py = qr_y + ((y + border) * module_pixels);
+                ush_qrcode_fill_rect(canvas_w, canvas_h, px, py, module_pixels, module_pixels,
+                                     USH_QRCODE_COLOR_DARK);
+            }
         }
     }
 
-    *out_side_pixels = side_pixels;
+    ush_qrcode_draw_text(canvas_w, canvas_h, 22, canvas_h - 24, "PRESS Q TO CLOSE", 1, USH_QRCODE_COLOR_MUTED);
     return 1;
 }
 
-static int ush_qrcode_emit_pixels(const uint8_t qrcode[]) {
-    int qr_size = qrcodegen_getSize(qrcode);
-    u64 side_modules;
-    cleonos_fb_info fb_info;
-    cleonos_fb_blit_req req;
-    u64 module_pixels_x;
-    u64 module_pixels_y;
-    u64 module_pixels;
-    u64 module_pixels_canvas_cap;
-    u64 side_pixels = 0ULL;
-    u64 draw_w;
-    u64 draw_h;
+static int ush_qrcode_present_window(u64 window_id, int width, int height) {
+    cleonos_wm_present_req req;
 
-    if (qr_size <= 0) {
+    if (window_id == 0ULL || width <= 0 || height <= 0) {
         return 0;
     }
 
-    side_modules = (u64)qr_size + (u64)(USH_QRCODE_BORDER * 2U);
-    if (side_modules == 0ULL || side_modules > (u64)USH_QRCODE_MAX_MODULES) {
+    req.window_id = window_id;
+    req.pixels_ptr = (u64)(usize)&ush_qrcode_canvas[0][0];
+    req.src_width = (u64)(unsigned int)width;
+    req.src_height = (u64)(unsigned int)height;
+    req.src_pitch_bytes = (u64)USH_QRCODE_CANVAS_MAX * 4ULL;
+    return (cleonos_sys_wm_present(&req) != 0ULL) ? 1 : 0;
+}
+
+static int ush_qrcode_close_hit(int width, int local_x, int local_y) {
+    return (local_x >= width - USH_QRCODE_CLOSE_W && local_x < width && local_y >= 0 &&
+            local_y < USH_QRCODE_TITLE_H)
+               ? 1
+               : 0;
+}
+
+static void ush_qrcode_window_loop(u64 window_id, int width, int height, int x, int y) {
+    int running = 1;
+    int dragging = 0;
+    int drag_offset_x = 0;
+    int drag_offset_y = 0;
+
+    (void)height;
+
+    while (running != 0) {
+        u64 budget = 0ULL;
+        int handled = 0;
+
+        while (budget < 64ULL) {
+            cleonos_wm_event event;
+            ush_zero(&event, (u64)sizeof(event));
+            if (cleonos_sys_wm_poll_event(window_id, &event) == 0ULL) {
+                break;
+            }
+
+            handled = 1;
+            if (event.type == CLEONOS_WM_EVENT_KEY) {
+                if (event.arg0 == (u64)'q' || event.arg0 == (u64)'Q' || event.arg0 == 27ULL ||
+                    event.arg0 == 13ULL) {
+                    running = 0;
+                    break;
+                }
+            } else if (event.type == CLEONOS_WM_EVENT_MOUSE_BUTTON) {
+                u64 buttons = event.arg0;
+                u64 changed = event.arg1;
+                int local_x = ush_qrcode_u64_as_i32(event.arg2);
+                int local_y = ush_qrcode_u64_as_i32(event.arg3);
+                int left_changed = ((changed & 0x1ULL) != 0ULL) ? 1 : 0;
+                int left_down = ((buttons & 0x1ULL) != 0ULL) ? 1 : 0;
+
+                if (left_changed != 0) {
+                    if (left_down == 0) {
+                        dragging = 0;
+                    } else if (ush_qrcode_close_hit(width, local_x, local_y) != 0) {
+                        running = 0;
+                        break;
+                    } else if (local_y >= 0 && local_y < USH_QRCODE_TITLE_H) {
+                        dragging = 1;
+                        drag_offset_x = local_x;
+                        drag_offset_y = local_y;
+                    }
+                }
+            } else if (event.type == CLEONOS_WM_EVENT_MOUSE_MOVE && dragging != 0) {
+                cleonos_wm_move_req move_req;
+                x = ush_qrcode_u64_as_i32(event.arg0) - drag_offset_x;
+                y = ush_qrcode_u64_as_i32(event.arg1) - drag_offset_y;
+                move_req.window_id = window_id;
+                move_req.x = (u64)(i64)x;
+                move_req.y = (u64)(i64)y;
+                (void)cleonos_sys_wm_move(&move_req);
+            }
+
+            budget++;
+        }
+
+        if (running == 0) {
+            break;
+        }
+
+        if (handled != 0) {
+            (void)cleonos_sys_yield();
+        } else {
+            (void)cleonos_sys_sleep_ticks(1ULL);
+        }
+    }
+}
+
+static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
+    int qr_size = qrcodegen_getSize(qrcode);
+    cleonos_fb_info fb_info;
+    cleonos_wm_create_req create_req;
+    u64 old_tty;
+    u64 window_id;
+    int win_x;
+    int win_y;
+    int win_w;
+    int win_h;
+
+    if (qr_size <= 0) {
         return 0;
     }
 
     ush_zero(&fb_info, (u64)sizeof(fb_info));
     if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL ||
         fb_info.bpp != 32ULL) {
-        ush_writeln("qrcode: framebuffer unavailable, fallback to ascii");
+        ush_writeln("qrcode: desktop unavailable, fallback to ascii");
         ush_qrcode_emit_ascii(qrcode);
         return 1;
     }
 
-    module_pixels_x = fb_info.width / side_modules;
-    module_pixels_y = fb_info.height / side_modules;
-    module_pixels = (module_pixels_x < module_pixels_y) ? module_pixels_x : module_pixels_y;
-
-    if (module_pixels == 0ULL) {
-        ush_writeln("qrcode: framebuffer too small");
+    ush_qrcode_choose_window_geometry(&fb_info, &win_x, &win_y, &win_w, &win_h);
+    if (ush_qrcode_draw_window_canvas(qrcode, win_w, win_h) == 0) {
+        ush_writeln("qrcode: desktop window too small");
         return 0;
     }
 
-    module_pixels_canvas_cap = (u64)USH_QRCODE_CANVAS_MAX / side_modules;
-    if (module_pixels_canvas_cap == 0ULL) {
+    old_tty = cleonos_sys_tty_active();
+    if (old_tty != USH_QRCODE_TTY_DISPLAY) {
+        (void)cleonos_sys_tty_switch(USH_QRCODE_TTY_DISPLAY);
+    }
+
+    create_req.x = (u64)(i64)win_x;
+    create_req.y = (u64)(i64)win_y;
+    create_req.width = (u64)(unsigned int)win_w;
+    create_req.height = (u64)(unsigned int)win_h;
+    create_req.flags = CLEONOS_WM_FLAG_TOPMOST;
+    window_id = cleonos_sys_wm_create(&create_req);
+    if (window_id == 0ULL) {
+        if (old_tty != USH_QRCODE_TTY_DISPLAY) {
+            (void)cleonos_sys_tty_switch(old_tty);
+        }
+        ush_writeln("qrcode: wm window create failed, fallback to ascii");
+        ush_qrcode_emit_ascii(qrcode);
+        return 1;
+    }
+
+    if (ush_qrcode_present_window(window_id, win_w, win_h) == 0) {
+        (void)cleonos_sys_wm_destroy(window_id);
+        if (old_tty != USH_QRCODE_TTY_DISPLAY) {
+            (void)cleonos_sys_tty_switch(old_tty);
+        }
+        ush_writeln("qrcode: wm present failed");
         return 0;
     }
 
-    if (module_pixels > module_pixels_canvas_cap) {
-        module_pixels = module_pixels_canvas_cap;
-    }
-
-    if (ush_qrcode_build_canvas(qrcode, module_pixels, &side_pixels) == 0) {
-        return 0;
-    }
-
-    draw_w = side_pixels;
-    draw_h = side_pixels;
-
-    req.pixels_ptr = (u64)(void *)&ush_qrcode_canvas[0][0];
-    req.src_width = side_pixels;
-    req.src_height = side_pixels;
-    req.src_pitch_bytes = (u64)USH_QRCODE_CANVAS_MAX * 4ULL;
-    req.dst_x = (fb_info.width > draw_w) ? ((fb_info.width - draw_w) / 2ULL) : 0ULL;
-    req.dst_y = (fb_info.height > draw_h) ? ((fb_info.height - draw_h) / 2ULL) : 0ULL;
-    req.scale = 1ULL;
-
-    (void)cleonos_sys_fb_clear(USH_QRCODE_COLOR_LIGHT);
-    if (cleonos_sys_fb_blit(&req) == 0ULL) {
-        ush_writeln("qrcode: framebuffer blit failed");
-        return 0;
+    (void)cleonos_sys_wm_set_focus(window_id);
+    ush_qrcode_window_loop(window_id, win_w, win_h, win_x, win_y);
+    (void)cleonos_sys_wm_destroy(window_id);
+    if (old_tty != USH_QRCODE_TTY_DISPLAY) {
+        (void)cleonos_sys_tty_switch(old_tty);
     }
 
     return 1;
@@ -335,7 +636,7 @@ static int ush_cmd_qrcode(const char *arg) {
         return 0;
     }
 
-    return ush_qrcode_emit_pixels(qrcode);
+    return ush_qrcode_emit_window(qrcode);
 }
 
 int cleonos_app_main(void) {

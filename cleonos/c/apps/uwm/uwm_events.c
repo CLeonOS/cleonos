@@ -1,5 +1,26 @@
 #include "uwm.h"
 
+#define USH_UWM_FILE_EXPLORER_PATH "/shell/uwm/file_explorer.elf"
+
+static int ush_uwm_launch_file_explorer(void) {
+    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_FILE_EXPLORER_PATH, "", "LAUNCHED_BY=uwm");
+
+    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
+}
+
+static void ush_uwm_launch_or_restore_app(ush_uwm_session *sess, int index) {
+    if (sess == (ush_uwm_session *)0 || ush_uwm_app_index_valid(index) == 0) {
+        return;
+    }
+
+    if (index == 0) {
+        (void)ush_uwm_launch_file_explorer();
+        return;
+    }
+
+    ush_uwm_restore_window(sess, index);
+}
+
 static int ush_uwm_hit_close(const ush_uwm_window *win, int x, int y) {
     return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_CONTROL_W && y >= 0 && y < USH_UWM_TITLE_H) ? 1
                                                                                                                   : 0;
@@ -77,7 +98,7 @@ static void ush_uwm_handle_key_event(ush_uwm_session *sess, u64 key, int *runnin
     }
 
     if (key == (u64)'1' || key == (u64)'2' || key == (u64)'3') {
-        ush_uwm_restore_window(sess, (int)(key - (u64)'1'));
+        ush_uwm_launch_or_restore_app(sess, (int)(key - (u64)'1'));
         return;
     }
 
@@ -154,7 +175,7 @@ static void ush_uwm_handle_taskbar_click(ush_uwm_session *sess, int local_x, int
             if (app->alive != 0 && app->minimized == 0 && sess->active_window == i) {
                 ush_uwm_minimize_window(sess, i);
             } else {
-                ush_uwm_restore_window(sess, i);
+                ush_uwm_launch_or_restore_app(sess, i);
             }
             return;
         }
@@ -178,8 +199,8 @@ static void ush_uwm_handle_start_click(ush_uwm_session *sess, int local_x, int l
         int y = 78 + (i * 44);
 
         if (local_x >= 66 && local_x < sess->windows[USH_UWM_START_INDEX].w - 16 && local_y >= y && local_y < y + 34) {
-            ush_uwm_restore_window(sess, i);
             ush_uwm_close_start(sess);
+            ush_uwm_launch_or_restore_app(sess, i);
             return;
         }
     }

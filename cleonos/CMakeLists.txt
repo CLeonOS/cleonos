@@ -117,6 +117,7 @@ list(REMOVE_DUPLICATES USER_KELF_APP_NAMES)
 set(USER_APP_OUTPUTS)
 set(USER_APP_NAMES)
 set(RAMDISK_SHELL_APPS)
+set(RAMDISK_UWM_APPS)
 set(RAMDISK_DRIVER_APPS)
 set(RAMDISK_SYSTEM_APPS)
 set(RAMDISK_ROOT_APPS)
@@ -279,7 +280,9 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
     )
 
     list(APPEND USER_APP_OUTPUTS "${_app_out}")
-    if(_app_name MATCHES ".*drv$")
+    if(_app_name STREQUAL "file_explorer")
+        list(APPEND RAMDISK_UWM_APPS "${_app_out}")
+    elseif(_app_name MATCHES ".*drv$")
         list(APPEND RAMDISK_DRIVER_APPS "${_app_out}")
     elseif(_app_name STREQUAL "hello")
         list(APPEND RAMDISK_ROOT_APPS "${_app_out}")
@@ -349,6 +352,10 @@ foreach(_app IN LISTS RAMDISK_SHELL_APPS)
     get_filename_component(_app_file "${_app}" NAME)
     list(APPEND RAMDISK_COPY_COMMANDS COMMAND ${CMAKE_COMMAND} -E copy "${_app}" "${RAMDISK_ROOT}/shell/${_app_file}")
 endforeach()
+foreach(_app IN LISTS RAMDISK_UWM_APPS)
+    get_filename_component(_app_file "${_app}" NAME)
+    list(APPEND RAMDISK_COPY_COMMANDS COMMAND ${CMAKE_COMMAND} -E copy "${_app}" "${RAMDISK_ROOT}/shell/uwm/${_app_file}")
+endforeach()
 foreach(_app IN LISTS RAMDISK_ROOT_APPS)
     get_filename_component(_app_file "${_app}" NAME)
     list(APPEND RAMDISK_COPY_COMMANDS COMMAND ${CMAKE_COMMAND} -E copy "${_app}" "${RAMDISK_ROOT}/${_app_file}")
@@ -367,7 +374,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E rm -rf "${RAMDISK_ROOT}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${RAMDISK_ROOT}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/ramdisk" "${RAMDISK_ROOT}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${RAMDISK_ROOT}/system" "${RAMDISK_ROOT}/shell" "${RAMDISK_ROOT}/driver" "${RAMDISK_ROOT}/dev"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${RAMDISK_ROOT}/system" "${RAMDISK_ROOT}/shell" "${RAMDISK_ROOT}/shell/uwm" "${RAMDISK_ROOT}/driver" "${RAMDISK_ROOT}/dev"
     COMMAND ${CMAKE_COMMAND} -E copy "${KERNEL_SYMBOLS_FILE}" "${RAMDISK_ROOT}/system/kernel.sym"
     ${RAMDISK_COPY_COMMANDS}
     COMMAND ${CMAKE_COMMAND} -E touch "${RAMDISK_ROOT_STAMP}"

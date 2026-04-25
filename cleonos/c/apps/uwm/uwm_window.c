@@ -486,7 +486,7 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
 
         if (app->closed != 0) {
             bg = 0x001F1F1FU;
-            fg = 0x007C7C7CU;
+            fg = 0x008F8F8FU;
         } else if (app->minimized != 0) {
             bg = 0x002F2F2FU;
         } else if (sess->active_window == i) {

@@ -75,6 +75,12 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 - `FS_MKDIR` / `FS_WRITE` / `FS_APPEND` / `FS_REMOVE` 仅允许 `/temp` 树下路径，或已挂载磁盘路径树下（默认挂载点通常为 `/temp/disk`）。
 
+UserSafeController（USC）危险 syscall 确认：
+
+- USC 拦截到危险 syscall 时仍支持“仅本次 / 本会话 / 永久 / 拒绝”四种结果。
+- 如果内核窗口管理器已初始化且桌面 TTY 正在前台，确认请求会以置顶桌面弹窗显示；可点击按钮，也可按 `1/O`、`2/S`、`3/P`、`N/Esc/Enter` 选择。
+- 如果当前不在桌面环境、键盘被禁用，或弹窗创建失败，则回退到原 TTY/串口确认流程。
+
 `/proc` 虚拟目录（由 syscall 层动态导出）：
 
 - `/proc`：目录（children = `self`、`list`、以及全部 PID 名称）
