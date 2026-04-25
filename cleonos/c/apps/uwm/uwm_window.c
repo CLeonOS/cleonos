@@ -1,8 +1,8 @@
 #include "uwm.h"
 
-#define UWM_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                        \
-    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) |                              \
-     ((u64)(r4) << 10U) | ((u64)(r5) << 5U) | (u64)(r6))
+#define UWM_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                         \
+    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
+     ((u64)(r5) << 5U) | (u64)(r6))
 
 #define UWM_COLOR_WHITE 0x00FFFFFFU
 #define UWM_COLOR_WIN_BLUE 0x000078D7U
