@@ -1303,7 +1303,8 @@ static void ush_browser_text_emit_style(const ush_browser_style *style) {
         u32 r = (style->fg_rgb >> 16U) & 0xFFU;
         u32 g = (style->fg_rgb >> 8U) & 0xFFU;
         u32 b = style->fg_rgb & 0xFFU;
-        wrote = snprintf(seq + at, sizeof(seq) - at, ";38;2;%u;%u;%u", (unsigned int)r, (unsigned int)g, (unsigned int)b);
+        wrote =
+            snprintf(seq + at, sizeof(seq) - at, ";38;2;%u;%u;%u", (unsigned int)r, (unsigned int)g, (unsigned int)b);
         if (wrote <= 0 || (u64)wrote >= (u64)(sizeof(seq) - at)) {
             ush_browser_text_append_raw(USH_BROWSER_ANSI_RESET);
             return;
@@ -1315,7 +1316,8 @@ static void ush_browser_text_emit_style(const ush_browser_style *style) {
         u32 r = (style->bg_rgb >> 16U) & 0xFFU;
         u32 g = (style->bg_rgb >> 8U) & 0xFFU;
         u32 b = style->bg_rgb & 0xFFU;
-        wrote = snprintf(seq + at, sizeof(seq) - at, ";48;2;%u;%u;%u", (unsigned int)r, (unsigned int)g, (unsigned int)b);
+        wrote =
+            snprintf(seq + at, sizeof(seq) - at, ";48;2;%u;%u;%u", (unsigned int)r, (unsigned int)g, (unsigned int)b);
         if (wrote <= 0 || (u64)wrote >= (u64)(sizeof(seq) - at)) {
             ush_browser_text_append_raw(USH_BROWSER_ANSI_RESET);
             return;
@@ -1431,7 +1433,8 @@ static int ush_browser_css_parse_color(const char *value, u64 value_len, u32 *ou
             u32 r0;
             u32 g0;
             u32 b0;
-            if (ush_browser_css_hex_nibble(normalized[1], &r0) == 0 || ush_browser_css_hex_nibble(normalized[2], &g0) == 0 ||
+            if (ush_browser_css_hex_nibble(normalized[1], &r0) == 0 ||
+                ush_browser_css_hex_nibble(normalized[2], &g0) == 0 ||
                 ush_browser_css_hex_nibble(normalized[3], &b0) == 0) {
                 return 0;
             }
@@ -1691,7 +1694,8 @@ static int ush_browser_css_capture_ident(const char *text, u64 len, u64 *io_pos,
     return (at > 0ULL) ? 1 : 0;
 }
 
-static int ush_browser_css_parse_simple_selector(const char *selector, u64 selector_len, ush_browser_css_rule *out_rule) {
+static int ush_browser_css_parse_simple_selector(const char *selector, u64 selector_len,
+                                                 ush_browser_css_rule *out_rule) {
     u64 pos = 0ULL;
     int matched = 0;
 
@@ -1713,8 +1717,8 @@ static int ush_browser_css_parse_simple_selector(const char *selector, u64 selec
         if (ch == '#') {
             pos++;
             if (out_rule->id_name[0] == '\0' &&
-                ush_browser_css_capture_ident(selector, selector_len, &pos, out_rule->id_name, (u64)sizeof(out_rule->id_name)) !=
-                    0) {
+                ush_browser_css_capture_ident(selector, selector_len, &pos, out_rule->id_name,
+                                              (u64)sizeof(out_rule->id_name)) != 0) {
                 matched = 1;
                 continue;
             }
@@ -1725,9 +1729,9 @@ static int ush_browser_css_parse_simple_selector(const char *selector, u64 selec
         }
         if (ch == '.') {
             pos++;
-            if (out_rule->class_name[0] == '\0' && ush_browser_css_capture_ident(selector, selector_len, &pos,
-                                                                                  out_rule->class_name,
-                                                                                  (u64)sizeof(out_rule->class_name)) != 0) {
+            if (out_rule->class_name[0] == '\0' &&
+                ush_browser_css_capture_ident(selector, selector_len, &pos, out_rule->class_name,
+                                              (u64)sizeof(out_rule->class_name)) != 0) {
                 matched = 1;
                 continue;
             }
@@ -1737,8 +1741,8 @@ static int ush_browser_css_parse_simple_selector(const char *selector, u64 selec
             continue;
         }
         if (ush_browser_css_is_ident_char(ch) != 0) {
-            if (out_rule->tag[0] == '\0' &&
-                ush_browser_css_capture_ident(selector, selector_len, &pos, out_rule->tag, (u64)sizeof(out_rule->tag)) != 0) {
+            if (out_rule->tag[0] == '\0' && ush_browser_css_capture_ident(selector, selector_len, &pos, out_rule->tag,
+                                                                          (u64)sizeof(out_rule->tag)) != 0) {
                 matched = 1;
                 continue;
             }
@@ -1771,7 +1775,8 @@ static int ush_browser_css_is_selector_separator(char ch) {
     return (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '>' || ch == '+' || ch == '~') ? 1 : 0;
 }
 
-static void ush_browser_css_parse_selector_list(const char *selector_text, u64 selector_len, const ush_browser_style_delta *delta) {
+static void ush_browser_css_parse_selector_list(const char *selector_text, u64 selector_len,
+                                                const ush_browser_style_delta *delta) {
     u64 part_start = 0ULL;
     u64 i;
 
@@ -1798,16 +1803,18 @@ static void ush_browser_css_parse_selector_list(const char *selector_text, u64 s
                 compound_end = end;
                 compound_start = compound_end;
 
-                while (compound_start > start && ush_browser_css_is_selector_separator(selector_text[compound_start - 1ULL]) == 0) {
+                while (compound_start > start &&
+                       ush_browser_css_is_selector_separator(selector_text[compound_start - 1ULL]) == 0) {
                     compound_start--;
                 }
-                while (compound_start < compound_end && ush_browser_css_is_selector_separator(selector_text[compound_start]) != 0) {
+                while (compound_start < compound_end &&
+                       ush_browser_css_is_selector_separator(selector_text[compound_start]) != 0) {
                     compound_start++;
                 }
 
                 if (compound_end > compound_start &&
-                    ush_browser_css_parse_simple_selector(selector_text + compound_start, compound_end - compound_start, &rule) !=
-                        0) {
+                    ush_browser_css_parse_simple_selector(selector_text + compound_start, compound_end - compound_start,
+                                                          &rule) != 0) {
                     rule.delta = *delta;
                     ush_browser_css_add_rule(&rule);
                 }
