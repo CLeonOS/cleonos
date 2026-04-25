@@ -27,6 +27,11 @@ unsigned long strtoul(const char *text, char **out_end, int base);
 long long strtoll(const char *text, char **out_end, int base);
 unsigned long long strtoull(const char *text, char **out_end, int base);
 
+void *malloc(size_t size);
+void free(void *ptr);
+void *calloc(size_t count, size_t size);
+void *realloc(void *ptr, size_t size);
+
 void srand(unsigned int seed);
 int rand(void);
 

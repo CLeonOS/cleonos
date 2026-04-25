@@ -187,6 +187,23 @@ set(USER_CFLAGS_DOOM
     "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/doom_shim.h"
 )
 
+set(USER_CFLAGS_BROWSER
+    -std=c11
+    -ffreestanding
+    -fno-stack-protector
+    -fno-builtin
+    -Wall
+    -Wextra
+    -Wno-error
+    -Wno-unused-parameter
+    -Wno-sign-compare
+    -Wno-missing-field-initializers
+    -DNDEBUG
+    "-I${CMAKE_SOURCE_DIR}/cleonos/c/include"
+    "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/include"
+    "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/include/gumbo"
+)
+
 set(USER_LDFLAGS
     -nostdlib
     -z

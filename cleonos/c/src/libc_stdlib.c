@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <string.h>
 
 #include <cleonos_syscall.h>
 
@@ -237,6 +238,109 @@ long long strtoll(const char *text, char **out_end, int base) {
 
 unsigned long long strtoull(const char *text, char **out_end, int base) {
     return (unsigned long long)strtoul(text, out_end, base);
+}
+
+#define CLIB_HEAP_CAPACITY (4U * 1024U * 1024U)
+#define CLIB_HEAP_ALIGN 8U
+
+typedef union clib_heap_storage {
+    unsigned long long align;
+    unsigned char bytes[CLIB_HEAP_CAPACITY];
+} clib_heap_storage;
+
+static clib_heap_storage clib_heap;
+static size_t clib_heap_used = 0U;
+
+static size_t clib_align_up(size_t value, size_t align) {
+    size_t mask;
+
+    if (align == 0U) {
+        return value;
+    }
+
+    mask = align - 1U;
+    return (value + mask) & ~mask;
+}
+
+__attribute__((weak)) void *malloc(size_t size) {
+    size_t need;
+    size_t begin;
+    size_t end;
+    size_t *hdr;
+
+    if (size == 0U) {
+        return (void *)0;
+    }
+
+    size = clib_align_up(size, CLIB_HEAP_ALIGN);
+    need = sizeof(size_t) + size;
+    begin = clib_align_up(clib_heap_used, CLIB_HEAP_ALIGN);
+
+    if (begin > (size_t)CLIB_HEAP_CAPACITY || need > (size_t)CLIB_HEAP_CAPACITY - begin) {
+        return (void *)0;
+    }
+
+    end = begin + need;
+    hdr = (size_t *)(void *)(clib_heap.bytes + begin);
+    *hdr = size;
+    clib_heap_used = end;
+    return (void *)(hdr + 1);
+}
+
+__attribute__((weak)) void free(void *ptr) {
+    (void)ptr;
+    /* monotonic allocator: memory is reclaimed when process exits */
+}
+
+__attribute__((weak)) void *calloc(size_t count, size_t size) {
+    size_t total;
+    void *ptr;
+
+    if (count == 0U || size == 0U) {
+        return (void *)0;
+    }
+
+    if (count > ((size_t)-1) / size) {
+        return (void *)0;
+    }
+
+    total = count * size;
+    ptr = malloc(total);
+    if (ptr == (void *)0) {
+        return (void *)0;
+    }
+
+    (void)memset(ptr, 0, total);
+    return ptr;
+}
+
+__attribute__((weak)) void *realloc(void *ptr, size_t size) {
+    void *out;
+    size_t old_size;
+
+    if (ptr == (void *)0) {
+        return malloc(size);
+    }
+
+    if (size == 0U) {
+        free(ptr);
+        return (void *)0;
+    }
+
+    old_size = *((size_t *)ptr - 1U);
+    out = malloc(size);
+    if (out == (void *)0) {
+        return (void *)0;
+    }
+
+    if (old_size < size) {
+        (void)memcpy(out, ptr, old_size);
+    } else {
+        (void)memcpy(out, ptr, size);
+    }
+
+    free(ptr);
+    return out;
 }
 
 static unsigned long clib_rand_state = 1UL;

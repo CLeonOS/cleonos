@@ -71,6 +71,23 @@ function(add_user_c_object_doom SRC OUTPUT_VAR)
     set(${OUTPUT_VAR} "${OBJ_PATH}" PARENT_SCOPE)
 endfunction()
 
+function(add_user_c_object_browser SRC OUTPUT_VAR)
+    string(REGEX REPLACE "\\.c$" ".o" OBJ_REL "${SRC}")
+    set(OBJ_PATH "${USER_OBJ_ROOT}/${OBJ_REL}")
+    get_filename_component(OBJ_DIR "${OBJ_PATH}" DIRECTORY)
+    set(_deps "${CMAKE_SOURCE_DIR}/${SRC}" ${USER_INC_SOURCES_ABS} ${BROWSER_GUMBO_DEP_SOURCES_ABS})
+
+    add_custom_command(
+        OUTPUT "${OBJ_PATH}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${OBJ_DIR}"
+        COMMAND ${USER_CC} ${USER_CFLAGS_BROWSER} -c "${CMAKE_SOURCE_DIR}/${SRC}" -o "${OBJ_PATH}"
+        DEPENDS ${_deps}
+        VERBATIM
+    )
+
+    set(${OUTPUT_VAR} "${OBJ_PATH}" PARENT_SCOPE)
+endfunction()
+
 set(USER_COMMON_OBJECTS)
 foreach(SRC IN LISTS USER_COMMON_SOURCES)
     add_user_c_object("${SRC}" OBJ_OUT)
@@ -126,6 +143,26 @@ file(GLOB_RECURSE DOOMGENERIC_DEP_SOURCES_ABS CONFIGURE_DEPENDS
 )
 list(SORT DOOMGENERIC_DEP_SOURCES_ABS)
 
+set(BROWSER_GUMBO_DIR "${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo")
+set(BROWSER_GUMBO_SRC_BASENAMES
+    attribute char_ref error parser string_buffer string_piece tag tokenizer utf8 util vector
+)
+set(BROWSER_GUMBO_APP_SOURCES)
+foreach(_base IN LISTS BROWSER_GUMBO_SRC_BASENAMES)
+    list(APPEND BROWSER_GUMBO_APP_SOURCES "cleonos/third-party/litehtml/src/gumbo/${_base}.c")
+endforeach()
+set(BROWSER_GUMBO_REQUIRED_SOURCE "${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/parser.c")
+if(EXISTS "${BROWSER_GUMBO_REQUIRED_SOURCE}")
+    set(BROWSER_GUMBO_AVAILABLE ON)
+else()
+    set(BROWSER_GUMBO_AVAILABLE OFF)
+    cl_log_warn("litehtml gumbo sources missing, browser app will be skipped: ${BROWSER_GUMBO_REQUIRED_SOURCE}")
+endif()
+file(GLOB_RECURSE BROWSER_GUMBO_DEP_SOURCES_ABS CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/include/*.h"
+)
+list(SORT BROWSER_GUMBO_DEP_SOURCES_ABS)
+
 set(USER_SHELL_COMMAND_APPS
     help args ls cat grep head tail wc cut uniq sort pwd cd exec pid spawn wait sleep yield
     ping ifconfig nslookup httpget
@@ -133,7 +170,7 @@ set(USER_SHELL_COMMAND_APPS
     procstat sysstat
     diskinfo mkfsfat32 mount partctl
     shutdown restart exit clear ansi ansitest wavplay fastfetch memstat fsstat taskstat userstat
-    shstat stats tty dmesg kbdstat mkdir touch write append cp mv rm kdbg bmpview qrcode
+    shstat stats tty dmesg kbdstat mkdir touch write append cp mv rm kdbg bmpview qrcode browser
 )
 
 foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
@@ -164,6 +201,10 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
         cl_log_warn("skip user app doom because doomgeneric sources are unavailable")
         continue()
     endif()
+    if(_app_name STREQUAL "browser" AND NOT BROWSER_GUMBO_AVAILABLE)
+        cl_log_warn("skip user app browser because litehtml gumbo sources are unavailable")
+        continue()
+    endif()
 
     list(FIND USER_APP_NAMES "${_app_name}" _dup_name_idx)
     if(NOT _dup_name_idx EQUAL -1)
@@ -171,7 +212,11 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
     endif()
     list(APPEND USER_APP_NAMES "${_app_name}")
 
-    add_user_c_object("${SRC}" _user_obj)
+    if(_app_name STREQUAL "browser")
+        add_user_c_object_browser("${SRC}" _user_obj)
+    else()
+        add_user_c_object("${SRC}" _user_obj)
+    endif()
 
     set(_app_specific_objs)
     file(GLOB _app_specific_abs CONFIGURE_DEPENDS
@@ -183,6 +228,11 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
     if(_app_name STREQUAL "doom")
         foreach(_doom_src IN LISTS DOOMGENERIC_APP_SOURCES)
             list(APPEND _app_specific_abs "${CMAKE_SOURCE_DIR}/${_doom_src}")
+        endforeach()
+    endif()
+    if(_app_name STREQUAL "browser")
+        foreach(_gumbo_src IN LISTS BROWSER_GUMBO_APP_SOURCES)
+            list(APPEND _app_specific_abs "${CMAKE_SOURCE_DIR}/${_gumbo_src}")
         endforeach()
     endif()
 
@@ -201,8 +251,12 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
             continue()
         endif()
 
-        if(_app_name STREQUAL "doom")
+        if(_extra_rel STREQUAL "cleonos/c/apps/cmd_runtime.c")
+            add_user_c_object("${_extra_rel}" _extra_obj)
+        elseif(_app_name STREQUAL "doom")
             add_user_c_object_doom("${_extra_rel}" _extra_obj)
+        elseif(_app_name STREQUAL "browser")
+            add_user_c_object_browser("${_extra_rel}" _extra_obj)
         else()
             add_user_c_object("${_extra_rel}" _extra_obj)
         endif()
