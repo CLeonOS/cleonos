@@ -420,6 +420,18 @@ u64 cleonos_sys_net_ipv4_addr(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_IPV4_ADDR, 0ULL, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_net_netmask(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_NETMASK, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_gateway(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_GATEWAY, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_dns_server(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_DNS_SERVER, 0ULL, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_net_ping(u64 dst_ipv4_be, u64 poll_budget) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_PING, dst_ipv4_be, poll_budget, 0ULL);
 }

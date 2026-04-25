@@ -26,6 +26,16 @@ set(OBJDUMP_FOR_TARGET "llvm-objdump" CACHE STRING "objdump tool for limine conf
 set(READELF_FOR_TARGET "llvm-readelf" CACHE STRING "readelf tool for limine configure")
 
 set(QEMU_X86_64 "qemu-system-x86_64" CACHE STRING "QEMU executable")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(_cleonos_qemu_kvm_default ON)
+else()
+    set(_cleonos_qemu_kvm_default OFF)
+endif()
+set(CLEONOS_QEMU_ENABLE_KVM ${_cleonos_qemu_kvm_default} CACHE BOOL "Enable QEMU KVM acceleration for run/debug targets")
+set(CLEONOS_QEMU_ACCEL_ARGS "")
+if(CLEONOS_QEMU_ENABLE_KVM)
+    list(APPEND CLEONOS_QEMU_ACCEL_ARGS -enable-kvm -cpu host)
+endif()
 
 set(CLEONOS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/cleonos")
 if(EXISTS "${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
@@ -354,7 +364,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu run"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
         DEPENDS iso disk-image
         USES_TERMINAL
     )
@@ -365,7 +375,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu debug (-s -S)"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
+        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
         DEPENDS iso disk-image
         USES_TERMINAL
     )

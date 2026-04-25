@@ -128,7 +128,7 @@ list(SORT DOOMGENERIC_DEP_SOURCES_ABS)
 
 set(USER_SHELL_COMMAND_APPS
     help args ls cat grep head tail wc cut uniq sort pwd cd exec pid spawn wait sleep yield
-    ping
+    ping ifconfig nslookup
     bg fg jobs kill ps top
     procstat sysstat
     diskinfo mkfsfat32 mount partctl
