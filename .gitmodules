@@ -13,3 +13,6 @@
 [submodule "kit"]
 	path = kit
 	url = https://github.com/CLeonOS/kit.git
+[submodule "cleonos/third-party/litehtml"]
+	path = cleonos/third-party/litehtml
+	url = https://github.com/litehtml/litehtml.git
