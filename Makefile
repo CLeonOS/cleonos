@@ -21,6 +21,7 @@ MENUCONFIG_PRESET ?=
 DISK_IMAGE_MB ?=
 CLEONOS_ENABLE ?= auto
 QEMU_DRIVE_IMAGE ?= build/x86_64/cleonos_disk.img
+CLEONOS_QEMU_ENABLE_USB_TABLET ?= OFF
 SHOW_COMMANDS ?= 0
 V ?= 0
 
@@ -68,6 +69,7 @@ MENUCONFIG_SCOPE_ARG += --clks-only
 endif
 
 CMAKE_PASSTHROUGH_ARGS += -DCLEONOS_ENABLE=$(CLEONOS_ENABLE_EFFECTIVE)
+CMAKE_PASSTHROUGH_ARGS += -DCLEONOS_QEMU_ENABLE_USB_TABLET=$(CLEONOS_QEMU_ENABLE_USB_TABLET)
 
 ifneq ($(strip $(LIMINE_SKIP_CONFIGURE)),)
 CMAKE_PASSTHROUGH_ARGS += -DLIMINE_SKIP_CONFIGURE=$(LIMINE_SKIP_CONFIGURE)
@@ -240,8 +242,8 @@ help:
 > $(Q)echo "  make run CMAKE_EXTRA_ARGS='-DCLEONOS_QEMU_ENABLE_KVM=ON'   # force on"
 > $(Q)echo "  make run CMAKE_EXTRA_ARGS='-DCLEONOS_QEMU_ENABLE_KVM=OFF'  # force off"
 > $(Q)echo "QEMU USB tablet toggle:"
-> $(Q)echo "  make run CMAKE_EXTRA_ARGS='-DCLEONOS_QEMU_ENABLE_USB_TABLET=ON'   # absolute pointer"
-> $(Q)echo "  make run CMAKE_EXTRA_ARGS='-DCLEONOS_QEMU_ENABLE_USB_TABLET=OFF'  # disable tablet"
+> $(Q)echo "  make run CLEONOS_QEMU_ENABLE_USB_TABLET=OFF  # default: PS/2 mouse path"
+> $(Q)echo "  make run CLEONOS_QEMU_ENABLE_USB_TABLET=ON   # USB tablet, requires USB HID support"
 > $(Q)echo ""
 > $(Q)echo "Pass custom CMake cache args via:"
 > $(Q)echo "  make configure CMAKE_EXTRA_ARGS='-DLIMINE_SKIP_CONFIGURE=1 -DOBJCOPY_FOR_TARGET=objcopy'"

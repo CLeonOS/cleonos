@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~113）
+## 4. Syscall 列表（0~115）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -871,6 +871,23 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：成功 `1`，失败 `0`
 - 说明：将目标窗口置为焦点并提升到顶层 z-order。
 
+### 114 `CLEONOS_SYSCALL_WM_SET_FLAGS`
+
+- 参数：
+- `arg0`: `u64 window_id`
+- `arg1`: `u64 flags`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 设置窗口协议标志；当前支持 `CLEONOS_WM_FLAG_TOPMOST`（`bit0`），置位后窗口保持在普通窗口之上。
+
+### 115 `CLEONOS_SYSCALL_WM_RESIZE`
+
+- 参数：
+- `arg0`: `const struct { u64 window_id; u64 width; u64 height; } *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 调整窗口尺寸并保持 `window_id` 不变；调整后用户态应重新 `WM_PRESENT` 一次提交新尺寸内容。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -919,7 +936,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..113`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..115`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -938,7 +955,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
-- `WM_*`（`108..113`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
+- `WM_*`（`108..115`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。

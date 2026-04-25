@@ -1,5 +1,9 @@
 file(GLOB_RECURSE USER_INC_SOURCES_ABS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/cleonos/**/*.inc"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/include/*.h"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/include/**/*.h"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/apps/*.h"
+    "${CMAKE_SOURCE_DIR}/cleonos/c/apps/**/*.h"
 )
 list(SORT USER_INC_SOURCES_ABS)
 

@@ -1,6 +1,7 @@
 #include "cmd_runtime.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "gumbo.h"
@@ -8,15 +9,19 @@
 #define USH_BROWSER_SOURCE_MAX 256U
 #define USH_BROWSER_HOST_MAX 128U
 #define USH_BROWSER_PATH_MAX 256U
-#define USH_BROWSER_HTML_MAX (512U * 1024U)
-#define USH_BROWSER_TEXT_MAX (160U * 1024U)
+#define USH_BROWSER_HTML_MAX (256U * 1024U)
+#define USH_BROWSER_TEXT_MAX (96U * 1024U)
+#define USH_BROWSER_GUMBO_PARSE_MAX (96U * 1024U)
+#define USH_BROWSER_GUMBO_MAX_ERRORS 0
+#define USH_BROWSER_HTML_BUF_CAP (USH_BROWSER_HTML_MAX + 1U)
+#define USH_BROWSER_TEXT_BUF_CAP (USH_BROWSER_TEXT_MAX + 1U)
 #define USH_BROWSER_TITLE_MAX 128U
 #define USH_BROWSER_DNS_PACKET_MAX 512U
 #define USH_BROWSER_HTTP_RECV_CHUNK 2048U
 #define USH_BROWSER_TCP_POLL_BUDGET 200000000ULL
 #define USH_BROWSER_TCP_RECV_IDLE_LOOPS 40ULL
 
-#define USH_BROWSER_LINK_MAX 128U
+#define USH_BROWSER_LINK_MAX 96U
 #define USH_BROWSER_LINK_TEXT_MAX 96U
 #define USH_BROWSER_LINK_HREF_MAX 192U
 #define USH_BROWSER_HISTORY_MAX 16U
@@ -24,7 +29,7 @@
 #define USH_BROWSER_SEG_MAX 32U
 #define USH_BROWSER_SEG_LEN_MAX 63U
 #define USH_BROWSER_CSS_TEXT_MAX 4096U
-#define USH_BROWSER_CSS_RULE_MAX 160U
+#define USH_BROWSER_CSS_RULE_MAX 96U
 #define USH_BROWSER_CSS_IDENT_MAX 48U
 #define USH_BROWSER_ANSI_RESET "\x1B[0m"
 #define USH_BROWSER_ANSI_BLUE "\x1B[34m"
@@ -76,9 +81,9 @@ typedef struct ush_browser_css_rule {
     ush_browser_style_delta delta;
 } ush_browser_css_rule;
 
-static char ush_browser_html_buf[USH_BROWSER_HTML_MAX + 1U];
-static char ush_browser_http_raw_buf[USH_BROWSER_HTML_MAX + 1U];
-static char ush_browser_text_buf[USH_BROWSER_TEXT_MAX + 1U];
+static char *ush_browser_html_buf;
+static char *ush_browser_http_raw_buf;
+static char *ush_browser_text_buf;
 static char ush_browser_title[USH_BROWSER_TITLE_MAX];
 static ush_browser_link ush_browser_links[USH_BROWSER_LINK_MAX];
 
@@ -87,6 +92,26 @@ static int ush_browser_last_space = 1;
 static u64 ush_browser_link_count = 0ULL;
 static ush_browser_css_rule ush_browser_css_rules[USH_BROWSER_CSS_RULE_MAX];
 static u64 ush_browser_css_rule_count = 0ULL;
+
+static int ush_browser_ensure_buffers(void) {
+    if (ush_browser_html_buf != (char *)0 && ush_browser_http_raw_buf != (char *)0 &&
+        ush_browser_text_buf != (char *)0) {
+        return 1;
+    }
+
+    ush_browser_html_buf = (char *)malloc((size_t)USH_BROWSER_HTML_BUF_CAP);
+    ush_browser_http_raw_buf = (char *)malloc((size_t)USH_BROWSER_HTML_BUF_CAP);
+    ush_browser_text_buf = (char *)malloc((size_t)USH_BROWSER_TEXT_BUF_CAP);
+    if (ush_browser_html_buf == (char *)0 || ush_browser_http_raw_buf == (char *)0 ||
+        ush_browser_text_buf == (char *)0) {
+        return 0;
+    }
+
+    ush_browser_html_buf[0] = '\0';
+    ush_browser_http_raw_buf[0] = '\0';
+    ush_browser_text_buf[0] = '\0';
+    return 1;
+}
 
 static int ush_browser_is_http_url(const char *text) {
     if (text == (const char *)0) {
@@ -917,7 +942,7 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
 
     *out_size = 0ULL;
     out_html[0] = '\0';
-    ush_zero(ush_browser_http_raw_buf, (u64)sizeof(ush_browser_http_raw_buf));
+    ush_zero(ush_browser_http_raw_buf, (u64)USH_BROWSER_HTML_BUF_CAP);
 
     if (cleonos_sys_net_available() == 0ULL) {
         return 0;
@@ -969,11 +994,11 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
         goto cleanup;
     }
 
-    while (raw_len + 1ULL < (u64)sizeof(ush_browser_http_raw_buf)) {
+    while (raw_len + 1ULL < (u64)USH_BROWSER_HTML_BUF_CAP) {
         cleonos_net_tcp_recv_req recv_req;
         u8 chunk[USH_BROWSER_HTTP_RECV_CHUNK];
         u64 got;
-        u64 cap_left = (u64)sizeof(ush_browser_http_raw_buf) - 1ULL - raw_len;
+        u64 cap_left = (u64)USH_BROWSER_HTML_BUF_CAP - 1ULL - raw_len;
 
         recv_req.out_payload_ptr = (u64)(usize)chunk;
         recv_req.payload_capacity = (u64)sizeof(chunk);
@@ -1124,7 +1149,7 @@ static void ush_browser_text_newline(void) {
         }
     }
 
-    if (ush_browser_text_len + 1ULL >= (u64)sizeof(ush_browser_text_buf)) {
+    if (ush_browser_text_len + 1ULL >= (u64)USH_BROWSER_TEXT_BUF_CAP) {
         return;
     }
 
@@ -1134,7 +1159,7 @@ static void ush_browser_text_newline(void) {
 }
 
 static void ush_browser_text_append_char(char ch) {
-    if (ush_browser_text_len + 1ULL >= (u64)sizeof(ush_browser_text_buf)) {
+    if (ush_browser_text_len + 1ULL >= (u64)USH_BROWSER_TEXT_BUF_CAP) {
         return;
     }
 
@@ -1180,7 +1205,7 @@ static void ush_browser_text_append_raw(const char *text) {
     }
 
     while (text[i] != '\0') {
-        if (ush_browser_text_len + 1ULL >= (u64)sizeof(ush_browser_text_buf)) {
+        if (ush_browser_text_len + 1ULL >= (u64)USH_BROWSER_TEXT_BUF_CAP) {
             return;
         }
 
@@ -2371,17 +2396,87 @@ static int ush_browser_read_file(const ush_state *sh, const char *arg, char *out
     return (total > 0ULL) ? 1 : 0;
 }
 
-static int ush_browser_render_html(const char *html, u64 html_size) {
-    GumboOutput *output;
-    ush_browser_style root_style;
+static int ush_browser_render_html_fallback(const char *html, u64 html_size) {
+    u64 i = 0ULL;
+    int in_tag = 0;
+    int pending_space = 0;
 
     if (html == (const char *)0 || html_size == 0ULL) {
         return 0;
     }
 
-    output = gumbo_parse_with_options(&kGumboDefaultOptions, html, (size_t)html_size);
-    if (output == (GumboOutput *)0 || output->root == (GumboNode *)0) {
+    ush_browser_link_count = 0ULL;
+    ush_browser_css_rule_count = 0ULL;
+    ush_browser_text_reset();
+    ush_zero(ush_browser_title, (u64)sizeof(ush_browser_title));
+    ush_copy(ush_browser_title, (u64)sizeof(ush_browser_title), "HTML fallback");
+
+    while (i < html_size && html[i] != '\0') {
+        char ch = html[i];
+
+        if (ch == '<') {
+            in_tag = 1;
+            if (pending_space == 0) {
+                ush_browser_text_append_char(' ');
+                pending_space = 1;
+            }
+            i++;
+            continue;
+        }
+
+        if (in_tag != 0) {
+            if (ch == '>') {
+                in_tag = 0;
+            }
+            i++;
+            continue;
+        }
+
+        if (ch == '&') {
+            ush_browser_text_append_char(' ');
+            pending_space = 1;
+            i++;
+            continue;
+        }
+
+        ush_browser_text_append_char(ch);
+        pending_space = (ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t') ? 1 : 0;
+        i++;
+    }
+
+    ush_browser_text_trim_trailing_spaces();
+    if (ush_browser_text_len == 0ULL) {
+        ush_browser_text_append("[browser] no renderable text");
+    }
+
+    return 1;
+}
+
+static int ush_browser_render_html(const char *html, u64 html_size) {
+    GumboOutput *output;
+    GumboOptions options;
+    ush_browser_style root_style;
+    u64 parse_size;
+
+    if (html == (const char *)0 || html_size == 0ULL) {
         return 0;
+    }
+
+    parse_size = html_size;
+    if (parse_size > (u64)USH_BROWSER_GUMBO_PARSE_MAX) {
+        parse_size = (u64)USH_BROWSER_GUMBO_PARSE_MAX;
+    }
+
+    options = kGumboDefaultOptions;
+    options.max_errors = USH_BROWSER_GUMBO_MAX_ERRORS;
+    options.stop_on_first_error = false;
+
+    output = gumbo_parse_with_options(&options, html, (size_t)parse_size);
+    if (output == (GumboOutput *)0 || output->root == (GumboNode *)0) {
+        if (output != (GumboOutput *)0) {
+            gumbo_destroy_output(&options, output);
+        }
+        return ush_browser_render_html_fallback(html, parse_size);
     }
 
     ush_browser_link_count = 0ULL;
@@ -2395,7 +2490,7 @@ static int ush_browser_render_html(const char *html, u64 html_size) {
     ush_browser_walk_dom_styled(output->root, &root_style);
     ush_browser_text_trim_trailing_spaces();
 
-    gumbo_destroy_output(&kGumboDefaultOptions, output);
+    gumbo_destroy_output(&options, output);
     return 1;
 }
 
@@ -2929,6 +3024,11 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
         return 0;
     }
 
+    if (ush_browser_ensure_buffers() == 0) {
+        ush_writeln("browser: memory allocation failed");
+        return 0;
+    }
+
     for (i = 0ULL; i < (u64)USH_BROWSER_HISTORY_MAX; i++) {
         history[i][0] = '\0';
     }
@@ -2953,7 +3053,7 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
     }
 
     for (;;) {
-        if (ush_browser_load_source(sh, current_source, ush_browser_html_buf, (u64)sizeof(ush_browser_html_buf),
+        if (ush_browser_load_source(sh, current_source, ush_browser_html_buf, (u64)USH_BROWSER_HTML_BUF_CAP,
                                     &html_size) == 0) {
             if (ush_browser_is_https_url(current_source) != 0) {
                 ush_writeln("browser: https:// is not supported yet");

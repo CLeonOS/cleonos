@@ -64,6 +64,8 @@ typedef struct cleonos_mouse_state {
 #define CLEONOS_WM_EVENT_MOUSE_MOVE 4ULL
 #define CLEONOS_WM_EVENT_MOUSE_BUTTON 5ULL
 
+#define CLEONOS_WM_FLAG_TOPMOST 0x1ULL
+
 typedef struct cleonos_wm_event {
     u64 type;
     u64 arg0;
@@ -93,6 +95,12 @@ typedef struct cleonos_wm_move_req {
     u64 x;
     u64 y;
 } cleonos_wm_move_req;
+
+typedef struct cleonos_wm_resize_req {
+    u64 window_id;
+    u64 width;
+    u64 height;
+} cleonos_wm_resize_req;
 
 typedef struct cleonos_fb_blit_req {
     u64 pixels_ptr;
@@ -253,6 +261,8 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_WM_POLL_EVENT 111ULL
 #define CLEONOS_SYSCALL_WM_MOVE 112ULL
 #define CLEONOS_SYSCALL_WM_SET_FOCUS 113ULL
+#define CLEONOS_SYSCALL_WM_SET_FLAGS 114ULL
+#define CLEONOS_SYSCALL_WM_RESIZE 115ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -369,5 +379,7 @@ u64 cleonos_sys_wm_present(const cleonos_wm_present_req *req);
 u64 cleonos_sys_wm_poll_event(u64 window_id, cleonos_wm_event *out_event);
 u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req);
 u64 cleonos_sys_wm_set_focus(u64 window_id);
+u64 cleonos_sys_wm_set_flags(u64 window_id, u64 flags);
+u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req);
 
 #endif

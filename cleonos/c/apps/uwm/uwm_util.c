@@ -4,7 +4,15 @@ int ush_uwm_window_index_valid(int index) {
     return (index >= 0 && index < (int)USH_UWM_WINDOW_COUNT) ? 1 : 0;
 }
 
+int ush_uwm_app_index_valid(int index) {
+    return (index >= 0 && index < (int)USH_UWM_APP_COUNT) ? 1 : 0;
+}
+
 int ush_uwm_clampi(int value, int min_value, int max_value) {
+    if (max_value < min_value) {
+        return min_value;
+    }
+
     if (value < min_value) {
         return min_value;
     }

@@ -487,3 +487,11 @@ u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req) {
 u64 cleonos_sys_wm_set_focus(u64 window_id) {
     return cleonos_syscall(CLEONOS_SYSCALL_WM_SET_FOCUS, window_id, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_wm_set_flags(u64 window_id, u64 flags) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_SET_FLAGS, window_id, flags, 0ULL);
+}
+
+u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_RESIZE, (u64)req, 0ULL, 0ULL);
+}

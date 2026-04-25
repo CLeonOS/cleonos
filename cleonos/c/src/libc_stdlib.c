@@ -240,7 +240,9 @@ unsigned long long strtoull(const char *text, char **out_end, int base) {
     return (unsigned long long)strtoul(text, out_end, base);
 }
 
-#define CLIB_HEAP_CAPACITY (4U * 1024U * 1024U)
+#ifndef CLIB_HEAP_CAPACITY
+#define CLIB_HEAP_CAPACITY (2U * 1024U * 1024U)
+#endif
 #define CLIB_HEAP_ALIGN 8U
 
 typedef union clib_heap_storage {
