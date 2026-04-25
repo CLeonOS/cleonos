@@ -45,9 +45,9 @@ typedef unsigned int fx_u32;
 #define FX_COLOR_BUTTON 0x00E7E7E7U
 #define FX_COLOR_BUTTON_HOT 0x00D8EBFAU
 
-#define FX_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                        \
-    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) |                              \
-     ((u64)(r4) << 10U) | ((u64)(r5) << 5U) | (u64)(r6))
+#define FX_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                          \
+    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
+     ((u64)(r5) << 5U) | (u64)(r6))
 
 typedef struct fx_entry {
     char name[FX_NAME_MAX];

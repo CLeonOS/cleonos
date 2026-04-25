@@ -26,9 +26,9 @@
 #define USH_QRCODE_COLOR_BORDER 0x00D0D0D0U
 #define USH_QRCODE_COLOR_PANEL 0x00FFFFFFU
 
-#define USH_QRCODE_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                \
-    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) |                              \
-     ((u64)(r4) << 10U) | ((u64)(r5) << 5U) | (u64)(r6))
+#define USH_QRCODE_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                  \
+    (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
+     ((u64)(r5) << 5U) | (u64)(r6))
 
 static unsigned int ush_qrcode_canvas[USH_QRCODE_CANVAS_MAX][USH_QRCODE_CANVAS_MAX];
 
@@ -418,8 +418,8 @@ static int ush_qrcode_draw_window_canvas(const uint8_t qrcode[], int canvas_w, i
 
     ush_qrcode_fill_rect(canvas_w, canvas_h, 0, 0, canvas_w, canvas_h, USH_QRCODE_COLOR_DESKTOP);
     ush_qrcode_fill_rect(canvas_w, canvas_h, 0, 0, canvas_w, USH_QRCODE_TITLE_H, USH_QRCODE_COLOR_TITLE);
-    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - USH_QRCODE_CLOSE_W, 0, USH_QRCODE_CLOSE_W,
-                         USH_QRCODE_TITLE_H, USH_QRCODE_COLOR_CLOSE);
+    ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - USH_QRCODE_CLOSE_W, 0, USH_QRCODE_CLOSE_W, USH_QRCODE_TITLE_H,
+                         USH_QRCODE_COLOR_CLOSE);
     ush_qrcode_draw_text(canvas_w, canvas_h, 14, 10, "QRCODE", 1, USH_QRCODE_COLOR_LIGHT);
     ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - 28, 11, 14, 2, USH_QRCODE_COLOR_LIGHT);
     ush_qrcode_fill_rect(canvas_w, canvas_h, canvas_w - 28, 22, 14, 2, USH_QRCODE_COLOR_LIGHT);
@@ -438,8 +438,7 @@ static int ush_qrcode_draw_window_canvas(const uint8_t qrcode[], int canvas_w, i
             if (dark != 0) {
                 int px = qr_x + ((x + border) * module_pixels);
                 int py = qr_y + ((y + border) * module_pixels);
-                ush_qrcode_fill_rect(canvas_w, canvas_h, px, py, module_pixels, module_pixels,
-                                     USH_QRCODE_COLOR_DARK);
+                ush_qrcode_fill_rect(canvas_w, canvas_h, px, py, module_pixels, module_pixels, USH_QRCODE_COLOR_DARK);
             }
         }
     }
@@ -464,8 +463,7 @@ static int ush_qrcode_present_window(u64 window_id, int width, int height) {
 }
 
 static int ush_qrcode_close_hit(int width, int local_x, int local_y) {
-    return (local_x >= width - USH_QRCODE_CLOSE_W && local_x < width && local_y >= 0 &&
-            local_y < USH_QRCODE_TITLE_H)
+    return (local_x >= width - USH_QRCODE_CLOSE_W && local_x < width && local_y >= 0 && local_y < USH_QRCODE_TITLE_H)
                ? 1
                : 0;
 }
@@ -491,8 +489,7 @@ static void ush_qrcode_window_loop(u64 window_id, int width, int height, int x, 
 
             handled = 1;
             if (event.type == CLEONOS_WM_EVENT_KEY) {
-                if (event.arg0 == (u64)'q' || event.arg0 == (u64)'Q' || event.arg0 == 27ULL ||
-                    event.arg0 == 13ULL) {
+                if (event.arg0 == (u64)'q' || event.arg0 == (u64)'Q' || event.arg0 == 27ULL || event.arg0 == 13ULL) {
                     running = 0;
                     break;
                 }
