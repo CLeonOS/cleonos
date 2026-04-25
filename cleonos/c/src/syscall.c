@@ -459,3 +459,7 @@ u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req) {
 u64 cleonos_sys_net_tcp_close(u64 poll_budget) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_CLOSE, poll_budget, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_mouse_state(cleonos_mouse_state *out_state) {
+    return cleonos_syscall(CLEONOS_SYSCALL_MOUSE_STATE, (u64)out_state, 0ULL, 0ULL);
+}

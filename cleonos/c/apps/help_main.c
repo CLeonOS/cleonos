@@ -16,6 +16,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  bmpview <file.bmp> [cols]");
     ush_writeln("  qrcode [--ecc <L|M|Q|H>] <text>");
     ush_writeln("  vim [file]         (vim-like editor: normal/insert/:w/:q/:wq)");
+    ush_writeln("  uwm                (user-space window manager demo)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  fastfetch [--plain]");
     ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");

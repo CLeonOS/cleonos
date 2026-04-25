@@ -36,6 +36,11 @@ set(CLEONOS_QEMU_ACCEL_ARGS "")
 if(CLEONOS_QEMU_ENABLE_KVM)
     list(APPEND CLEONOS_QEMU_ACCEL_ARGS -enable-kvm -cpu host)
 endif()
+set(CLEONOS_QEMU_ENABLE_USB_TABLET ON CACHE BOOL "Enable QEMU USB tablet for absolute mouse pointer")
+set(CLEONOS_QEMU_INPUT_ARGS "")
+if(CLEONOS_QEMU_ENABLE_USB_TABLET)
+    list(APPEND CLEONOS_QEMU_INPUT_ARGS -usb -device usb-tablet)
+endif()
 
 set(CLEONOS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/cleonos")
 if(EXISTS "${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
@@ -381,7 +386,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu run"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} ${CLEONOS_QEMU_INPUT_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
         DEPENDS iso disk-image
         USES_TERMINAL
     )
@@ -392,7 +397,7 @@ if(CLEONOS_ENABLE)
             "-DLOG_LEVEL=STEP"
             "-DLOG_TEXT=launching qemu debug (-s -S)"
             -P "${CL_LOG_EMIT_SCRIPT}"
-        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
+        COMMAND ${QEMU_X86_64} ${CLEONOS_QEMU_ACCEL_ARGS} ${CLEONOS_QEMU_INPUT_ARGS} -M pc -m 1024M -boot order=d -cdrom "${ISO_IMAGE}" -drive "file=${DISK_IMAGE},format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
         DEPENDS iso disk-image
         USES_TERMINAL
     )

@@ -50,6 +50,14 @@ typedef struct cleonos_fb_info {
     u64 bpp;
 } cleonos_fb_info;
 
+typedef struct cleonos_mouse_state {
+    u64 x;
+    u64 y;
+    u64 buttons;
+    u64 packet_count;
+    u64 ready;
+} cleonos_mouse_state;
+
 typedef struct cleonos_fb_blit_req {
     u64 pixels_ptr;
     u64 src_width;
@@ -202,6 +210,7 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_NET_TCP_SEND 104ULL
 #define CLEONOS_SYSCALL_NET_TCP_RECV 105ULL
 #define CLEONOS_SYSCALL_NET_TCP_CLOSE 106ULL
+#define CLEONOS_SYSCALL_MOUSE_STATE 107ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -311,5 +320,6 @@ u64 cleonos_sys_net_tcp_connect(const cleonos_net_tcp_connect_req *req);
 u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req);
 u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req);
 u64 cleonos_sys_net_tcp_close(u64 poll_budget);
+u64 cleonos_sys_mouse_state(cleonos_mouse_state *out_state);
 
 #endif

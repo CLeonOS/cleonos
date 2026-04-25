@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~106）
+## 4. Syscall 列表（0~107）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -809,6 +809,16 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 返回：关闭成功返回 `1`，失败返回 `0`。
 - 说明：最小关闭流程支持 FIN/ACK 轮询等待，超时会强制回收连接状态。
 
+### 107 `CLEONOS_SYSCALL_MOUSE_STATE`
+
+- 参数：
+- `arg0`: `struct { u64 x; u64 y; u64 buttons; u64 packet_count; u64 ready; } *out_state`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 说明：
+- 读取当前鼠标状态快照，坐标为 framebuffer 像素坐标系（左上角为原点）。
+- `buttons` 位掩码：`bit0=left`、`bit1=right`、`bit2=middle`。
+- `ready=1` 表示鼠标设备已上线；`ready=0` 时坐标/按键可能为默认值。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -844,6 +854,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()`
+- `cleonos_sys_mouse_state()`
 
 ## 6. 开发注意事项
 
@@ -854,7 +865,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..106`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..107`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -872,6 +883,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理，并与 `FS_MKDIR/WRITE/APPEND/REMOVE` 的路径规则联动。
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
+- `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
