@@ -113,8 +113,7 @@ int ush_uwm_create_window(ush_uwm_window *win) {
 int ush_uwm_present_window(const ush_uwm_window *win) {
     cleonos_wm_present_req req;
 
-    if (win == (const ush_uwm_window *)0 || win->alive == 0 || win->id == 0ULL ||
-        win->pixels == (ush_uwm_u32 *)0) {
+    if (win == (const ush_uwm_window *)0 || win->alive == 0 || win->id == 0ULL || win->pixels == (ush_uwm_u32 *)0) {
         return 0;
     }
 
