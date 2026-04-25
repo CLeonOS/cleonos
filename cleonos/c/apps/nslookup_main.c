@@ -194,8 +194,8 @@ static int ush_dns_parse_response(const u8 *resp, u64 resp_len, u16 expected_id)
         }
 
         if (type == 1U && klass == 1U && rdlen == 4U) {
-            u64 ip = ((u64)resp[off] << 24ULL) | ((u64)resp[off + 1ULL] << 16ULL) |
-                     ((u64)resp[off + 2ULL] << 8ULL) | (u64)resp[off + 3ULL];
+            u64 ip = ((u64)resp[off] << 24ULL) | ((u64)resp[off + 1ULL] << 16ULL) | ((u64)resp[off + 2ULL] << 8ULL) |
+                     (u64)resp[off + 3ULL];
             ush_dns_print_ipv4_be(ip);
             (void)putchar('\n');
             found++;
