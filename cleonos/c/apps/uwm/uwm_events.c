@@ -1,10 +1,8 @@
 #include "uwm.h"
 
 static int ush_uwm_hit_close(const ush_uwm_window *win, int x, int y) {
-    return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_CONTROL_W && y >= 0 &&
-            y < USH_UWM_TITLE_H)
-               ? 1
-               : 0;
+    return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_CONTROL_W && y >= 0 && y < USH_UWM_TITLE_H) ? 1
+                                                                                                                  : 0;
 }
 
 static int ush_uwm_hit_minimize(const ush_uwm_window *win, int x, int y) {
@@ -22,8 +20,7 @@ static int ush_uwm_hit_topmost(const ush_uwm_window *win, int x, int y) {
 }
 
 static int ush_uwm_hit_resize(const ush_uwm_window *win, int x, int y) {
-    return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_RESIZE_GRIP &&
-            y >= win->h - USH_UWM_RESIZE_GRIP)
+    return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_RESIZE_GRIP && y >= win->h - USH_UWM_RESIZE_GRIP)
                ? 1
                : 0;
 }
@@ -152,7 +149,8 @@ static void ush_uwm_handle_taskbar_click(ush_uwm_session *sess, int local_x, int
     for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
         ush_uwm_window *app = &sess->windows[i];
 
-        if (local_x >= app_x && local_x < app_x + USH_UWM_TASKBAR_BUTTON_W && local_y >= 5 && local_y < taskbar->h - 5) {
+        if (local_x >= app_x && local_x < app_x + USH_UWM_TASKBAR_BUTTON_W && local_y >= 5 &&
+            local_y < taskbar->h - 5) {
             if (app->alive != 0 && app->minimized == 0 && sess->active_window == i) {
                 ush_uwm_minimize_window(sess, i);
             } else {
