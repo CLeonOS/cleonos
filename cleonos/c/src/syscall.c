@@ -443,3 +443,19 @@ u64 cleonos_sys_net_udp_send(const cleonos_net_udp_send_req *req) {
 u64 cleonos_sys_net_udp_recv(cleonos_net_udp_recv_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_UDP_RECV, (u64)req, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_net_tcp_connect(const cleonos_net_tcp_connect_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_CONNECT, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_SEND, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_RECV, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_tcp_close(u64 poll_budget) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_CLOSE, poll_budget, 0ULL, 0ULL);
+}

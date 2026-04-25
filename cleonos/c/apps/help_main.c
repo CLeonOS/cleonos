@@ -36,6 +36,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  ping <a.b.c.d> [count]");
     ush_writeln("  ifconfig");
     ush_writeln("  nslookup <domain>");
+    ush_writeln("  httpget <http://host[:port]/path>");
     ush_writeln("  pid");
     ush_writeln("  spawn <path|name> [args...] / bg <path|name> [args...]");
     ush_writeln("  wait <pid> / fg [pid]");

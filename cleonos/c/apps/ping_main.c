@@ -1,6 +1,8 @@
 #include "cmd_runtime.h"
 #include <stdio.h>
 
+#define USH_PING_POLL_BUDGET 200000000ULL
+
 static int ush_ping_parse_ipv4_be(const char *text, u64 *out_ipv4_be) {
     u64 acc = 0ULL;
     u64 value = 0ULL;
@@ -111,7 +113,7 @@ static int ush_cmd_ping(const char *arg) {
     (void)putchar('\n');
 
     for (i = 0ULL; i < count; i++) {
-        u64 ok = cleonos_sys_net_ping(target_ipv4_be, 300000ULL);
+        u64 ok = cleonos_sys_net_ping(target_ipv4_be, USH_PING_POLL_BUDGET);
 
         if (ok != 0ULL) {
             (void)fputs("reply from ", 1);
