@@ -93,8 +93,8 @@ static int ush_browser_is_http_url(const char *text) {
         return 0;
     }
 
-    return (text[0] == 'h' && text[1] == 't' && text[2] == 't' && text[3] == 'p' && text[4] == ':' &&
-            text[5] == '/' && text[6] == '/')
+    return (text[0] == 'h' && text[1] == 't' && text[2] == 't' && text[3] == 'p' && text[4] == ':' && text[5] == '/' &&
+            text[6] == '/')
                ? 1
                : 0;
 }
@@ -590,8 +590,8 @@ static int ush_browser_parse_content_length(const char *value, u64 value_len, u6
     return 1;
 }
 
-static int ush_browser_parse_http_headers(const char *raw, u64 raw_len, u64 *out_body_off, int *out_chunked, u64 *out_content_len,
-                                          int *out_has_content_len, int *out_compressed) {
+static int ush_browser_parse_http_headers(const char *raw, u64 raw_len, u64 *out_body_off, int *out_chunked,
+                                          u64 *out_content_len, int *out_has_content_len, int *out_compressed) {
     u64 header_end = 0ULL;
     u64 i;
     u64 off;
@@ -986,7 +986,8 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
                     break;
                 }
                 if (is_chunked != 0) {
-                    int complete = ush_browser_is_chunked_body_complete(ush_browser_http_raw_buf + body_off, raw_len - body_off);
+                    int complete =
+                        ush_browser_is_chunked_body_complete(ush_browser_http_raw_buf + body_off, raw_len - body_off);
                     if (complete < 0) {
                         goto cleanup;
                     }
@@ -1015,8 +1016,8 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
             u64 maybe_body_off = 0ULL;
 
             if (ush_browser_find_http_header_end(ush_browser_http_raw_buf, raw_len, &maybe_body_off) != 0) {
-                if (ush_browser_parse_http_headers(ush_browser_http_raw_buf, raw_len, &body_off, &is_chunked, &content_length,
-                                                   &has_content_length, &is_compressed) == 0) {
+                if (ush_browser_parse_http_headers(ush_browser_http_raw_buf, raw_len, &body_off, &is_chunked,
+                                                   &content_length, &has_content_length, &is_compressed) == 0) {
                     goto cleanup;
                 }
 
@@ -1032,7 +1033,8 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
                 break;
             }
             if (is_chunked != 0) {
-                int complete = ush_browser_is_chunked_body_complete(ush_browser_http_raw_buf + body_off, raw_len - body_off);
+                int complete =
+                    ush_browser_is_chunked_body_complete(ush_browser_http_raw_buf + body_off, raw_len - body_off);
                 if (complete < 0) {
                     goto cleanup;
                 }
@@ -1063,8 +1065,8 @@ static int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_
     }
 
     if (is_chunked != 0) {
-        if (ush_browser_decode_chunked_body(ush_browser_http_raw_buf + body_off, raw_len - body_off, out_html, out_html_cap,
-                                            out_size) == 0) {
+        if (ush_browser_decode_chunked_body(ush_browser_http_raw_buf + body_off, raw_len - body_off, out_html,
+                                            out_html_cap, out_size) == 0) {
             goto cleanup;
         }
     } else {
@@ -1913,7 +1915,8 @@ static void ush_browser_collect_style_text(GumboNode *node, char *out, u64 out_c
     }
 
     if (node->type == GUMBO_NODE_ELEMENT || node->type == GUMBO_NODE_TEMPLATE || node->type == GUMBO_NODE_DOCUMENT) {
-        GumboVector *children = (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
+        GumboVector *children =
+            (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
         u64 i;
 
         for (i = 0ULL; i < (u64)children->length; i++) {
@@ -1940,7 +1943,8 @@ static void ush_browser_css_scan_style_nodes(GumboNode *node) {
     }
 
     if (node->type == GUMBO_NODE_ELEMENT || node->type == GUMBO_NODE_TEMPLATE || node->type == GUMBO_NODE_DOCUMENT) {
-        GumboVector *children = (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
+        GumboVector *children =
+            (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
         u64 i;
 
         for (i = 0ULL; i < (u64)children->length; i++) {
@@ -2183,10 +2187,10 @@ static void ush_browser_collect_anchor_link(GumboNode *node) {
         ush_copy(text, (u64)sizeof(text), "(link)");
     }
 
-    ush_copy(ush_browser_links[ush_browser_link_count].text, (u64)sizeof(ush_browser_links[ush_browser_link_count].text),
-             text);
-    ush_copy(ush_browser_links[ush_browser_link_count].href, (u64)sizeof(ush_browser_links[ush_browser_link_count].href),
-             href->value);
+    ush_copy(ush_browser_links[ush_browser_link_count].text,
+             (u64)sizeof(ush_browser_links[ush_browser_link_count].text), text);
+    ush_copy(ush_browser_links[ush_browser_link_count].href,
+             (u64)sizeof(ush_browser_links[ush_browser_link_count].href), href->value);
     ush_browser_link_count++;
 }
 
@@ -2203,7 +2207,8 @@ static int ush_browser_find_title_node(GumboNode *node, char *out, u64 out_cap) 
     }
 
     if (node->type == GUMBO_NODE_ELEMENT || node->type == GUMBO_NODE_TEMPLATE || node->type == GUMBO_NODE_DOCUMENT) {
-        GumboVector *children = (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
+        GumboVector *children =
+            (node->type == GUMBO_NODE_DOCUMENT) ? &node->v.document.children : &node->v.element.children;
         u64 i;
 
         for (i = 0ULL; i < (u64)children->length; i++) {
@@ -2314,7 +2319,8 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
     }
 }
 
-static int ush_browser_read_file(const ush_state *sh, const char *arg, char *out_html, u64 out_html_cap, u64 *out_size) {
+static int ush_browser_read_file(const ush_state *sh, const char *arg, char *out_html, u64 out_html_cap,
+                                 u64 *out_size) {
     char abs_path[USH_PATH_MAX];
     u64 fd;
     u64 total = 0ULL;
@@ -2431,8 +2437,8 @@ static void ush_browser_print_rendered(const char *source_desc) {
         ush_writeln("");
         ush_writeln("[links]");
         for (k = 0ULL; k < ush_browser_link_count; k++) {
-            (void)printf("  [%llu] " USH_BROWSER_ANSI_BLUE_UNDERLINE "%s" USH_BROWSER_ANSI_RESET " -> "
-                         USH_BROWSER_ANSI_BLUE_UNDERLINE "%s" USH_BROWSER_ANSI_RESET "\n",
+            (void)printf("  [%llu] " USH_BROWSER_ANSI_BLUE_UNDERLINE "%s" USH_BROWSER_ANSI_RESET
+                         " -> " USH_BROWSER_ANSI_BLUE_UNDERLINE "%s" USH_BROWSER_ANSI_RESET "\n",
                          (unsigned long long)(k + 1ULL), ush_browser_links[k].text, ush_browser_links[k].href);
         }
     }
@@ -2443,8 +2449,8 @@ static int ush_browser_is_https_url(const char *text) {
         return 0;
     }
 
-    return (text[0] == 'h' && text[1] == 't' && text[2] == 't' && text[3] == 'p' && text[4] == 's' &&
-            text[5] == ':' && text[6] == '/' && text[7] == '/')
+    return (text[0] == 'h' && text[1] == 't' && text[2] == 't' && text[3] == 'p' && text[4] == 's' && text[5] == ':' &&
+            text[6] == '/' && text[7] == '/')
                ? 1
                : 0;
 }
@@ -2688,8 +2694,8 @@ static int ush_browser_resolve_http_href(const char *base_source, const char *hr
         }
 
         if (base.port == 80U) {
-            if (snprintf(out_source, (unsigned long)out_size, "http://%s%s%s", base.host, base_path_only, href_no_frag) <=
-                0) {
+            if (snprintf(out_source, (unsigned long)out_size, "http://%s%s%s", base.host, base_path_only,
+                         href_no_frag) <= 0) {
                 return 0;
             }
         } else {
@@ -2779,7 +2785,8 @@ static int ush_browser_resolve_href(const char *base_source, const char *href, c
     return ush_browser_resolve_local_href(base_source, href, out_source, out_size);
 }
 
-static int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap, u64 *out_size) {
+static int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap,
+                                   u64 *out_size) {
     if (sh == (const ush_state *)0 || source == (const char *)0 || out_html == (char *)0 || out_size == (u64 *)0) {
         return 0;
     }
@@ -2822,8 +2829,10 @@ static int ush_browser_push_history(char history[][USH_BROWSER_SOURCE_MAX], u64 
     return 1;
 }
 
-static int ush_browser_pop_history(char history[][USH_BROWSER_SOURCE_MAX], u64 *io_count, char *out_source, u64 out_size) {
-    if (history == (char(*)[USH_BROWSER_SOURCE_MAX])0 || io_count == (u64 *)0 || out_source == (char *)0 || out_size == 0ULL) {
+static int ush_browser_pop_history(char history[][USH_BROWSER_SOURCE_MAX], u64 *io_count, char *out_source,
+                                   u64 out_size) {
+    if (history == (char(*)[USH_BROWSER_SOURCE_MAX])0 || io_count == (u64 *)0 || out_source == (char *)0 ||
+        out_size == 0ULL) {
         return 0;
     }
 
@@ -2937,7 +2946,8 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
     }
 
     for (;;) {
-        if (ush_browser_load_source(sh, current_source, ush_browser_html_buf, (u64)sizeof(ush_browser_html_buf), &html_size) == 0) {
+        if (ush_browser_load_source(sh, current_source, ush_browser_html_buf, (u64)sizeof(ush_browser_html_buf),
+                                    &html_size) == 0) {
             if (ush_browser_is_https_url(current_source) != 0) {
                 ush_writeln("browser: https:// is not supported yet");
             } else if (ush_browser_is_http_url(current_source) != 0) {
@@ -2946,7 +2956,8 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
                 ush_writeln("browser: file read failed");
             }
 
-            if (loaded_once == 0 || ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
+            if (loaded_once == 0 ||
+                ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
                 return 0;
             }
             ush_writeln("browser: returned to previous page");
@@ -2955,7 +2966,8 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
 
         if (ush_browser_render_html(ush_browser_html_buf, html_size) == 0) {
             ush_writeln("browser: parse/render failed");
-            if (loaded_once == 0 || ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
+            if (loaded_once == 0 ||
+                ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
                 return 0;
             }
             ush_writeln("browser: returned to previous page");
@@ -2978,7 +2990,8 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
             continue;
         }
 
-        if (ush_streq(input_line, "q") != 0 || ush_streq(input_line, "quit") != 0 || ush_streq(input_line, "exit") != 0) {
+        if (ush_streq(input_line, "q") != 0 || ush_streq(input_line, "quit") != 0 ||
+            ush_streq(input_line, "exit") != 0) {
             return 1;
         }
 
@@ -3004,9 +3017,9 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
         }
 
         ush_zero(next_source, (u64)sizeof(next_source));
-        if ((input_line[0] == 'o' && input_line[1] == ' ') || (input_line[0] == 'o' && input_line[1] == 'p' &&
-                                                                input_line[2] == 'e' && input_line[3] == 'n' &&
-                                                                input_line[4] == ' ')) {
+        if ((input_line[0] == 'o' && input_line[1] == ' ') ||
+            (input_line[0] == 'o' && input_line[1] == 'p' && input_line[2] == 'e' && input_line[3] == 'n' &&
+             input_line[4] == ' ')) {
             const char *payload = (input_line[1] == ' ') ? (input_line + 2) : (input_line + 5);
             while (*payload == ' ') {
                 payload++;
@@ -3035,10 +3048,12 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
             continue;
         }
 
-        if (ush_browser_is_http_url(next_source) == 0 && ush_browser_is_https_url(next_source) == 0 && next_source[0] != '/') {
+        if (ush_browser_is_http_url(next_source) == 0 && ush_browser_is_https_url(next_source) == 0 &&
+            next_source[0] != '/') {
             char resolved_target[USH_BROWSER_SOURCE_MAX];
 
-            if (ush_browser_resolve_href(current_source, next_source, resolved_target, (u64)sizeof(resolved_target)) != 0) {
+            if (ush_browser_resolve_href(current_source, next_source, resolved_target, (u64)sizeof(resolved_target)) !=
+                0) {
                 ush_copy(next_source, (u64)sizeof(next_source), resolved_target);
             } else if (ush_resolve_path(sh, next_source, resolved_target, (u64)sizeof(resolved_target)) != 0) {
                 ush_copy(next_source, (u64)sizeof(next_source), resolved_target);
@@ -3052,7 +3067,6 @@ static int ush_cmd_browser(const ush_state *sh, const char *arg) {
         (void)ush_browser_push_history(history, &history_count, current_source);
         ush_copy(current_source, (u64)sizeof(current_source), next_source);
     }
-
 }
 
 int cleonos_app_main(void) {
