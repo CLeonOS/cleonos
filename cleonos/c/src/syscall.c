@@ -463,3 +463,27 @@ u64 cleonos_sys_net_tcp_close(u64 poll_budget) {
 u64 cleonos_sys_mouse_state(cleonos_mouse_state *out_state) {
     return cleonos_syscall(CLEONOS_SYSCALL_MOUSE_STATE, (u64)out_state, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_wm_create(const cleonos_wm_create_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_CREATE, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_wm_destroy(u64 window_id) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_DESTROY, window_id, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_wm_present(const cleonos_wm_present_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_PRESENT, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_wm_poll_event(u64 window_id, cleonos_wm_event *out_event) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_POLL_EVENT, window_id, (u64)out_event, 0ULL);
+}
+
+u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_MOVE, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_wm_set_focus(u64 window_id) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_SET_FOCUS, window_id, 0ULL, 0ULL);
+}

@@ -58,6 +58,42 @@ typedef struct cleonos_mouse_state {
     u64 ready;
 } cleonos_mouse_state;
 
+#define CLEONOS_WM_EVENT_FOCUS_GAINED 1ULL
+#define CLEONOS_WM_EVENT_FOCUS_LOST 2ULL
+#define CLEONOS_WM_EVENT_KEY 3ULL
+#define CLEONOS_WM_EVENT_MOUSE_MOVE 4ULL
+#define CLEONOS_WM_EVENT_MOUSE_BUTTON 5ULL
+
+typedef struct cleonos_wm_event {
+    u64 type;
+    u64 arg0;
+    u64 arg1;
+    u64 arg2;
+    u64 arg3;
+} cleonos_wm_event;
+
+typedef struct cleonos_wm_create_req {
+    u64 x;
+    u64 y;
+    u64 width;
+    u64 height;
+    u64 flags;
+} cleonos_wm_create_req;
+
+typedef struct cleonos_wm_present_req {
+    u64 window_id;
+    u64 pixels_ptr;
+    u64 src_width;
+    u64 src_height;
+    u64 src_pitch_bytes;
+} cleonos_wm_present_req;
+
+typedef struct cleonos_wm_move_req {
+    u64 window_id;
+    u64 x;
+    u64 y;
+} cleonos_wm_move_req;
+
 typedef struct cleonos_fb_blit_req {
     u64 pixels_ptr;
     u64 src_width;
@@ -211,6 +247,12 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_NET_TCP_RECV 105ULL
 #define CLEONOS_SYSCALL_NET_TCP_CLOSE 106ULL
 #define CLEONOS_SYSCALL_MOUSE_STATE 107ULL
+#define CLEONOS_SYSCALL_WM_CREATE 108ULL
+#define CLEONOS_SYSCALL_WM_DESTROY 109ULL
+#define CLEONOS_SYSCALL_WM_PRESENT 110ULL
+#define CLEONOS_SYSCALL_WM_POLL_EVENT 111ULL
+#define CLEONOS_SYSCALL_WM_MOVE 112ULL
+#define CLEONOS_SYSCALL_WM_SET_FOCUS 113ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -321,5 +363,11 @@ u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req);
 u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req);
 u64 cleonos_sys_net_tcp_close(u64 poll_budget);
 u64 cleonos_sys_mouse_state(cleonos_mouse_state *out_state);
+u64 cleonos_sys_wm_create(const cleonos_wm_create_req *req);
+u64 cleonos_sys_wm_destroy(u64 window_id);
+u64 cleonos_sys_wm_present(const cleonos_wm_present_req *req);
+u64 cleonos_sys_wm_poll_event(u64 window_id, cleonos_wm_event *out_event);
+u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req);
+u64 cleonos_sys_wm_set_focus(u64 window_id);
 
 #endif

@@ -83,7 +83,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~107）
+## 4. Syscall 列表（0~113）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -819,6 +819,58 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `buttons` 位掩码：`bit0=left`、`bit1=right`、`bit2=middle`。
 - `ready=1` 表示鼠标设备已上线；`ready=0` 时坐标/按键可能为默认值。
 
+### 108 `CLEONOS_SYSCALL_WM_CREATE`
+
+- 参数：
+- `arg0`: `const struct { u64 x; u64 y; u64 width; u64 height; u64 flags; } *req`
+- 返回：成功返回非零 `window_id`，失败返回 `0`
+- 说明：
+- 创建一个由内核合成的窗口（当前在 TTY2 桌面合成器上显示）。
+- `x/y` 为有符号坐标（按 `i64` 解释），`width/height` 为像素尺寸。
+
+### 109 `CLEONOS_SYSCALL_WM_DESTROY`
+
+- 参数：
+- `arg0`: `u64 window_id`
+- 返回：成功 `1`，失败 `0`
+- 说明：销毁窗口并回收其事件队列与内核缓冲。
+
+### 110 `CLEONOS_SYSCALL_WM_PRESENT`
+
+- 参数：
+- `arg0`: `const struct { u64 window_id; u64 pixels_ptr; u64 src_width; u64 src_height; u64 src_pitch_bytes; } *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 将用户态 ARGB/RGB32 像素缓冲提交到指定窗口内容区。
+- 当前要求 `src_width/src_height` 与创建窗口时一致。
+
+### 111 `CLEONOS_SYSCALL_WM_POLL_EVENT`
+
+- 参数：
+- `arg0`: `u64 window_id`
+- `arg1`: `struct cleonos_wm_event *out_event`
+- 返回：有事件时返回 `1` 并写入事件；无事件或失败返回 `0`
+- 事件类型：
+- `1` = `FOCUS_GAINED`
+- `2` = `FOCUS_LOST`
+- `3` = `KEY`（`arg0` 为按键值）
+- `4` = `MOUSE_MOVE`（`arg0/arg1` 为全局坐标，`arg2/arg3` 为窗口局部坐标）
+- `5` = `MOUSE_BUTTON`（`arg0` 为按钮状态位掩码，`arg1` 为变化掩码）
+
+### 112 `CLEONOS_SYSCALL_WM_MOVE`
+
+- 参数：
+- `arg0`: `const struct { u64 window_id; u64 x; u64 y; } *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：移动窗口到目标坐标（坐标按 `i64` 解释，内核会进行边界裁剪）。
+
+### 113 `CLEONOS_SYSCALL_WM_SET_FOCUS`
+
+- 参数：
+- `arg0`: `u64 window_id`
+- 返回：成功 `1`，失败 `0`
+- 说明：将目标窗口置为焦点并提升到顶层 z-order。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -855,6 +907,8 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()`
 - `cleonos_sys_mouse_state()`
+- `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
+- `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()`
 
 ## 6. 开发注意事项
 
@@ -865,7 +919,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..107`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..113`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -884,6 +938,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
+- `WM_*`（`108..113`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
