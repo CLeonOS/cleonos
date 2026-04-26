@@ -4,6 +4,8 @@
 #include "../cmd_runtime.h"
 
 #define USH_UWM_APP_COUNT 3U
+#define USH_UWM_TERMINAL_INDEX 1
+#define USH_UWM_TASKMGR_INDEX 2
 #define USH_UWM_TASKBAR_INDEX 3
 #define USH_UWM_START_INDEX 4
 #define USH_UWM_WINDOW_COUNT 5U
@@ -57,6 +59,11 @@ typedef struct ush_uwm_window {
     int minimized;
     int closed;
     int topmost;
+    int maximized;
+    int restore_x;
+    int restore_y;
+    int restore_w;
+    int restore_h;
     int dirty;
     ush_uwm_window_kind kind;
     ush_uwm_u32 accent;
@@ -110,6 +117,7 @@ void ush_uwm_minimize_window(ush_uwm_session *sess, int index);
 void ush_uwm_close_window(ush_uwm_session *sess, int index);
 void ush_uwm_restore_window(ush_uwm_session *sess, int index);
 void ush_uwm_toggle_topmost(ush_uwm_session *sess, int index);
+void ush_uwm_toggle_maximize(ush_uwm_session *sess, int index);
 void ush_uwm_toggle_start(ush_uwm_session *sess);
 void ush_uwm_close_start(ush_uwm_session *sess);
 void ush_uwm_refresh_taskbar(ush_uwm_session *sess);

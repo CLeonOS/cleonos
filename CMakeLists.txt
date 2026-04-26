@@ -41,6 +41,16 @@ set(CLEONOS_QEMU_INPUT_ARGS "")
 if(CLEONOS_QEMU_ENABLE_USB_TABLET)
     list(APPEND CLEONOS_QEMU_INPUT_ARGS -usb -device usb-tablet)
 endif()
+set(CLEONOS_OPT_LEVEL "" CACHE STRING "Optional C/C++ optimization level, e.g. 2 or O2")
+set(CLEONOS_OPT_FLAG "")
+if(NOT "${CLEONOS_OPT_LEVEL}" STREQUAL "")
+    set(_cleonos_opt_level "${CLEONOS_OPT_LEVEL}")
+    string(REGEX REPLACE "^-?O" "" _cleonos_opt_level "${_cleonos_opt_level}")
+    if(NOT _cleonos_opt_level MATCHES "^(0|1|2|3|s|z|g|fast)$")
+        cl_log_error("unsupported CLEONOS_OPT_LEVEL=${CLEONOS_OPT_LEVEL}; use 0/1/2/3/s/z/g/fast or O2-style values")
+    endif()
+    set(CLEONOS_OPT_FLAG "-O${_cleonos_opt_level}")
+endif()
 
 set(CLEONOS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/cleonos")
 if(EXISTS "${CLEONOS_SOURCE_DIR}/CMakeLists.txt")
@@ -168,17 +178,28 @@ set(USER_CFLAGS
     -ffreestanding
     -fno-stack-protector
     -fno-builtin
+    -ffunction-sections
+    -fdata-sections
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=0
     -Wall
     -Wextra
     -Werror
     "-I${CMAKE_SOURCE_DIR}/cleonos/c/include"
 )
+if(NOT "${CLEONOS_OPT_FLAG}" STREQUAL "")
+    list(APPEND USER_CFLAGS "${CLEONOS_OPT_FLAG}")
+endif()
 
 set(USER_CFLAGS_DOOM
     -std=c11
     -ffreestanding
     -fno-stack-protector
     -fno-builtin
+    -ffunction-sections
+    -fdata-sections
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=0
     -Wall
     -Wextra
     -Wno-error
@@ -191,12 +212,19 @@ set(USER_CFLAGS_DOOM
     "-include"
     "${CMAKE_SOURCE_DIR}/cleonos/c/apps/doom/doom_shim.h"
 )
+if(NOT "${CLEONOS_OPT_FLAG}" STREQUAL "")
+    list(APPEND USER_CFLAGS_DOOM "${CLEONOS_OPT_FLAG}")
+endif()
 
 set(USER_CFLAGS_BROWSER
     -std=c11
     -ffreestanding
     -fno-stack-protector
     -fno-builtin
+    -ffunction-sections
+    -fdata-sections
+    -U_FORTIFY_SOURCE
+    -D_FORTIFY_SOURCE=0
     -Wall
     -Wextra
     -Wno-error
@@ -208,11 +236,15 @@ set(USER_CFLAGS_BROWSER
     "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/include"
     "-I${CMAKE_SOURCE_DIR}/cleonos/third-party/litehtml/src/gumbo/include/gumbo"
 )
+if(NOT "${CLEONOS_OPT_FLAG}" STREQUAL "")
+    list(APPEND USER_CFLAGS_BROWSER "${CLEONOS_OPT_FLAG}")
+endif()
 
 set(USER_LDFLAGS
     -nostdlib
     -z
     max-page-size=0x1000
+    --gc-sections
     -T
     "${USER_LINKER_SCRIPT}"
 )
@@ -240,6 +272,7 @@ set(CLKS_SUBMODULE_CMAKE_ARGS
     "-DCLKS_ARCH=${CLKS_ARCH}"
     "-DCLKS_BUILD_ROOT=${BUILD_ROOT}"
     "-DCLKS_MENUCONFIG_CMAKE=${CMAKE_SOURCE_DIR}/configs/menuconfig/config.cmake"
+    "-DCLKS_OPT_LEVEL=${CLEONOS_OPT_LEVEL}"
     "-DCC=${CC}"
     "-DKERNEL_CXX=${KERNEL_CXX}"
     "-DLD=${LD}"

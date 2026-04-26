@@ -26,6 +26,7 @@ long strtol(const char *text, char **out_end, int base);
 unsigned long strtoul(const char *text, char **out_end, int base);
 long long strtoll(const char *text, char **out_end, int base);
 unsigned long long strtoull(const char *text, char **out_end, int base);
+double strtod(const char *text, char **out_end);
 
 void *malloc(size_t size);
 void free(void *ptr);

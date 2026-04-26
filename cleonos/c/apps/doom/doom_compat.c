@@ -13,6 +13,10 @@
 
 #include "../../include/cleonos_syscall.h"
 
+#ifdef putc
+#undef putc
+#endif
+
 #define DG_HEAP_SIZE (32U * 1024U * 1024U)
 #define DG_MAX_MEM_FD 64
 #define DG_PATH_MAX 192
@@ -55,6 +59,8 @@ static struct dg_stream g_dg_stdout_stream = {DG_STDIO_MAGIC, 1, 0, 0};
 static struct dg_stream g_dg_stderr_stream = {DG_STDIO_MAGIC, 2, 0, 0};
 static int g_dg_errno = 0;
 static unsigned short g_dg_ctype_table[384];
+static int32_t g_dg_toupper_table[384];
+static int32_t g_dg_tolower_table[384];
 static int g_dg_ctype_ready = 0;
 
 FILE *stdin = (FILE *)(void *)&g_dg_stdin_stream;
@@ -103,6 +109,13 @@ static void dg_init_ctype_table(void) {
     for (c = -128; c < 256; c++) {
         unsigned short flags = 0U;
         int ch = (c < 0) ? (c + 256) : c;
+        int upper = dg_is_lower(ch) ? (ch - 'a' + 'A') : ch;
+        int lower = dg_is_upper(ch) ? (ch - 'A' + 'a') : ch;
+
+        if (c == -1) {
+            upper = -1;
+            lower = -1;
+        }
 
         if (dg_is_upper(ch) != 0) {
             flags |= _ISupper;
@@ -142,6 +155,8 @@ static void dg_init_ctype_table(void) {
         }
 
         g_dg_ctype_table[c + 128] = flags;
+        g_dg_toupper_table[c + 128] = (int32_t)upper;
+        g_dg_tolower_table[c + 128] = (int32_t)lower;
     }
 
     g_dg_ctype_ready = 1;
@@ -149,6 +164,18 @@ static void dg_init_ctype_table(void) {
 
 const unsigned short int **__ctype_b_loc(void) {
     static const unsigned short int *table_ptr = (const unsigned short int *)(void *)(g_dg_ctype_table + 128);
+    dg_init_ctype_table();
+    return &table_ptr;
+}
+
+const int32_t **__ctype_toupper_loc(void) {
+    static const int32_t *table_ptr = (const int32_t *)(void *)(g_dg_toupper_table + 128);
+    dg_init_ctype_table();
+    return &table_ptr;
+}
+
+const int32_t **__ctype_tolower_loc(void) {
+    static const int32_t *table_ptr = (const int32_t *)(void *)(g_dg_tolower_table + 128);
     dg_init_ctype_table();
     return &table_ptr;
 }
@@ -1178,6 +1205,11 @@ size_t dg_fwrite(const void *buf, size_t size, size_t nmemb, FILE *stream) {
     }
 
     return (size_t)wrote / size;
+}
+
+int putc(int ch, FILE *stream) {
+    unsigned char out = (unsigned char)(ch & 0xFF);
+    return (dg_fwrite(&out, 1U, 1U, stream) == 1U) ? (int)out : EOF;
 }
 
 int dg_fseek(FILE *stream, long offset, int whence) {

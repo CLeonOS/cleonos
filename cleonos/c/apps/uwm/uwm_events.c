@@ -1,9 +1,23 @@
 #include "uwm.h"
 
 #define USH_UWM_FILE_EXPLORER_PATH "/shell/uwm/file_explorer.elf"
+#define USH_UWM_TASKMGR_PATH "/shell/uwm/taskmgr.elf"
+#define USH_UWM_TERMINAL_PATH "/shell/uwm/terminal.elf"
 
 static int ush_uwm_launch_file_explorer(void) {
     u64 pid = cleonos_sys_spawn_pathv(USH_UWM_FILE_EXPLORER_PATH, "", "LAUNCHED_BY=uwm");
+
+    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
+}
+
+static int ush_uwm_launch_terminal(void) {
+    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_TERMINAL_PATH, "", "LAUNCHED_BY=uwm");
+
+    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
+}
+
+static int ush_uwm_launch_taskmgr(void) {
+    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_TASKMGR_PATH, "", "LAUNCHED_BY=uwm");
 
     return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
 }
@@ -15,6 +29,16 @@ static void ush_uwm_launch_or_restore_app(ush_uwm_session *sess, int index) {
 
     if (index == 0) {
         (void)ush_uwm_launch_file_explorer();
+        return;
+    }
+
+    if (index == USH_UWM_TERMINAL_INDEX) {
+        (void)ush_uwm_launch_terminal();
+        return;
+    }
+
+    if (index == USH_UWM_TASKMGR_INDEX) {
+        (void)ush_uwm_launch_taskmgr();
         return;
     }
 
@@ -44,6 +68,72 @@ static int ush_uwm_hit_resize(const ush_uwm_window *win, int x, int y) {
     return (win != (const ush_uwm_window *)0 && x >= win->w - USH_UWM_RESIZE_GRIP && y >= win->h - USH_UWM_RESIZE_GRIP)
                ? 1
                : 0;
+}
+
+static int ush_uwm_point_in_window(const ush_uwm_window *win, int x, int y) {
+    if (win == (const ush_uwm_window *)0 || win->alive == 0 || win->closed != 0 || win->id == 0ULL) {
+        return 0;
+    }
+
+    return (x >= win->x && y >= win->y && x < win->x + win->w && y < win->y + win->h) ? 1 : 0;
+}
+
+static int ush_uwm_hit_session_window_at(const ush_uwm_session *sess, int global_x, int global_y) {
+    int i;
+
+    if (sess == (const ush_uwm_session *)0) {
+        return -1;
+    }
+
+    if (ush_uwm_point_in_window(&sess->windows[USH_UWM_START_INDEX], global_x, global_y) != 0) {
+        return USH_UWM_START_INDEX;
+    }
+
+    for (i = (int)USH_UWM_APP_COUNT - 1; i >= 0; i--) {
+        if (sess->windows[i].topmost != 0 && ush_uwm_point_in_window(&sess->windows[i], global_x, global_y) != 0) {
+            return i;
+        }
+    }
+
+    if (ush_uwm_app_index_valid(sess->active_window) != 0 &&
+        ush_uwm_point_in_window(&sess->windows[sess->active_window], global_x, global_y) != 0) {
+        return sess->active_window;
+    }
+
+    for (i = (int)USH_UWM_APP_COUNT - 1; i >= 0; i--) {
+        if (ush_uwm_point_in_window(&sess->windows[i], global_x, global_y) != 0) {
+            return i;
+        }
+    }
+
+    if (ush_uwm_point_in_window(&sess->windows[USH_UWM_TASKBAR_INDEX], global_x, global_y) != 0) {
+        return USH_UWM_TASKBAR_INDEX;
+    }
+
+    return -1;
+}
+
+static void ush_uwm_repair_mouse_target(ush_uwm_session *sess, int *window_index, int *local_x, int *local_y) {
+    cleonos_mouse_state mouse;
+    int hit;
+
+    if (sess == (ush_uwm_session *)0 || window_index == (int *)0 || local_x == (int *)0 || local_y == (int *)0) {
+        return;
+    }
+
+    ush_zero(&mouse, (u64)sizeof(mouse));
+    if (cleonos_sys_mouse_state(&mouse) == 0ULL || mouse.ready == 0ULL) {
+        return;
+    }
+
+    hit = ush_uwm_hit_session_window_at(sess, ush_uwm_u64_as_i32(mouse.x), ush_uwm_u64_as_i32(mouse.y));
+    if (ush_uwm_window_index_valid(hit) == 0) {
+        return;
+    }
+
+    *window_index = hit;
+    *local_x = ush_uwm_u64_as_i32(mouse.x) - sess->windows[hit].x;
+    *local_y = ush_uwm_u64_as_i32(mouse.y) - sess->windows[hit].y;
 }
 
 static int ush_uwm_taskbar_app_x(const ush_uwm_window *taskbar) {
@@ -87,13 +177,14 @@ static void ush_uwm_handle_key_event(ush_uwm_session *sess, u64 key, int *runnin
         return;
     }
 
-    if (key == (u64)'q' || key == (u64)'Q') {
-        *running = 0;
+    if (key == (u64)'	') {
+        ush_uwm_focus_next(sess);
         return;
     }
 
-    if (key == (u64)'	') {
-        ush_uwm_focus_next(sess);
+    idx = sess->active_window;
+    if (key == (u64)'q' || key == (u64)'Q') {
+        *running = 0;
         return;
     }
 
@@ -102,7 +193,6 @@ static void ush_uwm_handle_key_event(ush_uwm_session *sess, u64 key, int *runnin
         return;
     }
 
-    idx = sess->active_window;
     if (ush_uwm_app_index_valid(idx) == 0 || sess->windows[idx].alive == 0) {
         return;
     }
@@ -119,6 +209,10 @@ static void ush_uwm_handle_key_event(ush_uwm_session *sess, u64 key, int *runnin
 
     if (key == (u64)'t' || key == (u64)'T') {
         ush_uwm_toggle_topmost(sess, idx);
+        return;
+    }
+
+    if (sess->windows[idx].maximized != 0) {
         return;
     }
 
@@ -228,6 +322,14 @@ static void ush_uwm_handle_mouse_button(ush_uwm_session *sess, int window_index,
     left_changed = ((changed & 0x1ULL) != 0ULL) ? 1 : 0;
     left_down = ((buttons & 0x1ULL) != 0ULL) ? 1 : 0;
 
+    if (left_changed != 0 && left_down != 0) {
+        ush_uwm_repair_mouse_target(sess, &window_index, &local_x, &local_y);
+        if (ush_uwm_window_index_valid(window_index) == 0) {
+            return;
+        }
+        win = &sess->windows[window_index];
+    }
+
     if (left_changed == 0) {
         return;
     }
@@ -274,11 +376,15 @@ static void ush_uwm_handle_mouse_button(ush_uwm_session *sess, int window_index,
     }
 
     if (ush_uwm_hit_topmost(win, local_x, local_y) != 0) {
-        ush_uwm_toggle_topmost(sess, window_index);
+        if (window_index == USH_UWM_TERMINAL_INDEX) {
+            ush_uwm_toggle_maximize(sess, window_index);
+        } else {
+            ush_uwm_toggle_topmost(sess, window_index);
+        }
         return;
     }
 
-    if (ush_uwm_hit_resize(win, local_x, local_y) != 0) {
+    if (win->maximized == 0 && ush_uwm_hit_resize(win, local_x, local_y) != 0) {
         sess->resizing = 1;
         sess->resize_window = window_index;
         sess->mouse_packet_seen = 0ULL;
@@ -291,7 +397,7 @@ static void ush_uwm_handle_mouse_button(ush_uwm_session *sess, int window_index,
         return;
     }
 
-    if (local_y >= 0 && local_y < USH_UWM_TITLE_H) {
+    if (win->maximized == 0 && local_y >= 0 && local_y < USH_UWM_TITLE_H) {
         sess->dragging = 1;
         sess->drag_window = window_index;
         sess->mouse_packet_seen = 0ULL;
@@ -312,13 +418,15 @@ static void ush_uwm_handle_mouse_move(ush_uwm_session *sess, int window_index, c
     global_x = ush_uwm_u64_as_i32(event->arg0);
     global_y = ush_uwm_u64_as_i32(event->arg1);
 
-    if (sess->resizing != 0 && sess->resize_window == window_index && ush_uwm_app_index_valid(window_index) != 0) {
+    if (sess->resizing != 0 && sess->resize_window == window_index && ush_uwm_app_index_valid(window_index) != 0 &&
+        sess->windows[window_index].maximized == 0) {
         sess->resize_pending_w = sess->resize_start_w + (global_x - sess->resize_start_x);
         sess->resize_pending_h = sess->resize_start_h + (global_y - sess->resize_start_y);
         return;
     }
 
-    if (sess->dragging != 0 && sess->drag_window == window_index && ush_uwm_app_index_valid(window_index) != 0) {
+    if (sess->dragging != 0 && sess->drag_window == window_index && ush_uwm_app_index_valid(window_index) != 0 &&
+        sess->windows[window_index].maximized == 0) {
         (void)ush_uwm_window_move_clamped(sess, window_index, global_x - sess->drag_offset_x,
                                           global_y - sess->drag_offset_y);
     }
@@ -357,13 +465,15 @@ static int ush_uwm_drive_direct_pointer(ush_uwm_session *sess) {
     global_x = ush_uwm_u64_as_i32(mouse.x);
     global_y = ush_uwm_u64_as_i32(mouse.y);
 
-    if (sess->resizing != 0 && ush_uwm_app_index_valid(sess->resize_window) != 0) {
+    if (sess->resizing != 0 && ush_uwm_app_index_valid(sess->resize_window) != 0 &&
+        sess->windows[sess->resize_window].maximized == 0) {
         sess->resize_pending_w = sess->resize_start_w + (global_x - sess->resize_start_x);
         sess->resize_pending_h = sess->resize_start_h + (global_y - sess->resize_start_y);
         return 1;
     }
 
-    if (sess->dragging != 0 && ush_uwm_app_index_valid(sess->drag_window) != 0) {
+    if (sess->dragging != 0 && ush_uwm_app_index_valid(sess->drag_window) != 0 &&
+        sess->windows[sess->drag_window].maximized == 0) {
         (void)ush_uwm_window_move_clamped(sess, sess->drag_window, global_x - sess->drag_offset_x,
                                           global_y - sess->drag_offset_y);
         return 1;

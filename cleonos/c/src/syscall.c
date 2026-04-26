@@ -495,3 +495,7 @@ u64 cleonos_sys_wm_set_flags(u64 window_id, u64 flags) {
 u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_WM_RESIZE, (u64)req, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_pty_open(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_PTY_OPEN, 0ULL, 0ULL, 0ULL);
+}

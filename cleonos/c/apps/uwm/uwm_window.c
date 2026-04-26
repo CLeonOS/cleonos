@@ -13,6 +13,10 @@
 #define UWM_COLOR_MUTED 0x00666666U
 #define UWM_COLOR_BORDER 0x00D0D0D0U
 
+static int ush_uwm_window_pointer_valid(const ush_uwm_window *win) {
+    return ((u64)(usize)win >= 4096ULL) ? 1 : 0;
+}
+
 static int ush_uwm_work_bottom(const ush_uwm_session *sess) {
     int bottom;
 
@@ -67,8 +71,8 @@ static void ush_uwm_fill_rect(ush_uwm_window *win, int x, int y, int w, int h, u
     int bottom;
     int row;
 
-    if (win == (ush_uwm_window *)0 || win->pixels == (ush_uwm_u32 *)0 || win->w <= 0 || win->h <= 0 || w <= 0 ||
-        h <= 0) {
+    if (ush_uwm_window_pointer_valid(win) == 0 || win->pixels == (ush_uwm_u32 *)0 || win->w <= 0 || win->h <= 0 ||
+        w <= 0 || h <= 0) {
         return;
     }
 
@@ -208,6 +212,46 @@ static u64 ush_uwm_glyph_mask(char ch) {
         return UWM_GLYPH7(14U, 17U, 17U, 15U, 1U, 1U, 14U);
     case '-':
         return UWM_GLYPH7(0U, 0U, 0U, 31U, 0U, 0U, 0U);
+    case '>':
+        return UWM_GLYPH7(16U, 8U, 4U, 2U, 4U, 8U, 16U);
+    case '<':
+        return UWM_GLYPH7(1U, 2U, 4U, 8U, 4U, 2U, 1U);
+    case '$':
+        return UWM_GLYPH7(4U, 15U, 20U, 14U, 5U, 30U, 4U);
+    case '#':
+        return UWM_GLYPH7(10U, 31U, 10U, 10U, 31U, 10U, 10U);
+    case '?':
+        return UWM_GLYPH7(14U, 17U, 1U, 2U, 4U, 0U, 4U);
+    case '!':
+        return UWM_GLYPH7(4U, 4U, 4U, 4U, 4U, 0U, 4U);
+    case ',':
+        return UWM_GLYPH7(0U, 0U, 0U, 0U, 0U, 4U, 8U);
+    case ';':
+        return UWM_GLYPH7(0U, 4U, 4U, 0U, 0U, 4U, 8U);
+    case '*':
+        return UWM_GLYPH7(0U, 21U, 14U, 31U, 14U, 21U, 0U);
+    case '(':
+        return UWM_GLYPH7(2U, 4U, 8U, 8U, 8U, 4U, 2U);
+    case ')':
+        return UWM_GLYPH7(8U, 4U, 2U, 2U, 2U, 4U, 8U);
+    case '[':
+        return UWM_GLYPH7(14U, 8U, 8U, 8U, 8U, 8U, 14U);
+    case ']':
+        return UWM_GLYPH7(14U, 2U, 2U, 2U, 2U, 2U, 14U);
+    case '@':
+        return UWM_GLYPH7(14U, 17U, 23U, 21U, 23U, 16U, 15U);
+    case '%':
+        return UWM_GLYPH7(24U, 25U, 2U, 4U, 8U, 19U, 3U);
+    case '&':
+        return UWM_GLYPH7(12U, 18U, 20U, 8U, 21U, 18U, 13U);
+    case '~':
+        return UWM_GLYPH7(0U, 0U, 8U, 21U, 2U, 0U, 0U);
+    case '\\':
+        return UWM_GLYPH7(16U, 16U, 8U, 4U, 2U, 1U, 1U);
+    case '"':
+        return UWM_GLYPH7(10U, 10U, 10U, 0U, 0U, 0U, 0U);
+    case '\'':
+        return UWM_GLYPH7(4U, 4U, 8U, 0U, 0U, 0U, 0U);
     case '_':
         return UWM_GLYPH7(0U, 0U, 0U, 0U, 0U, 0U, 31U);
     case '.':
@@ -296,6 +340,14 @@ static void ush_uwm_draw_control_button(ush_uwm_window *win, int x, int active, 
         ush_uwm_fill_rect(win, cx - 4, cy - 6, 8, 2, fg);
         ush_uwm_fill_rect(win, cx - 1, cy - 4, 2, 9, fg);
         ush_uwm_fill_rect(win, cx - 6, cy + 4, 12, 2, fg);
+    } else if (kind == 3) {
+        ush_uwm_stroke_rect(win, cx - 6, cy - 6, 12, 12, fg);
+        ush_uwm_fill_rect(win, cx - 6, cy - 6, 12, 2, fg);
+    } else if (kind == 4) {
+        ush_uwm_stroke_rect(win, cx - 4, cy - 7, 10, 10, fg);
+        ush_uwm_fill_rect(win, cx - 4, cy - 7, 10, 2, fg);
+        ush_uwm_stroke_rect(win, cx - 7, cy - 3, 10, 10, fg);
+        ush_uwm_fill_rect(win, cx - 7, cy - 3, 10, 2, fg);
     } else {
         int i;
         for (i = 0; i < 11; i++) {
@@ -305,7 +357,7 @@ static void ush_uwm_draw_control_button(ush_uwm_window *win, int x, int active, 
     }
 }
 
-static void ush_uwm_draw_window_controls(ush_uwm_window *win, int active) {
+static void ush_uwm_draw_window_controls(ush_uwm_window *win, int active, int index) {
     int close_x;
     int pin_x;
     int min_x;
@@ -317,7 +369,11 @@ static void ush_uwm_draw_window_controls(ush_uwm_window *win, int active) {
     close_x = win->w - USH_UWM_CONTROL_W;
     min_x = close_x - USH_UWM_CONTROL_W;
     pin_x = min_x - USH_UWM_CONTROL_W;
-    ush_uwm_draw_control_button(win, pin_x, active, 1);
+    if (index == USH_UWM_TERMINAL_INDEX) {
+        ush_uwm_draw_control_button(win, pin_x, active, (win->maximized != 0) ? 4 : 3);
+    } else {
+        ush_uwm_draw_control_button(win, pin_x, active, 1);
+    }
     ush_uwm_draw_control_button(win, min_x, active, 0);
     ush_uwm_draw_control_button(win, close_x, active, 2);
 }
@@ -358,50 +414,40 @@ static void ush_uwm_render_files(ush_uwm_window *win) {
     ush_uwm_draw_text(win, 118, USH_UWM_TITLE_H + 166, "TEMP", 1, UWM_COLOR_TEXT);
 }
 
-static void ush_uwm_render_editor(ush_uwm_window *win) {
-    int y;
-
-    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H, win->w, 24, 0x00F9F9F9U);
-    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H + 23, win->w, 1, UWM_COLOR_BORDER);
-    ush_uwm_draw_text(win, 12, USH_UWM_TITLE_H + 8, "FILE  EDIT  VIEW  HELP", 1, UWM_COLOR_TEXT);
-    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H + 24, 46, win->h - USH_UWM_TITLE_H - 24, 0x00F0F0F0U);
-    ush_uwm_fill_rect(win, 46, USH_UWM_TITLE_H + 24, 1, win->h - USH_UWM_TITLE_H - 24, 0x00DDDDDDU);
-
-    for (y = 0; y < 7; y++) {
-        char label[4];
-        label[0] = (char)('1' + y);
-        label[1] = 0;
-        ush_uwm_draw_text(win, 18, USH_UWM_TITLE_H + 42 + (y * 18), label, 1, UWM_COLOR_MUTED);
+static void ush_uwm_render_terminal_launcher(ush_uwm_window *win) {
+    if (win == (ush_uwm_window *)0) {
+        return;
     }
 
-    ush_uwm_draw_text(win, 62, USH_UWM_TITLE_H + 42, "CLEONOS UWM REWRITE", 1, UWM_COLOR_TEXT);
-    ush_uwm_draw_text(win, 62, USH_UWM_TITLE_H + 60, "PIXEL RENDERER ONLINE", 1, 0x00008000U);
-    ush_uwm_draw_text(win, 62, USH_UWM_TITLE_H + 78, "WINDOWS 10 STYLE SHELL", 1, UWM_COLOR_TEXT);
-    ush_uwm_draw_text(win, 62, USH_UWM_TITLE_H + 96, "DRAG RESIZE MINIMIZE CLOSE", 1, UWM_COLOR_TEXT);
-    ush_uwm_fill_rect(win, 62, USH_UWM_TITLE_H + 120, 92, 2, UWM_COLOR_WIN_BLUE);
+    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H, win->w, win->h - USH_UWM_TITLE_H, 0x000C0C0CU);
+    ush_uwm_fill_rect(win, 18, USH_UWM_TITLE_H + 22, win->w - 36, win->h - USH_UWM_TITLE_H - 44, 0x00111111U);
+    ush_uwm_stroke_rect(win, 18, USH_UWM_TITLE_H + 22, win->w - 36, win->h - USH_UWM_TITLE_H - 44, 0x00333333U);
+    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 46, "TERMINAL IS A SEPARATE ELF NOW", 1, 0x0086D98AU);
+    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 72, "/SHELL/UWM/TERMINAL.ELF", 1, 0x00DCDCDCU);
+    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 98, "OPEN IT FROM START OR TASKBAR", 1, 0x00808080U);
 }
 
-static void ush_uwm_render_browser(ush_uwm_window *win) {
+static void ush_uwm_render_taskmgr_launcher(ush_uwm_window *win) {
     int card_w;
 
     ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H, win->w, 42, 0x00F7F7F7U);
     ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H + 41, win->w, 1, UWM_COLOR_BORDER);
     ush_uwm_fill_rect(win, 14, USH_UWM_TITLE_H + 10, win->w - 28, 22, UWM_COLOR_WHITE);
     ush_uwm_stroke_rect(win, 14, USH_UWM_TITLE_H + 10, win->w - 28, 22, UWM_COLOR_BORDER);
-    ush_uwm_draw_text_limit(win, 24, USH_UWM_TITLE_H + 17, "HTTP://EXAMPLE.COM", 1, UWM_COLOR_MUTED, win->w - 24);
+    ush_uwm_draw_text_limit(win, 24, USH_UWM_TITLE_H + 17, "/SHELL/UWM/TASKMGR.ELF", 1, UWM_COLOR_MUTED, win->w - 24);
 
-    ush_uwm_draw_text(win, 22, USH_UWM_TITLE_H + 66, "WELCOME TO CLEONOS", 2, UWM_COLOR_TEXT);
-    ush_uwm_draw_text(win, 24, USH_UWM_TITLE_H + 94, "NETWORK AND HTML DEMOS LIVE HERE", 1, UWM_COLOR_MUTED);
+    ush_uwm_draw_text(win, 22, USH_UWM_TITLE_H + 66, "TASK MANAGER", 2, UWM_COLOR_TEXT);
+    ush_uwm_draw_text(win, 24, USH_UWM_TITLE_H + 94, "PROCESS LIST AND END TASK LIVE HERE", 1, UWM_COLOR_MUTED);
     card_w = (win->w - 58) / 2;
     if (card_w < 80) {
         card_w = 80;
     }
     ush_uwm_fill_rect(win, 22, USH_UWM_TITLE_H + 122, card_w, 54, 0x00EAF4FFU);
     ush_uwm_stroke_rect(win, 22, USH_UWM_TITLE_H + 122, card_w, 54, 0x00B7D8F4U);
-    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 142, "HTTPGET", 1, UWM_COLOR_TEXT);
+    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 142, "PROCESSES", 1, UWM_COLOR_TEXT);
     ush_uwm_fill_rect(win, 36 + card_w, USH_UWM_TITLE_H + 122, card_w, 54, 0x00EAF7EAU);
     ush_uwm_stroke_rect(win, 36 + card_w, USH_UWM_TITLE_H + 122, card_w, 54, 0x00B7E0B7U);
-    ush_uwm_draw_text(win, 48 + card_w, USH_UWM_TITLE_H + 142, "NSLOOKUP", 1, UWM_COLOR_TEXT);
+    ush_uwm_draw_text(win, 48 + card_w, USH_UWM_TITLE_H + 142, "END TASK", 1, UWM_COLOR_TEXT);
 }
 
 static void ush_uwm_render_app_window(ush_uwm_session *sess, int index) {
@@ -423,22 +469,24 @@ static void ush_uwm_render_app_window(ush_uwm_session *sess, int index) {
     ush_uwm_fill_rect(win, 0, 0, win->w, USH_UWM_TITLE_H, title_bg);
     ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H, win->w, 1, UWM_COLOR_BORDER);
     ush_uwm_draw_text_limit(win, 12, 12, win->title, 1, title_fg, win->w - (USH_UWM_CONTROL_W * 3) - 8);
-    if (win->topmost != 0) {
+    if (win->topmost != 0 && index != USH_UWM_TERMINAL_INDEX) {
         ush_uwm_draw_text(win, win->w - (USH_UWM_CONTROL_W * 3) - 18, 12, "^", 1, title_fg);
     }
-    ush_uwm_draw_window_controls(win, active);
+    ush_uwm_draw_window_controls(win, active, index);
 
     if (index == 0) {
         ush_uwm_render_files(win);
     } else if (index == 1) {
-        ush_uwm_render_editor(win);
+        ush_uwm_render_terminal_launcher(win);
     } else {
-        ush_uwm_render_browser(win);
+        ush_uwm_render_taskmgr_launcher(win);
     }
 
-    ush_uwm_fill_rect(win, win->w - 14, win->h - 3, 11, 1, UWM_COLOR_MUTED);
-    ush_uwm_fill_rect(win, win->w - 10, win->h - 7, 7, 1, UWM_COLOR_MUTED);
-    ush_uwm_fill_rect(win, win->w - 6, win->h - 11, 3, 1, UWM_COLOR_MUTED);
+    if (win->maximized == 0) {
+        ush_uwm_fill_rect(win, win->w - 14, win->h - 3, 11, 1, UWM_COLOR_MUTED);
+        ush_uwm_fill_rect(win, win->w - 10, win->h - 7, 7, 1, UWM_COLOR_MUTED);
+        ush_uwm_fill_rect(win, win->w - 6, win->h - 11, 3, 1, UWM_COLOR_MUTED);
+    }
 }
 
 static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
@@ -507,7 +555,7 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
 static void ush_uwm_render_start(ush_uwm_session *sess) {
     ush_uwm_window *start;
     int i;
-    const char *labels[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "NOTEPAD", "EDGE"};
+    const char *labels[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER"};
 
     if (sess == (ush_uwm_session *)0) {
         return;
@@ -675,6 +723,7 @@ void ush_uwm_destroy_window(ush_uwm_window *win) {
     win->pixel_count = 0ULL;
     win->minimized = 0;
     win->closed = 1;
+    win->maximized = 0;
     win->dirty = 1;
 }
 
@@ -791,6 +840,135 @@ int ush_uwm_window_resize(ush_uwm_session *sess, int index, int target_w, int ta
     return 1;
 }
 
+static int ush_uwm_window_recreate_geometry(ush_uwm_session *sess, int index, int target_x, int target_y, int target_w,
+                                            int target_h) {
+    ush_uwm_window *win;
+    int max_x;
+    int max_y;
+    int new_x;
+    int new_y;
+    int new_w;
+    int new_h;
+
+    if (sess == (ush_uwm_session *)0 || ush_uwm_app_index_valid(index) == 0) {
+        return 0;
+    }
+
+    win = &sess->windows[index];
+    if (win->closed != 0 || win->minimized != 0) {
+        return 0;
+    }
+
+    new_w = ush_uwm_clampi(target_w, USH_UWM_MIN_WINDOW_W, sess->screen_w);
+    new_h = ush_uwm_clampi(target_h, USH_UWM_MIN_WINDOW_H, ush_uwm_work_bottom(sess) - USH_UWM_TOP_CLAMP_Y);
+    max_x = sess->screen_w - new_w;
+    max_y = ush_uwm_work_bottom(sess) - new_h;
+    if (max_x < 0) {
+        max_x = 0;
+    }
+    if (max_y < USH_UWM_TOP_CLAMP_Y) {
+        max_y = USH_UWM_TOP_CLAMP_Y;
+    }
+
+    new_x = ush_uwm_clampi(target_x, 0, max_x);
+    new_y = ush_uwm_clampi(target_y, USH_UWM_TOP_CLAMP_Y, max_y);
+
+    if (ush_uwm_replace_pixels(win, new_w, new_h) == 0) {
+        return 0;
+    }
+
+    if (win->id != 0ULL || win->alive != 0) {
+        ush_uwm_destroy_kernel_window(win);
+    }
+
+    win->x = new_x;
+    win->y = new_y;
+    win->closed = 0;
+    win->minimized = 0;
+    ush_uwm_render_window(sess, index);
+    if (ush_uwm_create_window(win) == 0) {
+        win->closed = 1;
+        return 0;
+    }
+
+    if (ush_uwm_present_window(win) == 0) {
+        ush_uwm_destroy_kernel_window(win);
+        win->closed = 1;
+        return 0;
+    }
+
+    sess->active_window = index;
+    (void)cleonos_sys_wm_set_focus(win->id);
+    ush_uwm_refresh_taskbar(sess);
+    return 1;
+}
+
+void ush_uwm_toggle_maximize(ush_uwm_session *sess, int index) {
+    ush_uwm_window *win;
+    int target_w;
+    int target_h;
+    int restore_x;
+    int restore_y;
+    int restore_w;
+    int restore_h;
+
+    if (sess == (ush_uwm_session *)0 || index != USH_UWM_TERMINAL_INDEX || ush_uwm_app_index_valid(index) == 0) {
+        return;
+    }
+
+    win = &sess->windows[index];
+    if (win->alive == 0 || win->id == 0ULL || win->closed != 0 || win->minimized != 0) {
+        return;
+    }
+
+    target_w = sess->screen_w;
+    target_h = ush_uwm_work_bottom(sess) - USH_UWM_TOP_CLAMP_Y;
+    if (target_w < USH_UWM_MIN_WINDOW_W) {
+        target_w = USH_UWM_MIN_WINDOW_W;
+    }
+    if (target_h < USH_UWM_MIN_WINDOW_H) {
+        target_h = USH_UWM_MIN_WINDOW_H;
+    }
+
+    if (win->maximized == 0) {
+        win->restore_x = win->x;
+        win->restore_y = win->y;
+        win->restore_w = win->w;
+        win->restore_h = win->h;
+        win->maximized = 1;
+        if (ush_uwm_window_recreate_geometry(sess, index, 0, USH_UWM_TOP_CLAMP_Y, target_w, target_h) == 0) {
+            win->maximized = 0;
+            ush_uwm_refresh_window(sess, index);
+            return;
+        }
+        return;
+    }
+
+    restore_x = win->restore_x;
+    restore_y = win->restore_y;
+    restore_w = win->restore_w;
+    restore_h = win->restore_h;
+    if (restore_w < USH_UWM_MIN_WINDOW_W) {
+        restore_w = USH_UWM_MIN_WINDOW_W;
+    }
+    if (restore_h < USH_UWM_MIN_WINDOW_H) {
+        restore_h = USH_UWM_MIN_WINDOW_H;
+    }
+    if (restore_w > sess->screen_w) {
+        restore_w = sess->screen_w;
+    }
+    if (restore_h > target_h) {
+        restore_h = target_h;
+    }
+
+    win->maximized = 0;
+    if (ush_uwm_window_recreate_geometry(sess, index, restore_x, restore_y, restore_w, restore_h) == 0) {
+        win->maximized = 1;
+        ush_uwm_refresh_window(sess, index);
+        return;
+    }
+}
+
 void ush_uwm_set_active(ush_uwm_session *sess, int index) {
     ush_uwm_window *win;
     int old_active;
@@ -857,13 +1035,24 @@ void ush_uwm_minimize_window(ush_uwm_session *sess, int index) {
 }
 
 void ush_uwm_close_window(ush_uwm_session *sess, int index) {
+    ush_uwm_window *win;
+
     if (sess == (ush_uwm_session *)0 || ush_uwm_app_index_valid(index) == 0) {
         return;
     }
 
-    ush_uwm_destroy_kernel_window(&sess->windows[index]);
-    sess->windows[index].closed = 1;
-    sess->windows[index].minimized = 0;
+    win = &sess->windows[index];
+    ush_uwm_destroy_kernel_window(win);
+    if (win->maximized != 0) {
+        win->x = win->restore_x;
+        win->y = win->restore_y;
+        win->maximized = 0;
+        if (win->restore_w >= USH_UWM_MIN_WINDOW_W && win->restore_h >= USH_UWM_MIN_WINDOW_H) {
+            (void)ush_uwm_replace_pixels(win, win->restore_w, win->restore_h);
+        }
+    }
+    win->closed = 1;
+    win->minimized = 0;
     if (sess->active_window == index) {
         ush_uwm_focus_next(sess);
     }

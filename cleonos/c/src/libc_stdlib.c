@@ -72,6 +72,81 @@ long long atoll(const char *text) {
     return strtoll(text, (char **)0, 10);
 }
 
+double strtod(const char *text, char **out_end) {
+    const char *p = clib_skip_space(text);
+    double value = 0.0;
+    double scale = 1.0;
+    int negative = 0;
+    int any = 0;
+    int exp_negative = 0;
+    int exp_value = 0;
+
+    if (out_end != (char **)0) {
+        *out_end = (char *)text;
+    }
+
+    if (p == (const char *)0) {
+        return 0.0;
+    }
+
+    if (*p == '+' || *p == '-') {
+        negative = (*p == '-') ? 1 : 0;
+        p++;
+    }
+
+    while (isdigit((unsigned char)*p) != 0) {
+        value = (value * 10.0) + (double)(*p - '0');
+        any = 1;
+        p++;
+    }
+
+    if (*p == '.') {
+        p++;
+        while (isdigit((unsigned char)*p) != 0) {
+            scale *= 0.1;
+            value += (double)(*p - '0') * scale;
+            any = 1;
+            p++;
+        }
+    }
+
+    if (any != 0 && (*p == 'e' || *p == 'E')) {
+        const char *exp_start = p;
+
+        p++;
+        if (*p == '+' || *p == '-') {
+            exp_negative = (*p == '-') ? 1 : 0;
+            p++;
+        }
+
+        if (isdigit((unsigned char)*p) == 0) {
+            p = exp_start;
+        } else {
+            while (isdigit((unsigned char)*p) != 0) {
+                if (exp_value < 308) {
+                    exp_value = (exp_value * 10) + (*p - '0');
+                }
+                p++;
+            }
+
+            while (exp_value > 0) {
+                value = (exp_negative != 0) ? (value * 0.1) : (value * 10.0);
+                exp_value--;
+            }
+        }
+    }
+
+    if (any == 0) {
+        return 0.0;
+    }
+
+    if (out_end != (char **)0) {
+        *out_end = (char *)p;
+    }
+
+    return (negative != 0) ? -value : value;
+}
+
 unsigned long strtoul(const char *text, char **out_end, int base) {
     const char *p = clib_skip_space(text);
     int negative = 0;
@@ -241,7 +316,7 @@ unsigned long long strtoull(const char *text, char **out_end, int base) {
 }
 
 #ifndef CLIB_HEAP_CAPACITY
-#define CLIB_HEAP_CAPACITY (2U * 1024U * 1024U)
+#define CLIB_HEAP_CAPACITY (256U * 1024U)
 #endif
 #define CLIB_HEAP_ALIGN 8U
 

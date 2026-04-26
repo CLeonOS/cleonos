@@ -176,7 +176,7 @@ set(USER_SHELL_COMMAND_APPS
     diskinfo mkfsfat32 mount partctl
     shutdown restart exit clear ansi ansitest wavplay fastfetch memstat fsstat taskstat userstat
     shstat stats tty dmesg kbdstat mkdir touch write append cp mv rm kdbg bmpview qrcode browser
-    vim uwm
+    vim uwm terminal
 )
 
 foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
@@ -280,7 +280,7 @@ foreach(SRC IN LISTS USER_APP_MAIN_SOURCES)
     )
 
     list(APPEND USER_APP_OUTPUTS "${_app_out}")
-    if(_app_name STREQUAL "file_explorer")
+    if(_app_name STREQUAL "file_explorer" OR _app_name STREQUAL "terminal" OR _app_name STREQUAL "taskmgr")
         list(APPEND RAMDISK_UWM_APPS "${_app_out}")
     elseif(_app_name MATCHES ".*drv$")
         list(APPEND RAMDISK_DRIVER_APPS "${_app_out}")

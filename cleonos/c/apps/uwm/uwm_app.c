@@ -82,6 +82,11 @@ static void ush_uwm_init_window(ush_uwm_window *win, ush_uwm_window_kind kind, c
     win->minimized = 0;
     win->closed = closed;
     win->topmost = topmost;
+    win->maximized = 0;
+    win->restore_x = x;
+    win->restore_y = y;
+    win->restore_w = w;
+    win->restore_h = h;
     win->dirty = 1;
     win->kind = kind;
     win->accent = accent;
@@ -128,10 +133,10 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
     int start_h;
     int app_gap;
     int i;
-    const char *titles[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "NOTEPAD", "EDGE"};
-    const char *subtitles[USH_UWM_APP_COUNT] = {"LOCAL DISK AND SYSTEM FILES", "EDIT TEXT INSIDE CLEONOS",
-                                                "WEB PREVIEW AND HTTP TOOLS"};
-    const ush_uwm_u32 accents[USH_UWM_APP_COUNT] = {0x000078D7U, 0x0000A300U, 0x00007ACCU};
+    const char *titles[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER"};
+    const char *subtitles[USH_UWM_APP_COUNT] = {"LOCAL DISK AND SYSTEM FILES", "DESKTOP TERMINAL APP",
+                                                "PROCESS MONITOR AND END TASK"};
+    const ush_uwm_u32 accents[USH_UWM_APP_COUNT] = {0x000078D7U, 0x0000A300U, 0x000078D7U};
 
     if (sess == (ush_uwm_session *)0) {
         return 0;

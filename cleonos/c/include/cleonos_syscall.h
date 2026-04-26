@@ -263,6 +263,7 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_WM_SET_FOCUS 113ULL
 #define CLEONOS_SYSCALL_WM_SET_FLAGS 114ULL
 #define CLEONOS_SYSCALL_WM_RESIZE 115ULL
+#define CLEONOS_SYSCALL_PTY_OPEN 116ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -381,5 +382,6 @@ u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req);
 u64 cleonos_sys_wm_set_focus(u64 window_id);
 u64 cleonos_sys_wm_set_flags(u64 window_id, u64 flags);
 u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req);
+u64 cleonos_sys_pty_open(void);
 
 #endif
