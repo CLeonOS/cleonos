@@ -15,7 +15,8 @@ typedef unsigned int tm_u32;
 #define TM_HEADER_H 26
 #define TM_STATUS_H 28
 #define TM_ROW_H 24
-#define TM_CLOSE_W 46
+#define TM_CONTROL_W 46
+#define TM_CLOSE_W TM_CONTROL_W
 #define TM_MAX_ROWS 96U
 #define TM_EVENT_BUDGET 96ULL
 #define TM_REFRESH_TICKS 45ULL
@@ -30,6 +31,7 @@ typedef unsigned int tm_u32;
 #define TM_COLOR_PANEL 0x00FFFFFFU
 #define TM_COLOR_TITLE 0x000078D7U
 #define TM_COLOR_CLOSE 0x00E81123U
+#define TM_COLOR_TITLE_INACTIVE 0x00F3F3F3U
 #define TM_COLOR_TEXT 0x00232323U
 #define TM_COLOR_MUTED 0x00666666U
 #define TM_COLOR_BORDER 0x00D0D0D0U
@@ -38,6 +40,8 @@ typedef unsigned int tm_u32;
 #define TM_COLOR_SELECT_BORDER 0x0078BDE8U
 #define TM_COLOR_BUTTON 0x00E7E7E7U
 #define TM_COLOR_BUTTON_HOT 0x00D8EBFAU
+#define TM_COLOR_CONTROL_INACTIVE 0x00E5E5E5U
+#define TM_COLOR_CONTROL_ACTIVE 0x001A5EA0U
 #define TM_COLOR_WARN 0x00FFF4CEU
 #define TM_COLOR_BAD 0x00FDE7E9U
 #define TM_COLOR_GOOD 0x00DFF6DDU
@@ -57,6 +61,7 @@ typedef struct tm_app {
     u64 old_tty;
     int tty_switched;
     int running;
+    int focused;
     int dragging;
     int drag_dx;
     int drag_dy;
@@ -408,6 +413,27 @@ static void tm_draw_button(int canvas_w, int canvas_h, int x, int y, int w, int 
     tm_draw_text_limit(canvas_w, canvas_h, x + 10, y + ((h - 7) / 2), label, 1, TM_COLOR_TEXT, x + w - 6);
 }
 
+static void tm_draw_control_button(int canvas_w, int canvas_h, int x, int active, int kind) {
+    tm_u32 bg = (kind == 2) ? TM_COLOR_CLOSE : (active != 0 ? TM_COLOR_CONTROL_ACTIVE : TM_COLOR_CONTROL_INACTIVE);
+    tm_u32 fg = (kind == 2 || active != 0) ? TM_COLOR_WHITE : TM_COLOR_TEXT;
+    int cy = TM_TITLE_H / 2;
+    int cx = x + (TM_CONTROL_W / 2);
+
+    tm_fill_rect(canvas_w, canvas_h, x, 0, TM_CONTROL_W, TM_TITLE_H, bg);
+    if (kind == 0) {
+        tm_fill_rect(canvas_w, canvas_h, cx - 6, cy + 4, 12, 1, fg);
+    } else if (kind == 1) {
+        tm_stroke_rect(canvas_w, canvas_h, cx - 6, cy - 6, 12, 12, fg);
+        tm_fill_rect(canvas_w, canvas_h, cx - 6, cy - 6, 12, 2, fg);
+    } else {
+        int i;
+        for (i = 0; i < 11; i++) {
+            tm_fill_rect(canvas_w, canvas_h, cx - 5 + i, cy - 5 + i, 1, 1, fg);
+            tm_fill_rect(canvas_w, canvas_h, cx + 5 - i, cy - 5 + i, 1, 1, fg);
+        }
+    }
+}
+
 static int tm_visible_rows(const tm_app *app) {
     int list_top;
     int list_bottom;
@@ -552,17 +578,22 @@ static int tm_present(const tm_app *app) {
 }
 
 static void tm_draw_titlebar(const tm_app *app) {
-    int close_x;
+    tm_u32 title_bg;
+    tm_u32 title_fg;
 
     if (app == (const tm_app *)0) {
         return;
     }
 
-    close_x = app->w - TM_CLOSE_W;
-    tm_fill_rect(app->w, app->h, 0, 0, app->w, TM_TITLE_H, TM_COLOR_TITLE);
-    tm_draw_text(app->w, app->h, 14, 12, "TASK MANAGER", 1, TM_COLOR_WHITE);
-    tm_fill_rect(app->w, app->h, close_x, 0, TM_CLOSE_W, TM_TITLE_H, TM_COLOR_CLOSE);
-    tm_draw_text(app->w, app->h, close_x + 18, 12, "X", 1, TM_COLOR_WHITE);
+    title_bg = (app->focused != 0) ? TM_COLOR_TITLE : TM_COLOR_TITLE_INACTIVE;
+    title_fg = (app->focused != 0) ? TM_COLOR_WHITE : TM_COLOR_TEXT;
+    tm_fill_rect(app->w, app->h, 0, 0, app->w, TM_TITLE_H, title_bg);
+    tm_fill_rect(app->w, app->h, 0, TM_TITLE_H, app->w, 1, TM_COLOR_BORDER);
+    tm_stroke_rect(app->w, app->h, 0, 0, app->w, app->h, TM_COLOR_BORDER);
+    tm_draw_text_limit(app->w, app->h, 14, 12, "TASK MANAGER", 1, title_fg, app->w - (TM_CONTROL_W * 3) - 8);
+    tm_draw_control_button(app->w, app->h, app->w - (TM_CONTROL_W * 3), app->focused, 0);
+    tm_draw_control_button(app->w, app->h, app->w - (TM_CONTROL_W * 2), app->focused, 1);
+    tm_draw_control_button(app->w, app->h, app->w - TM_CONTROL_W, app->focused, 2);
 }
 
 static void tm_draw_toolbar(const tm_app *app) {
@@ -792,7 +823,7 @@ static int tm_hit_close(const tm_app *app, int local_x, int local_y) {
     if (app == (const tm_app *)0) {
         return 0;
     }
-    return (local_x >= app->w - TM_CLOSE_W && local_x < app->w && local_y >= 0 && local_y < TM_TITLE_H) ? 1 : 0;
+    return (local_x >= app->w - TM_CONTROL_W && local_x < app->w && local_y >= 0 && local_y < TM_TITLE_H) ? 1 : 0;
 }
 
 static int tm_hit_rect(int local_x, int local_y, int x, int y, int w, int h) {
@@ -898,6 +929,19 @@ static void tm_handle_event(tm_app *app, const cleonos_wm_event *event) {
         return;
     }
 
+    if (event->type == CLEONOS_WM_EVENT_FOCUS_GAINED) {
+        app->focused = 1;
+        tm_render(app);
+        return;
+    }
+
+    if (event->type == CLEONOS_WM_EVENT_FOCUS_LOST) {
+        app->focused = 0;
+        app->dragging = 0;
+        tm_render(app);
+        return;
+    }
+
     if (event->type == CLEONOS_WM_EVENT_KEY) {
         tm_handle_key(app, event->arg0);
         return;
@@ -923,6 +967,9 @@ static void tm_handle_event(tm_app *app, const cleonos_wm_event *event) {
             return;
         }
         if (local_y >= 0 && local_y < TM_TITLE_H) {
+            if (local_x >= app->w - (TM_CONTROL_W * 3)) {
+                return;
+            }
             app->dragging = 1;
             app->drag_dx = local_x;
             app->drag_dy = local_y;
@@ -1039,6 +1086,9 @@ static int tm_create_window(tm_app *app) {
     req.height = (u64)(unsigned int)app->h;
     req.flags = 0ULL;
     app->window_id = cleonos_sys_wm_create(&req);
+    if (app->window_id != 0ULL) {
+        app->focused = 1;
+    }
     return (app->window_id != 0ULL) ? 1 : 0;
 }
 

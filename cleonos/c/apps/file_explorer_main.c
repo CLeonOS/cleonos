@@ -20,7 +20,8 @@ typedef unsigned int fx_u32;
 #define FX_ROW_H 24
 #define FX_HEADER_H 24
 #define FX_PREVIEW_H 104
-#define FX_CLOSE_W 44
+#define FX_CONTROL_W 46
+#define FX_CLOSE_W FX_CONTROL_W
 #define FX_MIN_W 420
 #define FX_MIN_H 360
 #define FX_DEFAULT_W 760
@@ -44,6 +45,8 @@ typedef unsigned int fx_u32;
 #define FX_COLOR_SELECT 0x00CDE8FFU
 #define FX_COLOR_BUTTON 0x00E7E7E7U
 #define FX_COLOR_BUTTON_HOT 0x00D8EBFAU
+#define FX_COLOR_CONTROL_INACTIVE 0x00E5E5E5U
+#define FX_COLOR_CONTROL_ACTIVE 0x001A5EA0U
 
 #define FX_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                          \
     (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
@@ -67,6 +70,7 @@ typedef struct fx_app {
     fx_u32 *pixels;
     u64 pixel_count;
     int running;
+    int focused;
     int dragging;
     int drag_dx;
     int drag_dy;
@@ -638,6 +642,27 @@ static void fx_draw_button(fx_app *app, int x, int y, int w, int h, const char *
     fx_draw_text_limit(app, x + 10, y + ((h - 7) / 2), label, 1, FX_COLOR_TEXT, x + w - 8);
 }
 
+static void fx_draw_control_button(fx_app *app, int x, int active, int kind) {
+    fx_u32 bg = (kind == 2) ? FX_COLOR_CLOSE : (active != 0 ? FX_COLOR_CONTROL_ACTIVE : FX_COLOR_CONTROL_INACTIVE);
+    fx_u32 fg = (kind == 2 || active != 0) ? FX_COLOR_WHITE : FX_COLOR_TEXT;
+    int cy = FX_TITLE_H / 2;
+    int cx = x + (FX_CONTROL_W / 2);
+
+    fx_fill_rect(app, x, 0, FX_CONTROL_W, FX_TITLE_H, bg);
+    if (kind == 0) {
+        fx_fill_rect(app, cx - 6, cy + 4, 12, 1, fg);
+    } else if (kind == 1) {
+        fx_stroke_rect(app, cx - 6, cy - 6, 12, 12, fg);
+        fx_fill_rect(app, cx - 6, cy - 6, 12, 2, fg);
+    } else {
+        int i;
+        for (i = 0; i < 11; i++) {
+            fx_fill_rect(app, cx - 5 + i, cy - 5 + i, 1, 1, fg);
+            fx_fill_rect(app, cx + 5 - i, cy - 5 + i, 1, 1, fg);
+        }
+    }
+}
+
 static void fx_draw_preview(fx_app *app, int y, int h) {
     int line = 0;
     int cursor_y;
@@ -701,15 +726,21 @@ static void fx_render(fx_app *app) {
     int list_bottom = preview_y;
     int rows;
     int i;
+    fx_u32 title_bg;
+    fx_u32 title_fg;
     const char *quick_names[] = {"ROOT", "SYSTEM", "SHELL", "UWM", "TEMP", "DRIVER", "DEV"};
     const char *quick_paths[] = {"/", "/system", "/shell", "/shell/uwm", "/temp", "/driver", "/dev"};
 
+    title_bg = (app->focused != 0) ? FX_COLOR_WIN_BLUE : FX_COLOR_TITLE_INACTIVE;
+    title_fg = (app->focused != 0) ? FX_COLOR_WHITE : FX_COLOR_TEXT;
     fx_fill_rect(app, 0, 0, app->w, app->h, FX_COLOR_BG);
-    fx_fill_rect(app, 0, 0, app->w, FX_TITLE_H, FX_COLOR_WIN_BLUE);
-    fx_draw_text(app, 12, 12, "FILE EXPLORER", 1, FX_COLOR_WHITE);
-    fx_fill_rect(app, app->w - FX_CLOSE_W, 0, FX_CLOSE_W, FX_TITLE_H, FX_COLOR_CLOSE);
-    fx_fill_rect(app, app->w - 28, 14, 14, 2, FX_COLOR_WHITE);
-    fx_fill_rect(app, app->w - 22, 9, 2, 12, FX_COLOR_WHITE);
+    fx_fill_rect(app, 0, 0, app->w, FX_TITLE_H, title_bg);
+    fx_fill_rect(app, 0, FX_TITLE_H, app->w, 1, FX_COLOR_BORDER);
+    fx_stroke_rect(app, 0, 0, app->w, app->h, FX_COLOR_BORDER);
+    fx_draw_text_limit(app, 12, 12, "FILE EXPLORER", 1, title_fg, app->w - (FX_CONTROL_W * 3) - 8);
+    fx_draw_control_button(app, app->w - (FX_CONTROL_W * 3), app->focused, 0);
+    fx_draw_control_button(app, app->w - (FX_CONTROL_W * 2), app->focused, 1);
+    fx_draw_control_button(app, app->w - FX_CONTROL_W, app->focused, 2);
 
     fx_fill_rect(app, 0, FX_TITLE_H, app->w, FX_TOOLBAR_H, FX_COLOR_PANEL);
     fx_fill_rect(app, 0, FX_TITLE_H + FX_TOOLBAR_H - 1, app->w, 1, FX_COLOR_BORDER);
@@ -904,8 +935,11 @@ static void fx_handle_mouse_button(fx_app *app, const cleonos_wm_event *event) {
         return;
     }
     if (local_y >= 0 && local_y < FX_TITLE_H) {
-        if (local_x >= app->w - FX_CLOSE_W) {
+        if (local_x >= app->w - FX_CONTROL_W) {
             app->running = 0;
+            return;
+        }
+        if (local_x >= app->w - (FX_CONTROL_W * 3)) {
             return;
         }
         app->dragging = 1;
@@ -979,7 +1013,12 @@ static void fx_loop(fx_app *app) {
             }
             handled = 1;
             dirty = 1;
-            if (event.type == CLEONOS_WM_EVENT_KEY) {
+            if (event.type == CLEONOS_WM_EVENT_FOCUS_GAINED) {
+                app->focused = 1;
+            } else if (event.type == CLEONOS_WM_EVENT_FOCUS_LOST) {
+                app->focused = 0;
+                app->dragging = 0;
+            } else if (event.type == CLEONOS_WM_EVENT_KEY) {
                 fx_handle_key(app, event.arg0);
             } else if (event.type == CLEONOS_WM_EVENT_MOUSE_BUTTON) {
                 fx_handle_mouse_button(app, &event);
@@ -1065,6 +1104,7 @@ static int fx_init_window(fx_app *app) {
         return 0;
     }
     (void)cleonos_sys_wm_set_focus(app->window_id);
+    app->focused = 1;
     return 1;
 }
 

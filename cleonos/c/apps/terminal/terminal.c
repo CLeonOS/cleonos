@@ -26,6 +26,8 @@
 #define TERM_COLOR_TEXT 0x00232323U
 #define TERM_COLOR_MUTED 0x00666666U
 #define TERM_COLOR_BORDER 0x00D0D0D0U
+#define TERM_COLOR_CONTROL_INACTIVE 0x00E5E5E5U
+#define TERM_COLOR_CONTROL_ACTIVE 0x001A5EA0U
 #define TERM_COLOR_BG 0x000C0C0CU
 #define TERM_COLOR_BAR 0x00111111U
 #define TERM_COLOR_DEFAULT 0x00DCDCDCU
@@ -331,7 +333,7 @@ static void term_draw_text(term_app *app, int x, int y, const char *text, int sc
 }
 
 static void term_draw_control_button(term_app *app, int x, int active, int kind) {
-    term_u32 bg = (kind == 2) ? TERM_COLOR_CLOSE : (active != 0 ? 0x001A5EA0U : 0x00E5E5E5U);
+    term_u32 bg = (kind == 2) ? TERM_COLOR_CLOSE : (active != 0 ? TERM_COLOR_CONTROL_ACTIVE : TERM_COLOR_CONTROL_INACTIVE);
     term_u32 fg = (kind == 2 || active != 0) ? TERM_COLOR_WHITE : TERM_COLOR_TEXT;
     int cy = TERM_TITLE_H / 2;
     int cx = x + (TERM_CONTROL_W / 2);
@@ -651,6 +653,7 @@ static void term_render(term_app *app) {
     term_fill_rect(app, 0, 0, app->w, app->h, TERM_COLOR_BG);
     term_fill_rect(app, 0, 0, app->w, TERM_TITLE_H, title_bg);
     term_fill_rect(app, 0, TERM_TITLE_H, app->w, 1, TERM_COLOR_BORDER);
+    term_stroke_rect(app, 0, 0, app->w, app->h, TERM_COLOR_BORDER);
     term_draw_text_limit(app, 12, 12, "TERMINAL", 1, title_fg, app->w - (TERM_CONTROL_W * 3) - 8);
     term_draw_control_button(app, app->w - (TERM_CONTROL_W * 3), app->focused, 0);
     term_draw_control_button(app, app->w - (TERM_CONTROL_W * 2), app->focused, app->maximized != 0 ? 3 : 1);
