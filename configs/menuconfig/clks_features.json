@@ -29,6 +29,78 @@
       "depends_on": "CLEONOS_CLKS_ENABLE_MOUSE"
     },
     {
+      "key": "CLEONOS_CLKS_ENABLE_WM_MULTI_RECT_DAMAGE",
+      "title": "WM Multi-Rect Damage",
+      "title_zh": "WM 多脏矩形",
+      "description": "Track several dirty rectangles instead of collapsing every frame into one large region.",
+      "description_zh": "跟踪多个脏矩形，避免每帧都合并成一个大区域。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_WM_LAYER_CACHE",
+      "title": "WM Scene Layer Cache",
+      "title_zh": "WM 场景层缓存",
+      "description": "Keep a cached scene layer so unchanged background/window pixels do not need full redraw.",
+      "description_zh": "保留场景层缓存，避免未变化的背景/窗口像素重复重绘。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_WM_FRAME_PACING",
+      "title": "WM Frame Pacing",
+      "title_zh": "WM 帧率限制",
+      "description": "Limit compositor flush rate using timer/TSC pacing to reduce tearing and jitter.",
+      "description_zh": "使用 timer/TSC 控制合成器刷新率，减少撕裂和抖动。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_WM_STATS_OVERLAY",
+      "title": "WM FPS/MS Overlay",
+      "title_zh": "WM FPS/MS 叠加层",
+      "description": "Draw the compositor FPS/MS box in the bottom-right corner.",
+      "description_zh": "在右下角绘制合成器 FPS/MS 统计框。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_WM_INPUT_DISPATCH",
+      "title": "WM Input Dispatch",
+      "title_zh": "WM 输入事件分发",
+      "description": "Dispatch mouse and keyboard events to focused kernel windows.",
+      "description_zh": "将鼠标和键盘事件分发给获得焦点的内核窗口。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP && CLEONOS_CLKS_ENABLE_MOUSE && CLEONOS_CLKS_ENABLE_KEYBOARD",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_WM_REAP_DEAD_OWNERS",
+      "title": "WM Dead Owner Cleanup",
+      "title_zh": "WM 死进程窗口回收",
+      "description": "Automatically destroy windows owned by exited processes.",
+      "description_zh": "自动销毁已退出进程拥有的窗口。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_DESKTOP",
+      "group": "Window Manager",
+      "group_zh": "窗口管理器"
+    },
+    {
       "key": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER",
       "title": "Driver Manager",
       "title_zh": "驱动管理器",
@@ -237,6 +309,28 @@
       "description_zh": "将 EXEC run/return/path 日志输出到串口。",
       "type": "tristate",
       "default": "y"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_EXEC_CONTEXT_SWITCH_LOG",
+      "title": "EXEC Context Switch Logs",
+      "title_zh": "EXEC 上下文切换日志",
+      "description": "Print cooperative EXEC suspend/resume logs such as EXEC RUN RESUME and RUN SUSPENDED.",
+      "description_zh": "输出协作式 EXEC 挂起/恢复日志，例如 EXEC RUN RESUME 和 RUN SUSPENDED。",
+      "type": "bool",
+      "default": false,
+      "group": "Logging Controls",
+      "group_zh": "日志控制"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_NET_DHCP_CLIENT",
+      "title": "Network DHCP Client",
+      "title_zh": "网络 DHCP 客户端",
+      "description": "Use DHCP to auto-configure IPv4/netmask/gateway/DNS; disable to use fallback QEMU-style static config.",
+      "description_zh": "使用 DHCP 自动配置 IPv4/掩码/网关/DNS；关闭后使用 QEMU 风格 fallback 静态配置。",
+      "type": "bool",
+      "default": true,
+      "group": "Networking",
+      "group_zh": "网络"
     },
     {
       "key": "CLEONOS_CLKS_ENABLE_SYSCALL_SERIAL_LOG",

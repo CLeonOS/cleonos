@@ -89,9 +89,12 @@ typedef struct ush_uwm_session {
     int resize_pending_h;
     int start_open;
     u64 mouse_packet_seen;
+    u64 app_registry_last_tick;
     u64 tty_before;
     int tty_switched;
     char last_error[96];
+    u64 app_pids[USH_UWM_APP_COUNT];
+    u64 app_states[USH_UWM_APP_COUNT];
     ush_uwm_window windows[USH_UWM_WINDOW_COUNT];
 } ush_uwm_session;
 
@@ -100,6 +103,8 @@ int ush_uwm_app_index_valid(int index);
 int ush_uwm_clampi(int value, int min_value, int max_value);
 int ush_uwm_u64_as_i32(u64 raw);
 void ush_uwm_drain_startup_keys(void);
+int ush_uwm_app_registry_running(ush_uwm_session *sess, int index);
+int ush_uwm_refresh_app_registry(ush_uwm_session *sess);
 
 int ush_uwm_alloc_pixels(ush_uwm_window *win);
 int ush_uwm_replace_pixels(ush_uwm_window *win, int width, int height);

@@ -66,6 +66,7 @@ typedef struct tm_app {
     u64 selected_pid;
     u64 total_mem;
     u64 proc_count_raw;
+    u64 window_count_raw;
     u64 last_refresh_tick;
     cleonos_proc_snapshot rows[TM_MAX_ROWS];
     u64 row_count;
@@ -440,7 +441,9 @@ static void tm_build_summary_status(tm_app *app) {
     tm_append_u64_dec(app->status, (u64)sizeof(app->status), app->proc_count_raw);
     tm_append(app->status, (u64)sizeof(app->status), " | ACTIVE MEM ");
     tm_append_u64_dec(app->status, (u64)sizeof(app->status), app->total_mem / 1024ULL);
-    tm_append(app->status, (u64)sizeof(app->status), " KB | R REFRESH A ALL DEL END TASK");
+    tm_append(app->status, (u64)sizeof(app->status), " KB | WINDOWS ");
+    tm_append_u64_dec(app->status, (u64)sizeof(app->status), app->window_count_raw);
+    tm_append(app->status, (u64)sizeof(app->status), " | R REFRESH A ALL DEL END TASK");
 }
 
 static void tm_clamp_selection(tm_app *app) {
@@ -494,6 +497,7 @@ static void tm_reload(tm_app *app) {
     app->total_mem = 0ULL;
     proc_count = cleonos_sys_proc_count();
     app->proc_count_raw = proc_count;
+    app->window_count_raw = cleonos_sys_wm_count();
 
     for (i = 0ULL; i < proc_count && app->row_count < (u64)TM_MAX_ROWS; i++) {
         u64 pid = 0ULL;
@@ -593,8 +597,37 @@ static void tm_draw_header(const tm_app *app) {
     tm_draw_text(app->w, app->h, 18, y + 9, "PID", 1, TM_COLOR_MUTED);
     tm_draw_text(app->w, app->h, 82, y + 9, "STATE", 1, TM_COLOR_MUTED);
     tm_draw_text(app->w, app->h, 172, y + 9, "MEM KB", 1, TM_COLOR_MUTED);
-    tm_draw_text(app->w, app->h, 260, y + 9, "TICKS", 1, TM_COLOR_MUTED);
-    tm_draw_text(app->w, app->h, 350, y + 9, "IMAGE", 1, TM_COLOR_MUTED);
+    tm_draw_text(app->w, app->h, 248, y + 9, "TICKS", 1, TM_COLOR_MUTED);
+    tm_draw_text(app->w, app->h, 330, y + 9, "WIN", 1, TM_COLOR_MUTED);
+    tm_draw_text(app->w, app->h, 382, y + 9, "IMAGE", 1, TM_COLOR_MUTED);
+}
+
+static u64 tm_window_count_for_pid(u64 pid) {
+    u64 count = cleonos_sys_wm_count();
+    u64 i;
+    u64 owned = 0ULL;
+
+    if (pid == 0ULL) {
+        return 0ULL;
+    }
+
+    for (i = 0ULL; i < count; i++) {
+        u64 window_id = 0ULL;
+        cleonos_wm_snapshot snap;
+
+        tm_zero(&snap, (u64)sizeof(snap));
+        if (cleonos_sys_wm_id_at(i, &window_id) == 0ULL || window_id == 0ULL) {
+            continue;
+        }
+        if (cleonos_sys_wm_snapshot(window_id, &snap, (u64)sizeof(snap)) == 0ULL) {
+            continue;
+        }
+        if (snap.owner_pid == pid) {
+            owned++;
+        }
+    }
+
+    return owned;
 }
 
 static void tm_draw_row(const tm_app *app, int row_y, int row_index) {
@@ -635,9 +668,12 @@ static void tm_draw_row(const tm_app *app, int row_y, int row_index) {
     tm_draw_text_limit(app->w, app->h, 172, row_y + 8, value, 1, TM_COLOR_TEXT, 250);
 
     tm_u64_to_dec(value, (u64)sizeof(value), snap->runtime_ticks);
-    tm_draw_text_limit(app->w, app->h, 260, row_y + 8, value, 1, TM_COLOR_TEXT, 342);
+    tm_draw_text_limit(app->w, app->h, 248, row_y + 8, value, 1, TM_COLOR_TEXT, 324);
 
-    tm_draw_text_limit(app->w, app->h, 350, row_y + 8, snap->path, 1, TM_COLOR_TEXT, app->w - 16);
+    tm_u64_to_dec(value, (u64)sizeof(value), tm_window_count_for_pid(snap->pid));
+    tm_draw_text_limit(app->w, app->h, 330, row_y + 8, value, 1, TM_COLOR_TEXT, 374);
+
+    tm_draw_text_limit(app->w, app->h, 382, row_y + 8, snap->path, 1, TM_COLOR_TEXT, app->w - 16);
 }
 
 static void tm_draw_rows(const tm_app *app) {

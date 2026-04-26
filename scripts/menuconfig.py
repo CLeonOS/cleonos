@@ -528,6 +528,7 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
         _set_all_options(values, user_options, TRI_Y)
         _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_USERLAND_AUTO_EXEC", TRI_N)
         _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_EXEC_SERIAL_LOG", TRI_Y)
+        _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_EXEC_CONTEXT_SWITCH_LOG", TRI_N)
         _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_PROCFS", TRI_Y)
         _set_option_if_exists(values, option_index, "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG", TRI_Y)
         return
@@ -540,6 +541,12 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
             "CLEONOS_CLKS_ENABLE_AUDIO",
             "CLEONOS_CLKS_ENABLE_MOUSE",
             "CLEONOS_CLKS_ENABLE_DESKTOP",
+            "CLEONOS_CLKS_ENABLE_WM_MULTI_RECT_DAMAGE",
+            "CLEONOS_CLKS_ENABLE_WM_LAYER_CACHE",
+            "CLEONOS_CLKS_ENABLE_WM_FRAME_PACING",
+            "CLEONOS_CLKS_ENABLE_WM_STATS_OVERLAY",
+            "CLEONOS_CLKS_ENABLE_WM_INPUT_DISPATCH",
+            "CLEONOS_CLKS_ENABLE_WM_REAP_DEAD_OWNERS",
             "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER",
             "CLEONOS_CLKS_ENABLE_KELF",
             "CLEONOS_CLKS_ENABLE_EXTERNAL_PSF",
@@ -554,6 +561,7 @@ def apply_preset(preset: str, clks_options: List[OptionItem], user_options: List
             "CLEONOS_CLKS_ENABLE_SYSCALL_TICK_QUERY",
             "CLEONOS_CLKS_ENABLE_TTY_READY_LOG",
             "CLEONOS_CLKS_ENABLE_IDLE_DEBUG_LOG",
+            "CLEONOS_CLKS_ENABLE_EXEC_CONTEXT_SWITCH_LOG",
             "CLEONOS_CLKS_ENABLE_USER_SYSTEM_APP_PROBE",
             "CLEONOS_CLKS_ENABLE_SCHED_TASK_COUNT_LOG",
         ]

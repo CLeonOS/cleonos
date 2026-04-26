@@ -875,7 +875,7 @@ UserSafeController（USC）危险 syscall 确认：
 - 参数：
 - `arg0`: `u64 window_id`
 - 返回：成功 `1`，失败 `0`
-- 说明：将目标窗口置为焦点并提升到顶层 z-order。
+- 说明：将目标窗口置为焦点并提升到顶层 z-order。该操作允许 UWM/任务栏聚焦其他进程创建的窗口；窗口内容提交、移动、销毁仍由窗口拥有者限制。
 
 ### 114 `CLEONOS_SYSCALL_WM_SET_FLAGS`
 
@@ -902,6 +902,46 @@ UserSafeController（USC）危险 syscall 确认：
 - 创建桌面伪 tty 输出端。用户态可把该 FD 传给 `EXEC_PATHV_IO` 的 stdout/stderr，然后通过 `FD_READ` 从同一 FD 读取子进程输出。
 - 当前 PTY 是“命令输出捕获型”最小实现，不提供完整主从终端会话语义；阻塞式交互 shell 仍应继续使用普通 TTY。
 
+### 117 `CLEONOS_SYSCALL_WM_COUNT`
+
+- 参数：无
+- 返回：当前内核 WM 窗口数量。
+- 说明：窗口列表按当前 z-order 枚举，主要给 UWM、Task Manager 这类桌面组件做窗口/进程关联。
+
+### 118 `CLEONOS_SYSCALL_WM_ID_AT`
+
+- 参数：
+- `arg0`: `u64 index`
+- `arg1`: `u64 *out_window_id`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 说明：按 z-order 索引读取窗口 ID；`index` 范围为 `[0, WM_COUNT)`。
+
+### 119 `CLEONOS_SYSCALL_WM_SNAPSHOT`
+
+- 参数：
+- `arg0`: `u64 window_id`
+- `arg1`: `struct cleonos_wm_snapshot *out_snapshot`
+- `arg2`: `u64 out_size`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 快照结构：
+
+```c
+typedef struct cleonos_wm_snapshot {
+    u64 window_id;
+    u64 owner_pid;
+    u64 flags;
+    u64 x;
+    u64 y;
+    u64 width;
+    u64 height;
+    u64 focused;
+    u64 presented;
+    u64 event_count;
+} cleonos_wm_snapshot;
+```
+
+- 说明：`owner_pid` 是创建窗口的用户进程 PID；内核仍会限制窗口修改/销毁等操作只能由窗口拥有者执行。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -918,6 +958,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `cleonos_sys_tty_write()`
 - `cleonos_sys_kbd_get_char()` / `cleonos_sys_kbd_buffered()`
 - `cleonos_sys_getpid()` / `cleonos_sys_spawn_path()` / `cleonos_sys_wait_pid()`
+- `cleonos_sys_wm_count()` / `cleonos_sys_wm_id_at()` / `cleonos_sys_wm_snapshot()`
 - `cleonos_sys_spawn_pathv()`
 - `cleonos_sys_exit()` / `cleonos_sys_sleep_ticks()` / `cleonos_sys_yield()` / `cleonos_sys_shutdown()` / `cleonos_sys_restart()`
 - `cleonos_sys_audio_available()` / `cleonos_sys_audio_play_tone()` / `cleonos_sys_audio_stop()`

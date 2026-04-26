@@ -496,6 +496,18 @@ u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_WM_RESIZE, (u64)req, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_wm_count(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_COUNT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_wm_id_at(u64 index, u64 *out_window_id) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_ID_AT, index, (u64)out_window_id, 0ULL);
+}
+
+u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u64 out_size) {
+    return cleonos_syscall(CLEONOS_SYSCALL_WM_SNAPSHOT, window_id, (u64)out_snapshot, out_size);
+}
+
 u64 cleonos_sys_pty_open(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_PTY_OPEN, 0ULL, 0ULL, 0ULL);
 }

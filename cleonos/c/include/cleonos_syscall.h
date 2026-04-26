@@ -74,6 +74,19 @@ typedef struct cleonos_wm_event {
     u64 arg3;
 } cleonos_wm_event;
 
+typedef struct cleonos_wm_snapshot {
+    u64 window_id;
+    u64 owner_pid;
+    u64 flags;
+    u64 x;
+    u64 y;
+    u64 width;
+    u64 height;
+    u64 focused;
+    u64 presented;
+    u64 event_count;
+} cleonos_wm_snapshot;
+
 typedef struct cleonos_wm_create_req {
     u64 x;
     u64 y;
@@ -264,6 +277,9 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_WM_SET_FLAGS 114ULL
 #define CLEONOS_SYSCALL_WM_RESIZE 115ULL
 #define CLEONOS_SYSCALL_PTY_OPEN 116ULL
+#define CLEONOS_SYSCALL_WM_COUNT 117ULL
+#define CLEONOS_SYSCALL_WM_ID_AT 118ULL
+#define CLEONOS_SYSCALL_WM_SNAPSHOT 119ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -382,6 +398,9 @@ u64 cleonos_sys_wm_move(const cleonos_wm_move_req *req);
 u64 cleonos_sys_wm_set_focus(u64 window_id);
 u64 cleonos_sys_wm_set_flags(u64 window_id, u64 flags);
 u64 cleonos_sys_wm_resize(const cleonos_wm_resize_req *req);
+u64 cleonos_sys_wm_count(void);
+u64 cleonos_sys_wm_id_at(u64 index, u64 *out_window_id);
+u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u64 out_size);
 u64 cleonos_sys_pty_open(void);
 
 #endif

@@ -527,14 +527,21 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
         ush_uwm_u32 bg = 0x00282828U;
         ush_uwm_u32 fg = 0x00EAEAEAU;
         int active = 0;
+        int running = (sess->app_pids[i] != 0ULL && sess->app_states[i] != CLEONOS_PROC_STATE_EXITED &&
+                       sess->app_states[i] != CLEONOS_PROC_STATE_UNUSED)
+                          ? 1
+                          : 0;
 
         if (app_x + USH_UWM_TASKBAR_BUTTON_W > taskbar->w - 98) {
             break;
         }
 
-        if (app->closed != 0) {
+        if (running == 0 && app->closed != 0) {
             bg = 0x001F1F1FU;
             fg = 0x008F8F8FU;
+        } else if (running != 0) {
+            bg = 0x00383838U;
+            active = 1;
         } else if (app->minimized != 0) {
             bg = 0x002F2F2FU;
         } else if (sess->active_window == i) {
@@ -570,15 +577,20 @@ static void ush_uwm_render_start(ush_uwm_session *sess) {
 
     for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
         int y = 78 + (i * 44);
-        ush_uwm_u32 bg = (sess->active_window == i && sess->windows[i].closed == 0 && sess->windows[i].minimized == 0)
-                             ? 0x003B3B3BU
-                             : 0x00272727U;
+        int running = (sess->app_pids[i] != 0ULL && sess->app_states[i] != CLEONOS_PROC_STATE_EXITED &&
+                       sess->app_states[i] != CLEONOS_PROC_STATE_UNUSED)
+                          ? 1
+                          : 0;
+        ush_uwm_u32 bg = (running != 0) ? 0x003B3B3BU : 0x00272727U;
         if (y + 34 > start->h - 76) {
             break;
         }
         ush_uwm_fill_rect(start, 66, y, start->w - 82, 34, bg);
         ush_uwm_fill_rect(start, 66, y, 4, 34, sess->windows[i].accent);
         ush_uwm_draw_text_limit(start, 82, y + 10, labels[i], 1, UWM_COLOR_WHITE, start->w - 12);
+        if (running != 0) {
+            ush_uwm_draw_text_limit(start, start->w - 64, y + 10, "RUN", 1, 0x00A6F0A6U, start->w - 12);
+        }
     }
 
     if (start->w > 248 && start->h > 260) {

@@ -4,45 +4,76 @@
 #define USH_UWM_TASKMGR_PATH "/shell/uwm/taskmgr.elf"
 #define USH_UWM_TERMINAL_PATH "/shell/uwm/terminal.elf"
 
-static int ush_uwm_launch_file_explorer(void) {
-    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_FILE_EXPLORER_PATH, "", "LAUNCHED_BY=uwm");
+static const char *ush_uwm_app_path(int index) {
+    if (index == 0) {
+        return USH_UWM_FILE_EXPLORER_PATH;
+    }
+    if (index == USH_UWM_TERMINAL_INDEX) {
+        return USH_UWM_TERMINAL_PATH;
+    }
+    if (index == USH_UWM_TASKMGR_INDEX) {
+        return USH_UWM_TASKMGR_PATH;
+    }
 
-    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
+    return (const char *)0;
 }
 
-static int ush_uwm_launch_terminal(void) {
-    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_TERMINAL_PATH, "", "LAUNCHED_BY=uwm");
+static int ush_uwm_focus_first_window_for_pid(u64 pid) {
+    u64 count;
+    u64 i;
 
-    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
-}
+    if (pid == 0ULL || pid == (u64)-1) {
+        return 0;
+    }
 
-static int ush_uwm_launch_taskmgr(void) {
-    u64 pid = cleonos_sys_spawn_pathv(USH_UWM_TASKMGR_PATH, "", "LAUNCHED_BY=uwm");
+    count = cleonos_sys_wm_count();
+    while (count > 0ULL) {
+        u64 window_id = 0ULL;
+        cleonos_wm_snapshot snap;
 
-    return (pid != 0ULL && pid != (u64)-1) ? 1 : 0;
+        count--;
+        i = count;
+        ush_zero(&snap, (u64)sizeof(snap));
+        if (cleonos_sys_wm_id_at(i, &window_id) == 0ULL || window_id == 0ULL) {
+            continue;
+        }
+        if (cleonos_sys_wm_snapshot(window_id, &snap, (u64)sizeof(snap)) == 0ULL) {
+            continue;
+        }
+        if (snap.owner_pid == pid) {
+            return (cleonos_sys_wm_set_focus(window_id) != 0ULL) ? 1 : 0;
+        }
+    }
+
+    return 0;
 }
 
 static void ush_uwm_launch_or_restore_app(ush_uwm_session *sess, int index) {
+    const char *path;
+    u64 pid;
+
     if (sess == (ush_uwm_session *)0 || ush_uwm_app_index_valid(index) == 0) {
         return;
     }
 
-    if (index == 0) {
-        (void)ush_uwm_launch_file_explorer();
+    if (ush_uwm_app_registry_running(sess, index) != 0) {
+        (void)ush_uwm_focus_first_window_for_pid(sess->app_pids[index]);
+        ush_uwm_refresh_taskbar(sess);
         return;
     }
 
-    if (index == USH_UWM_TERMINAL_INDEX) {
-        (void)ush_uwm_launch_terminal();
+    path = ush_uwm_app_path(index);
+    if (path == (const char *)0) {
+        ush_uwm_restore_window(sess, index);
         return;
     }
 
-    if (index == USH_UWM_TASKMGR_INDEX) {
-        (void)ush_uwm_launch_taskmgr();
-        return;
+    pid = cleonos_sys_spawn_pathv(path, "", "LAUNCHED_BY=uwm");
+    if (pid != 0ULL && pid != (u64)-1) {
+        sess->app_pids[index] = pid;
+        sess->app_states[index] = CLEONOS_PROC_STATE_PENDING;
     }
-
-    ush_uwm_restore_window(sess, index);
+    ush_uwm_refresh_taskbar(sess);
 }
 
 static int ush_uwm_hit_close(const ush_uwm_window *win, int x, int y) {
@@ -567,6 +598,17 @@ int ush_uwm_loop(ush_uwm_session *sess) {
         int i;
         int handled_events = 0;
         int preferred_window = -1;
+        u64 now_tick = cleonos_sys_timer_ticks();
+
+        if (now_tick - sess->app_registry_last_tick >= 20ULL) {
+            sess->app_registry_last_tick = now_tick;
+            if (ush_uwm_refresh_app_registry(sess) != 0) {
+                ush_uwm_refresh_taskbar(sess);
+                if (sess->start_open != 0) {
+                    ush_uwm_refresh_window(sess, USH_UWM_START_INDEX);
+                }
+            }
+        }
 
         if (sess->dragging != 0 && ush_uwm_window_index_valid(sess->drag_window) != 0) {
             preferred_window = sess->drag_window;

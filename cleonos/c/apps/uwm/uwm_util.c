@@ -48,3 +48,54 @@ void ush_uwm_drain_startup_keys(void) {
         drained++;
     }
 }
+
+int ush_uwm_app_registry_running(ush_uwm_session *sess, int index) {
+    cleonos_proc_snapshot snap;
+    u64 pid;
+
+    if (sess == (ush_uwm_session *)0 || ush_uwm_app_index_valid(index) == 0) {
+        return 0;
+    }
+
+    pid = sess->app_pids[index];
+    if (pid == 0ULL || pid == (u64)-1) {
+        sess->app_pids[index] = 0ULL;
+        sess->app_states[index] = CLEONOS_PROC_STATE_UNUSED;
+        return 0;
+    }
+
+    ush_zero(&snap, (u64)sizeof(snap));
+    if (cleonos_sys_proc_snapshot(pid, &snap, (u64)sizeof(snap)) == 0ULL) {
+        sess->app_pids[index] = 0ULL;
+        sess->app_states[index] = CLEONOS_PROC_STATE_UNUSED;
+        return 0;
+    }
+
+    sess->app_states[index] = snap.state;
+    if (snap.state == CLEONOS_PROC_STATE_EXITED || snap.state == CLEONOS_PROC_STATE_UNUSED) {
+        sess->app_pids[index] = 0ULL;
+        return 0;
+    }
+
+    return 1;
+}
+
+int ush_uwm_refresh_app_registry(ush_uwm_session *sess) {
+    int i;
+    int changed = 0;
+
+    if (sess == (ush_uwm_session *)0) {
+        return 0;
+    }
+
+    for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
+        u64 old_pid = sess->app_pids[i];
+        u64 old_state = sess->app_states[i];
+        (void)ush_uwm_app_registry_running(sess, i);
+        if (old_pid != sess->app_pids[i] || old_state != sess->app_states[i]) {
+            changed = 1;
+        }
+    }
+
+    return changed;
+}
