@@ -574,7 +574,8 @@ static void tm_draw_toolbar(const tm_app *app) {
     tm_fill_rect(app->w, app->h, 0, y + TM_TOOLBAR_H - 1, app->w, 1, TM_COLOR_BORDER);
     tm_draw_text(app->w, app->h, 18, y + 10, "PROCESSES", 2, TM_COLOR_TEXT);
     tm_draw_button(app->w, app->h, 164, y + 10, 86, 28, "REFRESH", 0);
-    tm_draw_button(app->w, app->h, 260, y + 10, 94, 28, app->include_exited != 0 ? "ALL ON" : "ALL OFF", app->include_exited);
+    tm_draw_button(app->w, app->h, 260, y + 10, 94, 28, app->include_exited != 0 ? "ALL ON" : "ALL OFF",
+                   app->include_exited);
     if (kill_x > 370) {
         tm_draw_button(app->w, app->h, kill_x, y + 10, 104, 28, "END TASK", app->selected >= 0);
     }
