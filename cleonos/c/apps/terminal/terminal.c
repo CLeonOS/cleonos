@@ -378,7 +378,8 @@ static void term_draw_text(term_app *app, int x, int y, const char *text, int sc
 }
 
 static void term_draw_control_button(term_app *app, int x, int active, int kind) {
-    term_u32 bg = (kind == 2) ? TERM_COLOR_CLOSE : (active != 0 ? TERM_COLOR_CONTROL_ACTIVE : TERM_COLOR_CONTROL_INACTIVE);
+    term_u32 bg =
+        (kind == 2) ? TERM_COLOR_CLOSE : (active != 0 ? TERM_COLOR_CONTROL_ACTIVE : TERM_COLOR_CONTROL_INACTIVE);
     term_u32 fg = (kind == 2 || active != 0) ? TERM_COLOR_WHITE : TERM_COLOR_TEXT;
     int cy = TERM_TITLE_H / 2;
     int cx = x + (TERM_CONTROL_W / 2);
