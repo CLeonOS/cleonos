@@ -15,9 +15,12 @@
 #define TERM_LINES 128U
 #define TERM_LINE_MAX 160U
 #define TERM_INPUT_MAX 160U
-#define TERM_ANSI_MAX 24U
+#define TERM_ANSI_MAX 95U
 #define TERM_EVENT_BUDGET 128ULL
 #define TERM_IDLE_SPINS 24
+#define TERM_STYLE_NONE 0U
+#define TERM_STYLE_BOLD 1U
+#define TERM_STYLE_UNDERLINE 2U
 
 #define TERM_COLOR_WHITE 0x00FFFFFFU
 #define TERM_COLOR_WIN_BLUE 0x000078D7U
@@ -38,6 +41,7 @@
      ((u64)(r5) << 5U) | (u64)(r6))
 
 typedef unsigned int term_u32;
+typedef unsigned char term_u8;
 
 typedef struct term_app {
     int screen_w;
@@ -70,9 +74,20 @@ typedef struct term_app {
     char input[TERM_INPUT_MAX];
     u64 input_len;
     char lines[TERM_LINES][TERM_LINE_MAX];
-    term_u32 line_colors[TERM_LINES];
+    term_u32 cell_fg[TERM_LINES][TERM_LINE_MAX];
+    term_u32 cell_bg[TERM_LINES][TERM_LINE_MAX];
+    term_u8 cell_style[TERM_LINES][TERM_LINE_MAX];
     u64 line_count;
-    term_u32 color;
+    u64 cursor_row;
+    u64 cursor_col;
+    u64 saved_row;
+    u64 saved_col;
+    term_u32 current_fg;
+    term_u32 current_bg;
+    term_u8 current_style;
+    int ansi_bold;
+    int ansi_underline;
+    int ansi_inverse;
     int ansi_state;
     char ansi_buf[TERM_ANSI_MAX];
     u64 ansi_len;
@@ -309,6 +324,36 @@ static void term_draw_char(term_app *app, int x, int y, char ch, int scale, term
     }
 }
 
+static void term_draw_char_styled(term_app *app, int x, int y, char ch, term_u32 fg, term_u32 bg, term_u8 style) {
+    u64 mask = term_glyph_mask(ch);
+    int row;
+
+    term_fill_rect(app, x, y, 6, 11, bg);
+    if (mask == 0ULL) {
+        if ((style & TERM_STYLE_UNDERLINE) != 0U) {
+            term_fill_rect(app, x, y + 8, 5, 1, fg);
+        }
+        return;
+    }
+
+    for (row = 0; row < 7; row++) {
+        int col;
+        for (col = 0; col < 5; col++) {
+            unsigned int bit_index = (unsigned int)((6 - row) * 5 + (4 - col));
+            if ((mask & (1ULL << bit_index)) != 0ULL) {
+                term_fill_rect(app, x + col, y + row, 1, 1, fg);
+                if ((style & TERM_STYLE_BOLD) != 0U && col < 4) {
+                    term_fill_rect(app, x + col + 1, y + row, 1, 1, fg);
+                }
+            }
+        }
+    }
+
+    if ((style & TERM_STYLE_UNDERLINE) != 0U) {
+        term_fill_rect(app, x, y + 8, 5, 1, fg);
+    }
+}
+
 static void term_draw_text_limit(term_app *app, int x, int y, const char *text, int scale, term_u32 color, int max_x) {
     int cursor_x = x;
 
@@ -358,93 +403,194 @@ static void term_draw_control_button(term_app *app, int x, int active, int kind)
     }
 }
 
-static term_u32 term_ansi_color(int code) {
-    switch (code) {
-    case 30:
-        return 0x00404040U;
-    case 31:
-        return 0x00F44747U;
-    case 32:
-        return 0x0060D060U;
-    case 33:
-        return 0x00DCDCAAU;
-    case 34:
-        return 0x00569CD6U;
-    case 35:
-        return 0x00C586C0U;
-    case 36:
-        return 0x004EC9B0U;
-    case 37:
-        return 0x00DCDCDCU;
-    case 90:
-        return 0x00808080U;
-    case 91:
-        return 0x00FF7070U;
-    case 92:
-        return 0x0080FF80U;
-    case 93:
-        return 0x00FFFF80U;
-    case 94:
-        return 0x0080C0FFU;
-    case 95:
-        return 0x00FF80FFU;
-    case 96:
-        return 0x0080FFFFU;
-    case 97:
-        return 0x00FFFFFFU;
-    default:
+static term_u32 term_ansi_palette(u64 index) {
+    static const term_u32 palette[16] = {0x00000000U, 0x00CD3131U, 0x000DBC79U, 0x00E5E510U, 0x002472C8U, 0x00BC3FBCU,
+                                         0x0011A8CDU, 0x00E5E5E5U, 0x00666666U, 0x00F14C4CU, 0x0023D18BU, 0x00F5F543U,
+                                         0x003B8EEAU, 0x00D670D6U, 0x0029B8DBU, 0x00FFFFFFU};
+
+    return (index < 16ULL) ? palette[index] : TERM_COLOR_DEFAULT;
+}
+
+static term_u32 term_ansi_clamp_255(u64 value) {
+    return (term_u32)((value > 255ULL) ? 255ULL : value);
+}
+
+static term_u32 term_ansi_color_from_256(u64 index) {
+    if (index < 16ULL) {
+        return term_ansi_palette(index);
+    }
+    if (index <= 231ULL) {
+        static const term_u32 steps[6] = {0U, 95U, 135U, 175U, 215U, 255U};
+        u64 n = index - 16ULL;
+        u64 r = n / 36ULL;
+        u64 g = (n / 6ULL) % 6ULL;
+        u64 b = n % 6ULL;
+        return (steps[r] << 16U) | (steps[g] << 8U) | steps[b];
+    }
+    if (index <= 255ULL) {
+        term_u32 gray = (term_u32)(8ULL + ((index - 232ULL) * 10ULL));
+        return (gray << 16U) | (gray << 8U) | gray;
+    }
+    return TERM_COLOR_DEFAULT;
+}
+
+static void term_reset_style(term_app *app) {
+    if (app == (term_app *)0) {
+        return;
+    }
+    app->current_fg = TERM_COLOR_DEFAULT;
+    app->current_bg = TERM_COLOR_BG;
+    app->current_style = TERM_STYLE_NONE;
+    app->ansi_bold = 0;
+    app->ansi_underline = 0;
+    app->ansi_inverse = 0;
+}
+
+static term_u32 term_effective_fg(const term_app *app) {
+    if (app == (const term_app *)0) {
         return TERM_COLOR_DEFAULT;
+    }
+    return (app->ansi_inverse != 0) ? app->current_bg : app->current_fg;
+}
+
+static term_u32 term_effective_bg(const term_app *app) {
+    if (app == (const term_app *)0) {
+        return TERM_COLOR_BG;
+    }
+    return (app->ansi_inverse != 0) ? app->current_fg : app->current_bg;
+}
+
+static term_u8 term_effective_style(const term_app *app) {
+    term_u8 style = TERM_STYLE_NONE;
+    if (app == (const term_app *)0) {
+        return style;
+    }
+    if (app->ansi_bold != 0) {
+        style |= TERM_STYLE_BOLD;
+    }
+    if (app->ansi_underline != 0) {
+        style |= TERM_STYLE_UNDERLINE;
+    }
+    style |= app->current_style;
+    return style;
+}
+
+static void term_clear_cell(term_app *app, u64 row, u64 col) {
+    if (app == (term_app *)0 || row >= (u64)TERM_LINES || col >= (u64)TERM_LINE_MAX) {
+        return;
+    }
+    app->lines[row][col] = ' ';
+    app->cell_fg[row][col] = term_effective_fg(app);
+    app->cell_bg[row][col] = term_effective_bg(app);
+    app->cell_style[row][col] = term_effective_style(app);
+}
+
+static void term_trim_line(term_app *app, u64 row) {
+    i64 col;
+
+    if (app == (term_app *)0 || row >= (u64)TERM_LINES) {
+        return;
+    }
+    app->lines[row][TERM_LINE_MAX - 1U] = '\0';
+    for (col = (i64)TERM_LINE_MAX - 2; col >= 0; col--) {
+        if (app->lines[row][(u64)col] != ' ' && app->lines[row][(u64)col] != '\0') {
+            app->lines[row][(u64)col + 1ULL] = '\0';
+            return;
+        }
+        app->lines[row][(u64)col] = '\0';
     }
 }
 
+static void term_clear_line_range(term_app *app, u64 row, u64 start_col, u64 end_col) {
+    u64 col;
+
+    if (app == (term_app *)0 || row >= (u64)TERM_LINES) {
+        return;
+    }
+    if (end_col > (u64)TERM_LINE_MAX - 1ULL) {
+        end_col = (u64)TERM_LINE_MAX - 1ULL;
+    }
+    for (col = start_col; col < end_col; col++) {
+        term_clear_cell(app, row, col);
+    }
+    term_trim_line(app, row);
+}
+
 static void term_clear(term_app *app) {
+    u64 row;
+    u64 col;
+
+    if (app == (term_app *)0) {
+        return;
+    }
+    for (row = 0ULL; row < (u64)TERM_LINES; row++) {
+        for (col = 0ULL; col < (u64)TERM_LINE_MAX; col++) {
+            app->lines[row][col] = '\0';
+            app->cell_fg[row][col] = term_effective_fg(app);
+            app->cell_bg[row][col] = term_effective_bg(app);
+            app->cell_style[row][col] = term_effective_style(app);
+        }
+    }
+    app->line_count = 0ULL;
+    app->cursor_row = 0ULL;
+    app->cursor_col = 0ULL;
+}
+
+static void term_ensure_row(term_app *app, u64 row) {
     u64 i;
 
     if (app == (term_app *)0) {
         return;
     }
-
-    ush_zero(app->lines, (u64)sizeof(app->lines));
-    for (i = 0ULL; i < (u64)TERM_LINES; i++) {
-        app->line_colors[i] = app->color;
+    if (row >= (u64)TERM_LINES) {
+        row = (u64)TERM_LINES - 1ULL;
     }
-    app->line_count = 0ULL;
-}
-
-static void term_ensure_line(term_app *app) {
-    if (app != (term_app *)0 && app->line_count == 0ULL) {
-        app->line_count = 1ULL;
-        app->lines[0][0] = '\0';
-        app->line_colors[0] = app->color;
+    while (app->line_count <= row) {
+        i = app->line_count;
+        app->lines[i][0] = '\0';
+        app->cell_fg[i][0] = term_effective_fg(app);
+        app->cell_bg[i][0] = term_effective_bg(app);
+        app->cell_style[i][0] = term_effective_style(app);
+        app->line_count++;
     }
 }
 
 static void term_shift_lines(term_app *app) {
     u64 i;
+    u64 col;
 
+    if (app == (term_app *)0) {
+        return;
+    }
     for (i = 1ULL; i < (u64)TERM_LINES; i++) {
         ush_copy(app->lines[i - 1ULL], (u64)TERM_LINE_MAX, app->lines[i]);
-        app->line_colors[i - 1ULL] = app->line_colors[i];
+        for (col = 0ULL; col < (u64)TERM_LINE_MAX; col++) {
+            app->cell_fg[i - 1ULL][col] = app->cell_fg[i][col];
+            app->cell_bg[i - 1ULL][col] = app->cell_bg[i][col];
+            app->cell_style[i - 1ULL][col] = app->cell_style[i][col];
+        }
     }
     app->lines[TERM_LINES - 1U][0] = '\0';
-    app->line_colors[TERM_LINES - 1U] = app->color;
+    for (col = 0ULL; col < (u64)TERM_LINE_MAX; col++) {
+        app->cell_fg[TERM_LINES - 1U][col] = term_effective_fg(app);
+        app->cell_bg[TERM_LINES - 1U][col] = term_effective_bg(app);
+        app->cell_style[TERM_LINES - 1U][col] = term_effective_style(app);
+    }
 }
 
 static void term_newline(term_app *app) {
     if (app == (term_app *)0) {
         return;
     }
-    if (app->line_count == 0ULL) {
-        term_ensure_line(app);
-        return;
+    term_ensure_row(app, app->cursor_row);
+    app->cursor_col = 0ULL;
+    if (app->cursor_row + 1ULL >= (u64)TERM_LINES) {
+        term_shift_lines(app);
+        app->line_count = (u64)TERM_LINES;
+    } else {
+        app->cursor_row++;
+        term_ensure_row(app, app->cursor_row);
     }
-    if (app->line_count < (u64)TERM_LINES) {
-        app->lines[app->line_count][0] = '\0';
-        app->line_colors[app->line_count] = app->color;
-        app->line_count++;
-        return;
-    }
-    term_shift_lines(app);
 }
 
 static void term_append_char(term_app *app, char ch) {
@@ -455,6 +601,7 @@ static void term_append_char(term_app *app, char ch) {
         return;
     }
     if (ch == '\r') {
+        app->cursor_col = 0ULL;
         return;
     }
     if (ch == '\n') {
@@ -462,86 +609,257 @@ static void term_append_char(term_app *app, char ch) {
         return;
     }
     if (ch == '\t') {
-        ch = ' ';
+        term_append_char(app, ' ');
+        term_append_char(app, ' ');
+        term_append_char(app, ' ');
+        term_append_char(app, ' ');
+        return;
     }
     if (ch < ' ' || ch > '~') {
         ch = '?';
     }
-
-    term_ensure_line(app);
-    line = app->lines[app->line_count - 1ULL];
-    app->line_colors[app->line_count - 1ULL] = app->color;
-    len = ush_strlen(line);
-    if (len + 1ULL >= (u64)TERM_LINE_MAX) {
+    if (app->cursor_col + 1ULL >= (u64)TERM_LINE_MAX) {
         term_newline(app);
-        line = app->lines[app->line_count - 1ULL];
-        app->line_colors[app->line_count - 1ULL] = app->color;
-        len = 0ULL;
     }
-    line[len] = ch;
-    line[len + 1ULL] = '\0';
+
+    term_ensure_row(app, app->cursor_row);
+    line = app->lines[app->cursor_row];
+    len = ush_strlen(line);
+    while (len < app->cursor_col && len + 1ULL < (u64)TERM_LINE_MAX) {
+        line[len] = ' ';
+        app->cell_fg[app->cursor_row][len] = term_effective_fg(app);
+        app->cell_bg[app->cursor_row][len] = term_effective_bg(app);
+        app->cell_style[app->cursor_row][len] = term_effective_style(app);
+        len++;
+    }
+    line[app->cursor_col] = ch;
+    app->cell_fg[app->cursor_row][app->cursor_col] = term_effective_fg(app);
+    app->cell_bg[app->cursor_row][app->cursor_col] = term_effective_bg(app);
+    app->cell_style[app->cursor_row][app->cursor_col] = term_effective_style(app);
+    if (line[app->cursor_col + 1ULL] == '\0') {
+        line[app->cursor_col + 1ULL] = '\0';
+    }
+    app->cursor_col++;
 }
 
-static int term_ansi_number(const char *text, u64 *offset, int *out_value) {
-    int value = 0;
-    int any = 0;
+static u64 term_ansi_parse_params(const char *params, u64 *out_values, u64 max_values) {
+    u64 count = 0ULL;
+    u64 value = 0ULL;
+    int has_digit = 0;
+    u64 i;
 
-    if (text == (const char *)0 || offset == (u64 *)0 || out_value == (int *)0) {
-        return 0;
+    if (out_values == (u64 *)0 || max_values == 0ULL) {
+        return 0ULL;
     }
-    while (text[*offset] >= '0' && text[*offset] <= '9') {
-        value = (value * 10) + (text[*offset] - '0');
-        (*offset)++;
-        any = 1;
+    if (params == (const char *)0 || params[0] == '\0') {
+        out_values[0] = 0ULL;
+        return 1ULL;
     }
-    *out_value = value;
-    return any;
+    for (i = 0ULL;; i++) {
+        char ch = params[i];
+        if (ch >= '0' && ch <= '9') {
+            has_digit = 1;
+            value = (value * 10ULL) + (u64)(ch - '0');
+            continue;
+        }
+        if (ch == '?' && i == 0ULL) {
+            continue;
+        }
+        if (ch == ';' || ch == '\0') {
+            if (count < max_values) {
+                out_values[count++] = (has_digit != 0) ? value : 0ULL;
+            }
+            value = 0ULL;
+            has_digit = 0;
+            if (ch == '\0') {
+                break;
+            }
+        }
+    }
+    return (count == 0ULL) ? 1ULL : count;
+}
+
+static u64 term_ansi_param_or_default(const u64 *params, u64 count, u64 index, u64 default_value) {
+    if (params == (const u64 *)0 || index >= count || params[index] == 0ULL) {
+        return default_value;
+    }
+    return params[index];
 }
 
 static void term_apply_sgr(term_app *app, const char *params) {
-    u64 pos = 0ULL;
+    u64 values[16];
+    u64 count = term_ansi_parse_params(params, values, 16ULL);
+    u64 i;
 
-    if (app == (term_app *)0 || params == (const char *)0 || params[0] == '\0') {
-        if (app != (term_app *)0) {
-            app->color = TERM_COLOR_DEFAULT;
-        }
+    if (app == (term_app *)0) {
         return;
     }
+    for (i = 0ULL; i < count; i++) {
+        u64 code = values[i];
 
-    while (params[pos] != '\0') {
-        int code = 0;
-        int has_number = term_ansi_number(params, &pos, &code);
+        if (code == 0ULL) {
+            term_reset_style(app);
+        } else if (code == 1ULL) {
+            app->ansi_bold = 1;
+        } else if (code == 4ULL) {
+            app->ansi_underline = 1;
+        } else if (code == 7ULL) {
+            app->ansi_inverse = 1;
+        } else if (code == 21ULL || code == 22ULL) {
+            app->ansi_bold = 0;
+        } else if (code == 24ULL) {
+            app->ansi_underline = 0;
+        } else if (code == 27ULL) {
+            app->ansi_inverse = 0;
+        } else if (code == 39ULL) {
+            app->current_fg = TERM_COLOR_DEFAULT;
+        } else if (code == 49ULL) {
+            app->current_bg = TERM_COLOR_BG;
+        } else if (code >= 30ULL && code <= 37ULL) {
+            u64 idx = code - 30ULL;
+            if (app->ansi_bold != 0) {
+                idx += 8ULL;
+            }
+            app->current_fg = term_ansi_palette(idx);
+        } else if (code >= 90ULL && code <= 97ULL) {
+            app->current_fg = term_ansi_palette((code - 90ULL) + 8ULL);
+        } else if (code >= 40ULL && code <= 47ULL) {
+            app->current_bg = term_ansi_palette(code - 40ULL);
+        } else if (code >= 100ULL && code <= 107ULL) {
+            app->current_bg = term_ansi_palette((code - 100ULL) + 8ULL);
+        } else if ((code == 38ULL || code == 48ULL) && i + 1ULL < count) {
+            u64 mode = values[i + 1ULL];
+            term_u32 color;
 
-        if (has_number == 0) {
-            code = 0;
+            if (mode == 5ULL && i + 2ULL < count) {
+                color = term_ansi_color_from_256(values[i + 2ULL]);
+                if (code == 38ULL) {
+                    app->current_fg = color;
+                } else {
+                    app->current_bg = color;
+                }
+                i += 2ULL;
+            } else if (mode == 2ULL && i + 4ULL < count) {
+                term_u32 r = term_ansi_clamp_255(values[i + 2ULL]);
+                term_u32 g = term_ansi_clamp_255(values[i + 3ULL]);
+                term_u32 b = term_ansi_clamp_255(values[i + 4ULL]);
+                color = (r << 16U) | (g << 8U) | b;
+                if (code == 38ULL) {
+                    app->current_fg = color;
+                } else {
+                    app->current_bg = color;
+                }
+                i += 4ULL;
+            }
         }
-        if (code == 0 || code == 39) {
-            app->color = TERM_COLOR_DEFAULT;
-        } else if ((code >= 30 && code <= 37) || (code >= 90 && code <= 97)) {
-            app->color = term_ansi_color(code);
-        }
-        if (params[pos] == ';') {
-            pos++;
-            continue;
-        }
-        break;
     }
 }
 
 static void term_apply_ansi(term_app *app, char final_ch) {
+    u64 values[16];
+    u64 count;
+    int private_mode;
+
     if (app == (term_app *)0) {
         return;
     }
     app->ansi_buf[app->ansi_len] = '\0';
+    count = term_ansi_parse_params(app->ansi_buf, values, 16ULL);
+    private_mode = (app->ansi_buf[0] == '?') ? 1 : 0;
+
     if (final_ch == 'm') {
         term_apply_sgr(app, app->ansi_buf);
     } else if (final_ch == 'J') {
-        u64 pos = 0ULL;
-        int code = 0;
-
-        if (term_ansi_number(app->ansi_buf, &pos, &code) != 0 && (code == 2 || code == 3)) {
+        u64 mode = (count == 0ULL) ? 0ULL : values[0];
+        if (mode == 0ULL) {
+            u64 row;
+            term_clear_line_range(app, app->cursor_row, app->cursor_col, (u64)TERM_LINE_MAX - 1ULL);
+            for (row = app->cursor_row + 1ULL; row < (u64)TERM_LINES; row++) {
+                term_clear_line_range(app, row, 0ULL, (u64)TERM_LINE_MAX - 1ULL);
+            }
+        } else if (mode == 1ULL) {
+            u64 row;
+            for (row = 0ULL; row < app->cursor_row && row < (u64)TERM_LINES; row++) {
+                term_clear_line_range(app, row, 0ULL, (u64)TERM_LINE_MAX - 1ULL);
+            }
+            term_clear_line_range(app, app->cursor_row, 0ULL, app->cursor_col + 1ULL);
+        } else if (mode == 2ULL || mode == 3ULL) {
             term_clear(app);
         }
+    } else if (final_ch == 'K') {
+        u64 mode = (count == 0ULL) ? 0ULL : values[0];
+        if (mode == 0ULL) {
+            term_clear_line_range(app, app->cursor_row, app->cursor_col, (u64)TERM_LINE_MAX - 1ULL);
+        } else if (mode == 1ULL) {
+            term_clear_line_range(app, app->cursor_row, 0ULL, app->cursor_col + 1ULL);
+        } else {
+            term_clear_line_range(app, app->cursor_row, 0ULL, (u64)TERM_LINE_MAX - 1ULL);
+        }
+    } else if (final_ch == 'H' || final_ch == 'f') {
+        u64 row = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        u64 col = term_ansi_param_or_default(values, count, 1ULL, 1ULL);
+        app->cursor_row = (row > 0ULL) ? row - 1ULL : 0ULL;
+        app->cursor_col = (col > 0ULL) ? col - 1ULL : 0ULL;
+        if (app->cursor_row >= (u64)TERM_LINES) {
+            app->cursor_row = (u64)TERM_LINES - 1ULL;
+        }
+        if (app->cursor_col >= (u64)TERM_LINE_MAX - 1ULL) {
+            app->cursor_col = (u64)TERM_LINE_MAX - 2ULL;
+        }
+        term_ensure_row(app, app->cursor_row);
+    } else if (final_ch == 'A') {
+        u64 n = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_row = (n > app->cursor_row) ? 0ULL : app->cursor_row - n;
+    } else if (final_ch == 'B') {
+        u64 n = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_row += n;
+        if (app->cursor_row >= (u64)TERM_LINES) {
+            app->cursor_row = (u64)TERM_LINES - 1ULL;
+        }
+        term_ensure_row(app, app->cursor_row);
+    } else if (final_ch == 'C') {
+        u64 n = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_col += n;
+        if (app->cursor_col >= (u64)TERM_LINE_MAX - 1ULL) {
+            app->cursor_col = (u64)TERM_LINE_MAX - 2ULL;
+        }
+    } else if (final_ch == 'D') {
+        u64 n = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_col = (n > app->cursor_col) ? 0ULL : app->cursor_col - n;
+    } else if (final_ch == 'E' || final_ch == 'F') {
+        u64 n = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        if (final_ch == 'E') {
+            app->cursor_row += n;
+            if (app->cursor_row >= (u64)TERM_LINES) {
+                app->cursor_row = (u64)TERM_LINES - 1ULL;
+            }
+        } else {
+            app->cursor_row = (n > app->cursor_row) ? 0ULL : app->cursor_row - n;
+        }
+        app->cursor_col = 0ULL;
+        term_ensure_row(app, app->cursor_row);
+    } else if (final_ch == 'G') {
+        u64 col = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_col = (col > 0ULL) ? col - 1ULL : 0ULL;
+        if (app->cursor_col >= (u64)TERM_LINE_MAX - 1ULL) {
+            app->cursor_col = (u64)TERM_LINE_MAX - 2ULL;
+        }
+    } else if (final_ch == 'd') {
+        u64 row = term_ansi_param_or_default(values, count, 0ULL, 1ULL);
+        app->cursor_row = (row > 0ULL) ? row - 1ULL : 0ULL;
+        if (app->cursor_row >= (u64)TERM_LINES) {
+            app->cursor_row = (u64)TERM_LINES - 1ULL;
+        }
+        term_ensure_row(app, app->cursor_row);
+    } else if (final_ch == 's') {
+        app->saved_row = app->cursor_row;
+        app->saved_col = app->cursor_col;
+    } else if (final_ch == 'u') {
+        app->cursor_row = (app->saved_row < (u64)TERM_LINES) ? app->saved_row : (u64)TERM_LINES - 1ULL;
+        app->cursor_col = (app->saved_col < (u64)TERM_LINE_MAX - 1ULL) ? app->saved_col : (u64)TERM_LINE_MAX - 2ULL;
+        term_ensure_row(app, app->cursor_row);
+    } else if ((final_ch == 'h' || final_ch == 'l') && private_mode != 0) {
+        /* Cursor visibility mode is accepted for compatibility; this terminal does not draw a PTY cursor. */
     }
     app->ansi_state = 0;
     app->ansi_len = 0ULL;
@@ -555,6 +873,21 @@ static void term_append_ansi_char(term_app *app, char ch) {
     if (app->ansi_state == 1) {
         if (ch == '[') {
             app->ansi_state = 2;
+            app->ansi_len = 0ULL;
+            return;
+        }
+        if (ch == '7') {
+            app->saved_row = app->cursor_row;
+            app->saved_col = app->cursor_col;
+            app->ansi_state = 0;
+            app->ansi_len = 0ULL;
+            return;
+        }
+        if (ch == '8') {
+            app->cursor_row = (app->saved_row < (u64)TERM_LINES) ? app->saved_row : (u64)TERM_LINES - 1ULL;
+            app->cursor_col = (app->saved_col < (u64)TERM_LINE_MAX - 1ULL) ? app->saved_col : (u64)TERM_LINE_MAX - 2ULL;
+            term_ensure_row(app, app->cursor_row);
+            app->ansi_state = 0;
             app->ansi_len = 0ULL;
             return;
         }
@@ -677,15 +1010,23 @@ static void term_render(term_app *app) {
     for (i = start; i < app->line_count; i++) {
         int row = (int)(i - start);
         int y = TERM_TITLE_H + 50 + (row * line_h);
-        term_u32 color = app->line_colors[i];
+        u64 col;
+        const char *line = app->lines[i];
 
         if (y + 8 >= app->h - TERM_BOTTOM_H) {
             break;
         }
-        if (color == 0U) {
-            color = TERM_COLOR_DEFAULT;
+        for (col = 0ULL; line[col] != '\0' && col + 1ULL < (u64)TERM_LINE_MAX; col++) {
+            int x = 10 + ((int)col * 6);
+            term_u32 fg = app->cell_fg[i][col];
+            term_u32 bg = app->cell_bg[i][col];
+            term_u8 style = app->cell_style[i][col];
+
+            if (x + 5 >= app->w - 10) {
+                break;
+            }
+            term_draw_char_styled(app, x, y, line[col], fg, bg, style);
         }
-        term_draw_text_limit(app, 10, y, app->lines[i], 1, color, app->w - 10);
     }
 
     term_fill_rect(app, 0, app->h - TERM_BOTTOM_H, app->w, TERM_BOTTOM_H, TERM_COLOR_BAR);
@@ -1336,7 +1677,7 @@ int cleonos_terminal_run(void) {
 
     ush_zero(&app, (u64)sizeof(app));
     app.running = 1;
-    app.color = TERM_COLOR_DEFAULT;
+    term_reset_style(&app);
     ush_copy(app.cwd, (u64)sizeof(app.cwd), "/");
     term_clear(&app);
     term_append_line(&app, "CLEONOS TERMINAL READY");
