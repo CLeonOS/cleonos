@@ -12,8 +12,7 @@ typedef uwm_ui_surface (*fx_ui_surface_fn)(uwm_ui_color *pixels, int width, int 
 typedef void (*fx_ui_rect_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, uwm_ui_color color);
 typedef void (*fx_ui_char_fn)(const uwm_ui_surface *surface, int x, int y, char ch, int scale, uwm_ui_color color);
 typedef void (*fx_ui_button_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, const char *label,
-                                uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border,
-                                int hot);
+                                uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border, int hot);
 typedef void (*fx_ui_control_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,
                                  uwm_ui_color text_color);
 typedef u64 (*fx_ui_present_fn)(u64 window_id, const uwm_ui_surface *surface);
