@@ -88,8 +88,8 @@ int mbedtls_hardware_poll(void *data, unsigned char *output, size_t len, size_t 
         size_t j;
 
         if (cleonos_tls_rdrand64(&value) == 0) {
-            cleonos_tls_entropy_state = cleonos_tls_mix64(cleonos_tls_entropy_state + (u64_local)i +
-                                                          (u64_local)cleonos_sys_timer_ticks());
+            cleonos_tls_entropy_state =
+                cleonos_tls_mix64(cleonos_tls_entropy_state + (u64_local)i + (u64_local)cleonos_sys_timer_ticks());
             value = cleonos_tls_entropy_state;
         }
 
