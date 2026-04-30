@@ -36,8 +36,7 @@ void uwm_uilib_stroke_rect(const uwm_ui_surface *surface, int x, int y, int w, i
 void uwm_uilib_draw_char(const uwm_ui_surface *surface, int x, int y, char ch, int scale, uwm_ui_color color);
 void uwm_uilib_draw_text_limit(const uwm_ui_surface *surface, int x, int y, const char *text, int scale,
                                uwm_ui_color color, int max_x);
-void uwm_uilib_draw_text(const uwm_ui_surface *surface, int x, int y, const char *text, int scale,
-                         uwm_ui_color color);
+void uwm_uilib_draw_text(const uwm_ui_surface *surface, int x, int y, const char *text, int scale, uwm_ui_color color);
 void uwm_uilib_draw_button(const uwm_ui_surface *surface, int x, int y, int w, int h, const char *label,
                            uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border, int hot);
 void uwm_uilib_draw_control_button(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,
