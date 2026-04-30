@@ -16,3 +16,9 @@
 [submodule "cleonos/third-party/litehtml"]
 	path = cleonos/third-party/litehtml
 	url = https://github.com/litehtml/litehtml.git
+[submodule "cleonos/third-party/mbedtls"]
+	path = cleonos/third-party/mbedtls
+	url = https://github.com/CLeonOS/tls.git
+[submodule "bdt"]
+	path = bdt
+	url = https://github.com/CLeonOS/kbt
