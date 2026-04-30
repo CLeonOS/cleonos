@@ -31,6 +31,7 @@
 #define USH_UWM_TASKBAR_SEARCH_W 220
 #define USH_UWM_TASKBAR_BUTTON_W 132
 #define USH_UWM_TASKBAR_BUTTON_GAP 6
+#define USH_UWM_TASKBAR_DYNAMIC_MAX 32ULL
 
 #define USH_UWM_KEY_LEFT 1ULL
 #define USH_UWM_KEY_RIGHT 2ULL
@@ -105,6 +106,10 @@ int ush_uwm_u64_as_i32(u64 raw);
 void ush_uwm_drain_startup_keys(void);
 int ush_uwm_app_registry_running(ush_uwm_session *sess, int index);
 int ush_uwm_refresh_app_registry(ush_uwm_session *sess);
+int ush_uwm_local_window_index_by_id(const ush_uwm_session *sess, u64 window_id);
+int ush_uwm_taskbar_window_hidden(const ush_uwm_session *sess, u64 window_id);
+void ush_uwm_taskbar_window_label(const ush_uwm_session *sess, const cleonos_wm_snapshot *snap, char *out_label,
+                                  u64 out_size);
 
 int ush_uwm_alloc_pixels(ush_uwm_window *win);
 int ush_uwm_replace_pixels(ush_uwm_window *win, int width, int height);

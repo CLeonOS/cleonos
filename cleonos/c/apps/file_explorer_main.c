@@ -1,10 +1,31 @@
 #include <cleonos_syscall.h>
+#include <uwm_uilib.h>
 
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef long long i64;
 typedef unsigned int fx_u32;
+
+typedef uwm_ui_surface (*fx_ui_surface_fn)(uwm_ui_color *pixels, int width, int height, int pitch_pixels);
+typedef void (*fx_ui_rect_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, uwm_ui_color color);
+typedef void (*fx_ui_char_fn)(const uwm_ui_surface *surface, int x, int y, char ch, int scale, uwm_ui_color color);
+typedef void (*fx_ui_button_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, const char *label,
+                                uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border,
+                                int hot);
+typedef void (*fx_ui_control_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,
+                                 uwm_ui_color text_color);
+typedef u64 (*fx_ui_present_fn)(u64 window_id, const uwm_ui_surface *surface);
+
+static int fx_ui_loaded = 0;
+static fx_ui_surface_fn fx_ui_surface = uwm_uilib_surface;
+static fx_ui_rect_fn fx_ui_fill_rect = uwm_uilib_fill_rect;
+static fx_ui_rect_fn fx_ui_stroke_rect = uwm_uilib_stroke_rect;
+static fx_ui_char_fn fx_ui_draw_char = uwm_uilib_draw_char;
+static fx_ui_button_fn fx_ui_draw_button = uwm_uilib_draw_button;
+static fx_ui_control_fn fx_ui_draw_control_button = uwm_uilib_draw_control_button;
+static fx_ui_present_fn fx_ui_present_surface = uwm_uilib_present;
 
 #define FX_TTY_DISPLAY 1ULL
 #define FX_PATH_MAX 192U
@@ -472,156 +493,78 @@ static void fx_go_parent(fx_app *app) {
     }
 }
 
-static u64 fx_glyph_mask(char ch) {
-    switch (fx_upper_char(ch)) {
-    case 'A':
-        return FX_GLYPH7(14U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'B':
-        return FX_GLYPH7(30U, 17U, 17U, 30U, 17U, 17U, 30U);
-    case 'C':
-        return FX_GLYPH7(14U, 17U, 16U, 16U, 16U, 17U, 14U);
-    case 'D':
-        return FX_GLYPH7(30U, 17U, 17U, 17U, 17U, 17U, 30U);
-    case 'E':
-        return FX_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 31U);
-    case 'F':
-        return FX_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 16U);
-    case 'G':
-        return FX_GLYPH7(14U, 17U, 16U, 23U, 17U, 17U, 15U);
-    case 'H':
-        return FX_GLYPH7(17U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'I':
-        return FX_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 31U);
-    case 'J':
-        return FX_GLYPH7(1U, 1U, 1U, 1U, 17U, 17U, 14U);
-    case 'K':
-        return FX_GLYPH7(17U, 18U, 20U, 24U, 20U, 18U, 17U);
-    case 'L':
-        return FX_GLYPH7(16U, 16U, 16U, 16U, 16U, 16U, 31U);
-    case 'M':
-        return FX_GLYPH7(17U, 27U, 21U, 21U, 17U, 17U, 17U);
-    case 'N':
-        return FX_GLYPH7(17U, 25U, 21U, 19U, 17U, 17U, 17U);
-    case 'O':
-        return FX_GLYPH7(14U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'P':
-        return FX_GLYPH7(30U, 17U, 17U, 30U, 16U, 16U, 16U);
-    case 'Q':
-        return FX_GLYPH7(14U, 17U, 17U, 17U, 21U, 18U, 13U);
-    case 'R':
-        return FX_GLYPH7(30U, 17U, 17U, 30U, 20U, 18U, 17U);
-    case 'S':
-        return FX_GLYPH7(15U, 16U, 16U, 14U, 1U, 1U, 30U);
-    case 'T':
-        return FX_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 4U);
-    case 'U':
-        return FX_GLYPH7(17U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'V':
-        return FX_GLYPH7(17U, 17U, 17U, 17U, 17U, 10U, 4U);
-    case 'W':
-        return FX_GLYPH7(17U, 17U, 17U, 21U, 21U, 21U, 10U);
-    case 'X':
-        return FX_GLYPH7(17U, 17U, 10U, 4U, 10U, 17U, 17U);
-    case 'Y':
-        return FX_GLYPH7(17U, 17U, 10U, 4U, 4U, 4U, 4U);
-    case 'Z':
-        return FX_GLYPH7(31U, 1U, 2U, 4U, 8U, 16U, 31U);
-    case '0':
-        return FX_GLYPH7(14U, 17U, 19U, 21U, 25U, 17U, 14U);
-    case '1':
-        return FX_GLYPH7(4U, 12U, 4U, 4U, 4U, 4U, 14U);
-    case '2':
-        return FX_GLYPH7(14U, 17U, 1U, 2U, 4U, 8U, 31U);
-    case '3':
-        return FX_GLYPH7(30U, 1U, 1U, 14U, 1U, 1U, 30U);
-    case '4':
-        return FX_GLYPH7(2U, 6U, 10U, 18U, 31U, 2U, 2U);
-    case '5':
-        return FX_GLYPH7(31U, 16U, 16U, 30U, 1U, 1U, 30U);
-    case '6':
-        return FX_GLYPH7(14U, 16U, 16U, 30U, 17U, 17U, 14U);
-    case '7':
-        return FX_GLYPH7(31U, 1U, 2U, 4U, 8U, 8U, 8U);
-    case '8':
-        return FX_GLYPH7(14U, 17U, 17U, 14U, 17U, 17U, 14U);
-    case '9':
-        return FX_GLYPH7(14U, 17U, 17U, 15U, 1U, 1U, 14U);
-    case '-':
-        return FX_GLYPH7(0U, 0U, 0U, 31U, 0U, 0U, 0U);
-    case '_':
-        return FX_GLYPH7(0U, 0U, 0U, 0U, 0U, 0U, 31U);
-    case '.':
-        return FX_GLYPH7(0U, 0U, 0U, 0U, 0U, 12U, 12U);
-    case ':':
-        return FX_GLYPH7(0U, 12U, 12U, 0U, 12U, 12U, 0U);
-    case '/':
-        return FX_GLYPH7(1U, 1U, 2U, 4U, 8U, 16U, 16U);
-    case '+':
-        return FX_GLYPH7(0U, 4U, 4U, 31U, 4U, 4U, 0U);
-    default:
-        return 0ULL;
+static void fx_ui_load(void) {
+    void *handle;
+    void *sym;
+
+    if (fx_ui_loaded != 0) {
+        return;
     }
+    fx_ui_loaded = 1;
+
+    handle = dlopen("/shell/uwm/uwm_uilib.elf", 0);
+    if (handle == (void *)0) {
+        return;
+    }
+
+    sym = dlsym(handle, "uwm_uilib_surface");
+    if (sym != (void *)0) {
+        fx_ui_surface = (fx_ui_surface_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_fill_rect");
+    if (sym != (void *)0) {
+        fx_ui_fill_rect = (fx_ui_rect_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_stroke_rect");
+    if (sym != (void *)0) {
+        fx_ui_stroke_rect = (fx_ui_rect_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_char");
+    if (sym != (void *)0) {
+        fx_ui_draw_char = (fx_ui_char_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_button");
+    if (sym != (void *)0) {
+        fx_ui_draw_button = (fx_ui_button_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_control_button");
+    if (sym != (void *)0) {
+        fx_ui_draw_control_button = (fx_ui_control_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_present");
+    if (sym != (void *)0) {
+        fx_ui_present_surface = (fx_ui_present_fn)sym;
+    }
+}
+
+static uwm_ui_surface fx_surface(fx_app *app) {
+    fx_ui_load();
+    if (app == (fx_app *)0) {
+        return fx_ui_surface((uwm_ui_color *)0, 0, 0, 0);
+    }
+    return fx_ui_surface(app->pixels, app->w, app->h, app->w);
 }
 
 static void fx_fill_rect(fx_app *app, int x, int y, int w, int h, fx_u32 color) {
-    int left;
-    int top;
-    int right;
-    int bottom;
-    int row;
-
-    if (app == (fx_app *)0 || app->pixels == (fx_u32 *)0 || w <= 0 || h <= 0) {
-        return;
-    }
-    left = fx_clampi(x, 0, app->w);
-    top = fx_clampi(y, 0, app->h);
-    right = fx_clampi(x + w, 0, app->w);
-    bottom = fx_clampi(y + h, 0, app->h);
-    if (left >= right || top >= bottom) {
-        return;
-    }
-    for (row = top; row < bottom; row++) {
-        u64 base = (u64)(unsigned int)row * (u64)(unsigned int)app->w;
-        int col;
-        for (col = left; col < right; col++) {
-            app->pixels[base + (u64)(unsigned int)col] = color;
-        }
-    }
+    uwm_ui_surface surface = fx_surface(app);
+    fx_ui_fill_rect(&surface, x, y, w, h, color);
 }
 
 static void fx_stroke_rect(fx_app *app, int x, int y, int w, int h, fx_u32 color) {
-    fx_fill_rect(app, x, y, w, 1, color);
-    fx_fill_rect(app, x, y + h - 1, w, 1, color);
-    fx_fill_rect(app, x, y, 1, h, color);
-    fx_fill_rect(app, x + w - 1, y, 1, h, color);
+    uwm_ui_surface surface = fx_surface(app);
+    fx_ui_stroke_rect(&surface, x, y, w, h, color);
 }
 
 static void fx_draw_char(fx_app *app, int x, int y, char ch, int scale, fx_u32 color) {
-    u64 mask = fx_glyph_mask(ch);
-    int row;
-
-    if (mask == 0ULL || scale <= 0) {
-        return;
-    }
-    for (row = 0; row < 7; row++) {
-        int col;
-        for (col = 0; col < 5; col++) {
-            unsigned int bit = (unsigned int)((6 - row) * 5 + (4 - col));
-            if ((mask & (1ULL << bit)) != 0ULL) {
-                fx_fill_rect(app, x + (col * scale), y + (row * scale), scale, scale, color);
-            }
-        }
-    }
+    uwm_ui_surface surface = fx_surface(app);
+    fx_ui_draw_char(&surface, x, y, ch, scale, color);
 }
 
 static void fx_draw_text_limit(fx_app *app, int x, int y, const char *text, int scale, fx_u32 color, int max_x) {
     int cursor_x = x;
 
-    if (app == (fx_app *)0 || text == (const char *)0 || scale <= 0) {
+    if (text == (const char *)0 || scale <= 0) {
         return;
-    }
-    if (max_x <= 0 || max_x > app->w) {
-        max_x = app->w;
     }
     while (*text != '\0' && cursor_x + (5 * scale) <= max_x) {
         if (*text != ' ') {
@@ -637,32 +580,23 @@ static void fx_draw_text(fx_app *app, int x, int y, const char *text, int scale,
 }
 
 static void fx_draw_button(fx_app *app, int x, int y, int w, int h, const char *label, int hot) {
-    fx_fill_rect(app, x, y, w, h, hot != 0 ? FX_COLOR_BUTTON_HOT : FX_COLOR_BUTTON);
-    fx_stroke_rect(app, x, y, w, h, FX_COLOR_BORDER);
-    fx_draw_text_limit(app, x + 10, y + ((h - 7) / 2), label, 1, FX_COLOR_TEXT, x + w - 8);
+    uwm_ui_surface surface = fx_surface(app);
+    fx_ui_draw_button(&surface, x, y, w, h, label, FX_COLOR_BUTTON, FX_COLOR_BUTTON_HOT, FX_COLOR_TEXT, FX_COLOR_BORDER,
+                      hot);
 }
 
 static void fx_draw_control_button(fx_app *app, int x, int active, int kind) {
-    fx_u32 bg = (kind == 2) ? FX_COLOR_CLOSE : (active != 0 ? FX_COLOR_CONTROL_ACTIVE : FX_COLOR_CONTROL_INACTIVE);
-    fx_u32 fg = (kind == 2 || active != 0) ? FX_COLOR_WHITE : FX_COLOR_TEXT;
-    int cy = FX_TITLE_H / 2;
-    int cx = x + (FX_CONTROL_W / 2);
+    uwm_ui_surface surface = fx_surface(app);
+    int control_kind = UWM_UI_CONTROL_MINIMIZE;
 
-    fx_fill_rect(app, x, 0, FX_CONTROL_W, FX_TITLE_H, bg);
-    if (kind == 0) {
-        fx_fill_rect(app, cx - 6, cy + 4, 12, 1, fg);
-    } else if (kind == 1) {
-        fx_stroke_rect(app, cx - 6, cy - 6, 12, 12, fg);
-        fx_fill_rect(app, cx - 6, cy - 6, 12, 2, fg);
-    } else {
-        int i;
-        for (i = 0; i < 11; i++) {
-            fx_fill_rect(app, cx - 5 + i, cy - 5 + i, 1, 1, fg);
-            fx_fill_rect(app, cx + 5 - i, cy - 5 + i, 1, 1, fg);
-        }
+    if (kind == 1) {
+        control_kind = UWM_UI_CONTROL_MAXIMIZE;
+    } else if (kind == 2) {
+        control_kind = UWM_UI_CONTROL_CLOSE;
     }
-}
 
+    fx_ui_draw_control_button(&surface, x, 0, FX_CONTROL_W, FX_TITLE_H, active, control_kind, FX_COLOR_TEXT);
+}
 static void fx_draw_preview(fx_app *app, int y, int h) {
     int line = 0;
     int cursor_y;
@@ -812,17 +746,13 @@ static void fx_render(fx_app *app) {
 }
 
 static int fx_present(fx_app *app) {
-    cleonos_wm_present_req req;
+    uwm_ui_surface surface;
 
     if (app == (fx_app *)0 || app->window_id == 0ULL || app->pixels == (fx_u32 *)0) {
         return 0;
     }
-    req.window_id = app->window_id;
-    req.pixels_ptr = (u64)(usize)app->pixels;
-    req.src_width = (u64)(unsigned int)app->w;
-    req.src_height = (u64)(unsigned int)app->h;
-    req.src_pitch_bytes = (u64)(unsigned int)app->w * 4ULL;
-    return (cleonos_sys_wm_present(&req) != 0ULL) ? 1 : 0;
+    surface = fx_surface(app);
+    return (fx_ui_present_surface(app->window_id, &surface) != 0ULL) ? 1 : 0;
 }
 
 static int fx_render_present(fx_app *app) {

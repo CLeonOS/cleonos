@@ -25,27 +25,27 @@
 |- kit/                  # 独立用户态应用 SDK（无需内核源码树即可构建 ELF）
 |- ramdisk/              # 运行时 ramdisk 的静态文件
 |- configs/              # 启动配置（Limine）
-|- cmake/                # CMake 公共脚本（工具检查、日志、limine 初始化）
+|- bdt/                  # Build Tool 源码
 |- docs/                 # Stage 文档与 syscall 文档
 |- wine/                 # 主机侧用户 ELF 运行器（无需完整虚拟机）
-|- CMakeLists.txt        # 主构建定义
-|- Makefile              # 面向开发者的 CMake 包装入口
+|- project.bdt           # bdt 主项目定义
+|- Makefile              # 面向开发者的 bdt 包装入口
 ```
 
 ## 构建依赖
 
 最低需要：
 
-- `cmake`（>= 3.20）
 - `make`
+- 用于自举 `bdt` 的主机 C 编译器
 - `git`
 - `tar`
 - `xorriso`
 - `sh`（POSIX shell）
 - `rustc`
 - 内核/用户工具链（会自动回退查找）：
-  - 内核：`x86_64-elf-gcc` / `x86_64-elf-ld`（可回退到 `gcc`/`clang` + `ld.lld`）
-  - 用户态：`cc` + `ld`
+  - 内核：`gcc`/`g++` + `ld`
+  - 用户态：`gcc` + `ld`
 
 如需从源码构建 Limine，请安装额外依赖：`autoconf`、`automake`、`libtool`、`pkg-config`、`mtools`、`nasm`。
 
@@ -67,12 +67,6 @@ make run
 内核当前通过内存缓存窗口处理磁盘元数据/文件（默认最多约 8MB）。
 你也可以覆盖磁盘大小（MB），例如：`make run DISK_IMAGE_MB=128`。
 进入系统后可先执行 `diskinfo` 确认磁盘已识别。
-
-如果你已经准备好 Limine 产物，可跳过 configure：
-
-```bash
-make run LIMINE_SKIP_CONFIGURE=1
-```
 
 ## 常用目标
 

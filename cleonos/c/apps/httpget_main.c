@@ -1,4 +1,5 @@
 #include "cmd_runtime.h"
+#include "tls/cleonos_tls.h"
 #include <stdio.h>
 
 #define USH_HTTPGET_HOST_MAX 128U
@@ -15,6 +16,7 @@ typedef struct ush_httpget_url {
     char host[USH_HTTPGET_HOST_MAX];
     char path[USH_HTTPGET_PATH_MAX];
     u16 port;
+    int tls;
 } ush_httpget_url;
 
 static u16 ush_httpget_read_be16(const u8 *ptr) {
@@ -87,6 +89,7 @@ static int ush_httpget_parse_url(const char *url, ush_httpget_url *out_url) {
     u64 host_len;
     u64 path_len;
     u64 i;
+    u64 scheme_len;
 
     if (url == (const char *)0 || out_url == (ush_httpget_url *)0) {
         return 0;
@@ -98,12 +101,21 @@ static int ush_httpget_parse_url(const char *url, ush_httpget_url *out_url) {
         return 0;
     }
 
-    if (!(url[0] == 'h' && url[1] == 't' && url[2] == 't' && url[3] == 'p' && url[4] == ':' && url[5] == '/' &&
-          url[6] == '/')) {
+    if (url[0] == 'h' && url[1] == 't' && url[2] == 't' && url[3] == 'p' && url[4] == ':' && url[5] == '/' &&
+        url[6] == '/') {
+        out_url->tls = 0;
+        out_url->port = 80U;
+        scheme_len = 7ULL;
+    } else if (url[0] == 'h' && url[1] == 't' && url[2] == 't' && url[3] == 'p' && url[4] == 's' &&
+               url[5] == ':' && url[6] == '/' && url[7] == '/') {
+        out_url->tls = 1;
+        out_url->port = 443U;
+        scheme_len = 8ULL;
+    } else {
         return 0;
     }
 
-    p = url + 7;
+    p = url + scheme_len;
     host_begin = p;
 
     while (*p != '\0' && *p != '/') {
@@ -121,7 +133,6 @@ static int ush_httpget_parse_url(const char *url, ush_httpget_url *out_url) {
     }
     out_url->host[host_len] = '\0';
 
-    out_url->port = 80U;
     for (i = 0ULL; i < host_len; i++) {
         if (out_url->host[i] == ':') {
             u64 parsed_port = 0ULL;
@@ -455,19 +466,25 @@ static int ush_cmd_httpget(const char *arg) {
     u64 dst_ipv4_be = 0ULL;
     cleonos_net_tcp_connect_req conn_req;
     cleonos_net_tcp_send_req send_req;
+    cleonos_tls_conn tls_conn;
     char request[1024];
     int request_len;
     u64 sent;
     u64 idle_loops = 0ULL;
+    int tcp_open = 0;
+    int tls_open = 0;
+    int ok = 0;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
         (void)puts("httpget: usage httpget <http://host[:port]/path>");
+        (void)puts("               httpget <https://host[:port]/path>");
         return 0;
     }
 
     if (ush_streq(arg, "--help") != 0 || ush_streq(arg, "-h") != 0) {
         (void)puts("usage: httpget <http://host[:port]/path>");
-        (void)puts("note: https:// is not supported yet");
+        (void)puts("       httpget <https://host[:port]/path>");
+        (void)puts("note: TLS certificate verification is not available yet");
         return 1;
     }
 
@@ -477,7 +494,7 @@ static int ush_cmd_httpget(const char *arg) {
     }
 
     if (ush_httpget_parse_url(arg, &url) == 0) {
-        (void)puts("httpget: invalid URL, expected http://host[:port]/path");
+        (void)puts("httpget: invalid URL, expected http://host[:port]/path or https://host[:port]/path");
         return 0;
     }
 
@@ -491,20 +508,32 @@ static int ush_cmd_httpget(const char *arg) {
 
     (void)fputs("httpget: connect ", 1);
     ush_httpget_print_ipv4(dst_ipv4_be);
-    (void)printf(":%u\n", (unsigned int)url.port);
+    (void)printf(":%u%s\n", (unsigned int)url.port, (url.tls != 0) ? " tls" : "");
 
-    ush_zero(&conn_req, (u64)sizeof(conn_req));
-    conn_req.dst_ipv4_be = dst_ipv4_be;
-    conn_req.dst_port = (u64)url.port;
-    conn_req.src_port = 0ULL;
-    conn_req.poll_budget = USH_HTTPGET_TCP_POLL_BUDGET;
+    ush_zero(&tls_conn, (u64)sizeof(tls_conn));
+    if (url.tls != 0) {
+        if (cleonos_tls_connect(&tls_conn, dst_ipv4_be, url.port, url.host, USH_HTTPGET_TCP_POLL_BUDGET) == 0) {
+            char tls_error[96];
+            cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+            (void)printf("httpget: tls connect failed: %s\n", tls_error);
+            goto done;
+        }
+        tls_open = 1;
+    } else {
+        ush_zero(&conn_req, (u64)sizeof(conn_req));
+        conn_req.dst_ipv4_be = dst_ipv4_be;
+        conn_req.dst_port = (u64)url.port;
+        conn_req.src_port = 0ULL;
+        conn_req.poll_budget = USH_HTTPGET_TCP_POLL_BUDGET;
 
-    if (cleonos_sys_net_tcp_connect(&conn_req) == 0ULL) {
-        (void)puts("httpget: tcp connect failed");
-        return 0;
+        if (cleonos_sys_net_tcp_connect(&conn_req) == 0ULL) {
+            (void)puts("httpget: tcp connect failed");
+            goto done;
+        }
+        tcp_open = 1;
     }
 
-    if (url.port != 80U) {
+    if (!((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U))) {
         request_len = snprintf(request, sizeof(request),
                                "GET %s HTTP/1.1\r\nHost: %s:%u\r\nUser-Agent: cleonos-httpget/1.0\r\nAccept: */*\r\n"
                                "Connection: close\r\n\r\n",
@@ -517,33 +546,54 @@ static int ush_cmd_httpget(const char *arg) {
     }
 
     if (request_len <= 0 || (u64)request_len >= (u64)sizeof(request)) {
-        (void)cleonos_sys_net_tcp_close(USH_HTTPGET_TCP_POLL_BUDGET);
         (void)puts("httpget: request build failed");
-        return 0;
+        goto done;
     }
 
-    send_req.payload_ptr = (u64)(usize)request;
-    send_req.payload_len = (u64)request_len;
-    send_req.poll_budget = USH_HTTPGET_TCP_POLL_BUDGET;
+    if (url.tls != 0) {
+        if (cleonos_tls_write_all(&tls_conn, request, (u64)request_len) == 0) {
+            char tls_error[96];
+            cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+            (void)printf("httpget: tls send failed: %s\n", tls_error);
+            goto done;
+        }
+    } else {
+        send_req.payload_ptr = (u64)(usize)request;
+        send_req.payload_len = (u64)request_len;
+        send_req.poll_budget = USH_HTTPGET_TCP_POLL_BUDGET;
 
-    sent = cleonos_sys_net_tcp_send(&send_req);
-    if (sent != (u64)request_len) {
-        (void)cleonos_sys_net_tcp_close(USH_HTTPGET_TCP_POLL_BUDGET);
-        (void)puts("httpget: tcp send failed");
-        return 0;
+        sent = cleonos_sys_net_tcp_send(&send_req);
+        if (sent != (u64)request_len) {
+            (void)puts("httpget: tcp send failed");
+            goto done;
+        }
     }
 
     for (;;) {
-        cleonos_net_tcp_recv_req recv_req;
         u8 chunk[USH_HTTPGET_RECV_CHUNK];
-        u64 got;
+        u64 got = 0ULL;
 
-        recv_req.out_payload_ptr = (u64)(usize)chunk;
-        recv_req.payload_capacity = (u64)sizeof(chunk);
-        recv_req.poll_budget = 60000ULL;
+        if (url.tls != 0) {
+            int tls_got = cleonos_tls_read(&tls_conn, chunk, (u64)sizeof(chunk));
+            if (tls_got < 0) {
+                char tls_error[96];
+                cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+                (void)printf("httpget: tls recv failed: %s\n", tls_error);
+                goto done;
+            }
+            got = (u64)tls_got;
+        } else {
+            cleonos_net_tcp_recv_req recv_req;
+            recv_req.out_payload_ptr = (u64)(usize)chunk;
+            recv_req.payload_capacity = (u64)sizeof(chunk);
+            recv_req.poll_budget = 60000ULL;
 
-        got = cleonos_sys_net_tcp_recv(&recv_req);
+            got = cleonos_sys_net_tcp_recv(&recv_req);
+        }
         if (got == 0ULL) {
+            if (url.tls != 0 && cleonos_tls_eof(&tls_conn) != 0) {
+                break;
+            }
             idle_loops++;
             if (idle_loops >= USH_HTTPGET_TCP_RECV_IDLE_LOOPS) {
                 break;
@@ -554,14 +604,20 @@ static int ush_cmd_httpget(const char *arg) {
 
         idle_loops = 0ULL;
         if (ush_httpget_stdout_write(chunk, got) == 0) {
-            (void)cleonos_sys_net_tcp_close(USH_HTTPGET_TCP_POLL_BUDGET);
             (void)puts("\nhttpget: write failed");
-            return 0;
+            goto done;
         }
     }
 
-    (void)cleonos_sys_net_tcp_close(USH_HTTPGET_TCP_POLL_BUDGET);
-    return 1;
+    ok = 1;
+
+done:
+    if (tls_open != 0) {
+        cleonos_tls_close(&tls_conn, USH_HTTPGET_TCP_POLL_BUDGET);
+    } else if (tcp_open != 0) {
+        (void)cleonos_sys_net_tcp_close(USH_HTTPGET_TCP_POLL_BUDGET);
+    }
+    return ok;
 }
 
 int cleonos_app_main(void) {

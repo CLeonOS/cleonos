@@ -1,0 +1,230 @@
+[project]
+name = CLeonOS
+default = iso
+build_dir = .bdt
+language = zh-CN
+
+[subprojects]
+paths = bdt, clks, cleonos
+
+[tools]
+CC = gcc
+KERNEL_CXX = g++
+LD = ld
+RUSTC = rustc
+NM = nm
+TAR = tar
+XORRISO = xorriso
+QEMU_X86_64 = qemu-system-x86_64
+python = python3
+
+[config]
+KERNEL_CFLAGS = -std=c11,-ffreestanding,-fno-stack-protector,-fno-builtin,-U_FORTIFY_SOURCE,-D_FORTIFY_SOURCE=0,-g,-Wall,-Wextra,-Werror,-Wno-error=unused-variable,-Wno-error=unused-parameter,-Wno-error=unused-function,-I{root}/build/bdt-freestanding/include,-I{root}/clks/include,-include,{root}/build/bdt-menuconfig/clks_config.h,-m64,-mno-red-zone,-mcmodel=kernel,-fno-pic,-fno-pie,-fno-PIE
+KERNEL_CXXFLAGS = -std=c++17,-ffreestanding,-fno-stack-protector,-fno-builtin,-U_FORTIFY_SOURCE,-D_FORTIFY_SOURCE=0,-fno-exceptions,-fno-rtti,-fno-threadsafe-statics,-fno-use-cxa-atexit,-g,-Wall,-Wextra,-Werror,-Wno-error=unused-variable,-Wno-error=unused-parameter,-Wno-error=unused-function,-I{root}/build/bdt-freestanding/include,-I{root}/clks/include,-include,{root}/build/bdt-menuconfig/clks_config.h,-m64,-mno-red-zone,-mcmodel=kernel,-fno-pic,-fno-pie,-fno-PIE
+KERNEL_ASFLAGS = -ffreestanding,-I{root}/clks/include,-include,{root}/build/bdt-menuconfig/clks_config.h,-m64,-mno-red-zone,-mcmodel=kernel,-fno-pic,-fno-pie,-fno-PIE
+KERNEL_LDFLAGS = -nostdlib,-z,max-page-size=0x1000
+USER_CFLAGS = -std=c11,-ffreestanding,-fno-stack-protector,-fno-builtin,-Wall,-Wextra,-I{root}/cleonos/c/include,-I{root}/cleonos/c/apps
+USER_TLS_CFLAGS = -I{root}/cleonos/third-party/mbedtls/include,-DMBEDTLS_CONFIG_FILE='<tls/cleonos_mbedtls_config.h>',-DMBEDTLS_HAVE_INT32
+USER_GUMBO_CFLAGS = -I{root}/cleonos/third-party/litehtml/src/gumbo/include,-I{root}/cleonos/third-party/litehtml/src/gumbo/include/gumbo,-I{root}/cleonos/third-party/litehtml/src/gumbo,-DNDEBUG
+USER_DOOM_CFLAGS = -I{root}/cleonos/third-party/doomgeneric/doomgeneric,-I{root}/cleonos/c/apps/doom,-include,{root}/cleonos/c/apps/doom/doom_shim.h,-DNORMALUNIX,-D_DEFAULT_SOURCE
+USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/memory_buffer_alloc.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
+USER_LDFLAGS = -nostdlib,-z,max-page-size=0x1000,--gc-sections
+DISK_IMAGE_MB = 64
+DISK_IMAGE_BYTES = 67108864
+menuconfig_args =
+menuconfig_preset =
+
+[target.configure]
+type = group
+steps = echo "bdt configure: no generator step required"
+cache = false
+always = true
+
+[target.setup-tools]
+type = group
+steps = {CC} --version | {KERNEL_CXX} --version | {LD} --version | {RUSTC} --version
+cache = false
+
+[target.setup-freestanding-headers]
+type = group
+steps = mkdir -p "{root}/build/bdt-freestanding/include" | printf "#ifndef BDT_FREESTANDING_ASSERT_H\n#define BDT_FREESTANDING_ASSERT_H\n#ifdef NDEBUG\n#define assert(x) ((void)0)\n#else\n#define assert(x) ((void)((x) ? 0 : 0))\n#endif\n#endif\n" > "{root}/build/bdt-freestanding/include/assert.h"
+cache = false
+
+[target.menuconfig-headers]
+type = command
+command = {python} scripts/bdt_gen_menuconfig.py
+cache = false
+
+[target.setup-limine]
+deps = setup-tools
+type = command
+command = if [ ! -d "{root}/limine" ]; then git submodule update --init --recursive limine; fi; if [ ! -x "{root}/limine/bin/limine" ]; then make -C "{root}/limine"; fi
+cache = false
+
+[target.setup]
+deps = setup-tools, setup-freestanding-headers, setup-limine
+type = group
+steps = echo "setup complete"
+cache = false
+
+[target.kernel-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {CC}
+sources = clks/kernel/boot/limine/limine_requests.c, clks/kernel/core/interrupts.c, clks/kernel/core/kmain.c, clks/kernel/core/log.c, clks/kernel/core/panic.c, clks/kernel/core/scheduler.c, clks/kernel/core/service.c, clks/kernel/hal/audio/pcspeaker.c, clks/kernel/hal/serial/serial.c, clks/kernel/hal/video/font8x8.c, clks/kernel/hal/video/framebuffer.c, clks/kernel/hal/video/psf_font.c, clks/kernel/input/keyboard.c, clks/kernel/input/mouse.c, clks/kernel/interface/desktop.c, clks/kernel/interface/shell.c, clks/kernel/interface/tty.c, clks/kernel/interface/wm.c, clks/kernel/memory/heap.c, clks/kernel/memory/pmm.c, clks/kernel/runtime/driver.c, clks/kernel/runtime/elf64.c, clks/kernel/runtime/elfrunner.c, clks/kernel/runtime/exec.c, clks/kernel/runtime/kelf.c, clks/kernel/runtime/net.c, clks/kernel/runtime/pty.c, clks/kernel/runtime/syscall.c, clks/kernel/runtime/userland.c, clks/kernel/storage/disk.c, clks/kernel/storage/fs.c, clks/kernel/storage/ramdisk.c, clks/kernel/support/libc_compat.c, clks/kernel/support/string.c, clks/arch/x86_64/startup/boot.c, clks/third_party/miniz/miniz_support.c, clks/third_party/miniz/miniz_tdef.c, clks/third_party/qrcodegen/qrcodegen.c
+output = {root}/build/x86_64/obj
+cflags = {KERNEL_CFLAGS}
+cache = false
+
+[target.kernel-cpp-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {KERNEL_CXX}
+sources = clks/kernel/core/panic_qr.cpp
+output = {root}/build/x86_64/obj
+cxxflags = {KERNEL_CXXFLAGS}
+cache = false
+
+[target.kernel-asm-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {CC}
+sources = clks/arch/x86_64/interrupt/interrupt_stubs.S, clks/arch/x86_64/startup/exec_stack_call.S
+output = {root}/build/x86_64/obj
+asflags = {KERNEL_ASFLAGS}
+cache = false
+
+[target.kernel-rust]
+type = rust-staticlib
+sources = {root}/clks/rust/src/lib.rs
+output = {root}/build/x86_64/libclks_kernel_rust.a
+flags = --crate-type,staticlib,-C,panic=abort,-O
+cache = false
+
+[target.kernel]
+deps = kernel-objects, kernel-cpp-objects, kernel-asm-objects, kernel-rust
+type = link
+tool = {LD}
+inputs = {root}/build/x86_64/obj
+objects = {root}/build/x86_64/libclks_kernel_rust.a
+output = {root}/build/x86_64/clks_kernel.elf
+linker_script = {root}/clks/arch/x86_64/linker.ld
+ldflags = {KERNEL_LDFLAGS}
+cache = false
+
+[target.kernel-symbols]
+deps = kernel
+type = command
+command = {NM} -n "{root}/build/x86_64/clks_kernel.elf" > "{root}/build/x86_64/kernel.sym"
+cache = false
+
+[target.user-rust]
+type = rust-staticlib
+sources = {root}/cleonos/rust/src/lib.rs
+output = {root}/build/x86_64/user/lib/libcleonos_user_rust.a
+flags = --crate-type,staticlib,-C,panic=abort,-O
+cache = false
+
+[target.userapps]
+deps = setup-tools
+type = c-apps
+tool = {CC}
+main_dir = {root}/cleonos/c/apps
+common_dirs = {root}/cleonos/c/src
+runtime_sources = {root}/cleonos/c/apps/cmd_runtime.c, {root}/cleonos/c/apps/uwm_uilib/uwm_uilib.c
+objects = {root}/build/x86_64/user/obj
+output = {root}/build/x86_64/user/apps
+uwm_output = {root}/build/x86_64/user/apps/uwm
+system_output = {root}/build/x86_64/user/system
+uwm_apps = file_explorer, terminal, taskmgr, uwm_uilib
+linker_script = {root}/cleonos/c/user.ld
+system_linker_script = {root}/cleonos/c/kelf.ld
+cflags = {USER_CFLAGS}
+ldflags = {USER_LDFLAGS}
+app.browser.cflags = {USER_TLS_CFLAGS},{USER_GUMBO_CFLAGS}
+app.browser.sources = {USER_TLS_SOURCES}
+app.browser.source_dirs = {root}/cleonos/third-party/litehtml/src/gumbo
+app.httpget.cflags = {USER_TLS_CFLAGS}
+app.httpget.sources = {USER_TLS_SOURCES}
+app.wget.cflags = {USER_TLS_CFLAGS}
+app.wget.sources = {USER_TLS_SOURCES}
+app.doom.cflags = {USER_DOOM_CFLAGS}
+app.doom.source_dirs = {root}/cleonos/third-party/doomgeneric/doomgeneric
+app.doom.exclude_sources = doomgeneric_allegro.c,doomgeneric_emscripten.c,doomgeneric_linuxvt.c,doomgeneric_sdl.c,doomgeneric_soso.c,doomgeneric_sosox.c,doomgeneric_win.c,doomgeneric_xlib.c,i_allegromusic.c,i_allegrosound.c,i_sdlmusic.c,i_sdlsound.c,icon.c
+cache = false
+
+[target.ramdisk-root]
+deps = userapps, kernel-symbols
+type = group
+steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
+cache = false
+
+[target.ramdisk]
+deps = ramdisk-root
+type = tar
+tool = {TAR}
+inputs = {root}/build/x86_64/ramdisk_root
+output = {root}/build/x86_64/cleonos_ramdisk.tar
+cache = false
+
+[target.disk-image]
+type = truncate
+output = {root}/build/x86_64/cleonos_disk.img
+flags = {DISK_IMAGE_MB}
+cache = false
+
+[target.iso]
+deps = setup-limine, kernel, ramdisk
+type = group
+steps = rm -rf "{root}/build/x86_64/iso_root" | mkdir -p "{root}/build/x86_64/iso_root/boot/limine" "{root}/build/x86_64/iso_root/EFI/BOOT" | cp "{root}/build/x86_64/clks_kernel.elf" "{root}/build/x86_64/iso_root/boot/clks_kernel.elf" | cp "{root}/build/x86_64/cleonos_ramdisk.tar" "{root}/build/x86_64/iso_root/boot/cleonos_ramdisk.tar" | cp "{root}/configs/limine.conf" "{root}/build/x86_64/iso_root/boot/limine/limine.conf" | cp "{root}/configs/limine.conf" "{root}/build/x86_64/iso_root/limine.conf" | cp "{root}/limine/bin/limine-bios.sys" "{root}/build/x86_64/iso_root/boot/limine/limine-bios.sys" | cp "{root}/limine/bin/limine-bios-cd.bin" "{root}/build/x86_64/iso_root/boot/limine/limine-bios-cd.bin" | cp "{root}/limine/bin/limine-uefi-cd.bin" "{root}/build/x86_64/iso_root/boot/limine/limine-uefi-cd.bin" | cp "{root}/limine/bin/BOOTX64.EFI" "{root}/build/x86_64/iso_root/EFI/BOOT/BOOTX64.EFI" | {XORRISO} -as mkisofs -b boot/limine/limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --efi-boot boot/limine/limine-uefi-cd.bin -efi-boot-part --efi-boot-image --protective-msdos-label "{root}/build/x86_64/iso_root" -o "{root}/build/CLeonOS-x86_64.iso" | "{root}/limine/bin/limine" bios-install "{root}/build/CLeonOS-x86_64.iso"
+cache = false
+
+[target.run]
+deps = iso, disk-image
+type = command
+command = {QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "{root}/build/CLeonOS-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+cache = false
+always = true
+
+[target.debug]
+deps = iso, disk-image
+type = command
+command = {QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "{root}/build/CLeonOS-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio -s -S
+cache = false
+always = true
+
+[target.menuconfig]
+type = command
+command = {python} scripts/menuconfig.py {menuconfig_preset} {menuconfig_args}
+cache = false
+always = true
+
+[target.menuconfig-gui]
+type = command
+command = {python} scripts/menuconfig.py --gui {menuconfig_preset} {menuconfig_args}
+cache = false
+always = true
+
+[target.clean-drive-image]
+type = remove
+inputs = {root}/build/x86_64/cleonos_disk.img
+cache = false
+always = true
+
+[target.clean]
+type = remove
+inputs = {root}/build/x86_64
+cache = false
+always = true
+
+[target.clean-all]
+type = remove
+inputs = {root}/build
+cache = false
+always = true
+
+[target.help]
+type = command
+command = echo "use: bdt --list, bdt --scan, bdt --graph, bdt <target>"
+cache = false
+always = true

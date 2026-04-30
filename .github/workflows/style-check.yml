@@ -57,7 +57,7 @@ jobs:
           mapfile -t files < <(
             git ls-files \
               '*.c' '*.h' '*.cc' '*.cpp' '*.cxx' '*.hpp' '*.hxx' \
-              | grep -Ev '^(limine/|third_party/|build/|build-cmake/)' || true
+              | grep -Ev '^(limine/|build/|cleonos/third-party/|clks/third_party/)' || true
           )
 
           if [[ ${#files[@]} -eq 0 ]]; then

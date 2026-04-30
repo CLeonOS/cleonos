@@ -25,15 +25,15 @@
     - Drag by title bar (left mouse).
     - Keyboard fallback controls (`Tab`, `1/2/3`, `W/A/S/D`, `M`, `X`, `T`, `+/-`, `Q`).
 - Build integration:
-  - Added `uwm` into shell command app set in `cleonos/CMakeLists.txt`.
+  - Added `uwm` into shell command app set.
   - Updated shell help text and standalone `help` app output.
 - QEMU run/debug update:
   - QEMU now keeps the default PS/2 mouse path enabled for `make run`/`make debug`.
   - USB tablet is optional and disabled by default because the kernel currently has a PS/2 mouse driver, not a USB HID tablet driver.
   - Optional absolute pointer device:
     - `-usb -device usb-tablet`
-  - New CMake option:
-    - `CLEONOS_QEMU_ENABLE_USB_TABLET=OFF` (default).
+  - New build option:
+    - `cleonos_qemu_enable_usb_tablet = OFF` (default).
     - Set it to `ON` only after USB HID tablet support is available.
 
 ## Acceptance Criteria

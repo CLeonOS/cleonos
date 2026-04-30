@@ -1,7 +1,29 @@
 #include <cleonos_syscall.h>
+#include <uwm_uilib.h>
+
+#include <dlfcn.h>
 
 typedef long long i64;
 typedef unsigned int tm_u32;
+
+typedef uwm_ui_surface (*tm_ui_surface_fn)(uwm_ui_color *pixels, int width, int height, int pitch_pixels);
+typedef void (*tm_ui_rect_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, uwm_ui_color color);
+typedef void (*tm_ui_char_fn)(const uwm_ui_surface *surface, int x, int y, char ch, int scale, uwm_ui_color color);
+typedef void (*tm_ui_button_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, const char *label,
+                                uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border,
+                                int hot);
+typedef void (*tm_ui_control_fn)(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,
+                                 uwm_ui_color text_color);
+typedef u64 (*tm_ui_present_fn)(u64 window_id, const uwm_ui_surface *surface);
+
+static int tm_ui_loaded = 0;
+static tm_ui_surface_fn tm_ui_surface = uwm_uilib_surface;
+static tm_ui_rect_fn tm_ui_fill_rect = uwm_uilib_fill_rect;
+static tm_ui_rect_fn tm_ui_stroke_rect = uwm_uilib_stroke_rect;
+static tm_ui_char_fn tm_ui_draw_char = uwm_uilib_draw_char;
+static tm_ui_button_fn tm_ui_draw_button = uwm_uilib_draw_button;
+static tm_ui_control_fn tm_ui_draw_control_button = uwm_uilib_draw_control_button;
+static tm_ui_present_fn tm_ui_present_surface = uwm_uilib_present;
 
 #define TM_TTY_DISPLAY 1ULL
 #define TM_CANVAS_MAX_W 800U
@@ -188,13 +210,6 @@ static int tm_u64_as_i32(u64 raw) {
     return (int)(i64)raw;
 }
 
-static char tm_upper_char(char ch) {
-    if (ch >= 'a' && ch <= 'z') {
-        return (char)(ch - ('a' - 'A'));
-    }
-    return ch;
-}
-
 static const char *tm_state_name(u64 state) {
     if (state == CLEONOS_PROC_STATE_PENDING) {
         return "PENDING";
@@ -211,179 +226,68 @@ static const char *tm_state_name(u64 state) {
     return "UNKNOWN";
 }
 
-static u64 tm_glyph_mask(char ch) {
-    switch (tm_upper_char(ch)) {
-    case 'A':
-        return TM_GLYPH7(14U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'B':
-        return TM_GLYPH7(30U, 17U, 17U, 30U, 17U, 17U, 30U);
-    case 'C':
-        return TM_GLYPH7(14U, 17U, 16U, 16U, 16U, 17U, 14U);
-    case 'D':
-        return TM_GLYPH7(30U, 17U, 17U, 17U, 17U, 17U, 30U);
-    case 'E':
-        return TM_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 31U);
-    case 'F':
-        return TM_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 16U);
-    case 'G':
-        return TM_GLYPH7(14U, 17U, 16U, 23U, 17U, 17U, 15U);
-    case 'H':
-        return TM_GLYPH7(17U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'I':
-        return TM_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 31U);
-    case 'J':
-        return TM_GLYPH7(1U, 1U, 1U, 1U, 17U, 17U, 14U);
-    case 'K':
-        return TM_GLYPH7(17U, 18U, 20U, 24U, 20U, 18U, 17U);
-    case 'L':
-        return TM_GLYPH7(16U, 16U, 16U, 16U, 16U, 16U, 31U);
-    case 'M':
-        return TM_GLYPH7(17U, 27U, 21U, 21U, 17U, 17U, 17U);
-    case 'N':
-        return TM_GLYPH7(17U, 25U, 21U, 19U, 17U, 17U, 17U);
-    case 'O':
-        return TM_GLYPH7(14U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'P':
-        return TM_GLYPH7(30U, 17U, 17U, 30U, 16U, 16U, 16U);
-    case 'Q':
-        return TM_GLYPH7(14U, 17U, 17U, 17U, 21U, 18U, 13U);
-    case 'R':
-        return TM_GLYPH7(30U, 17U, 17U, 30U, 20U, 18U, 17U);
-    case 'S':
-        return TM_GLYPH7(15U, 16U, 16U, 14U, 1U, 1U, 30U);
-    case 'T':
-        return TM_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 4U);
-    case 'U':
-        return TM_GLYPH7(17U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'V':
-        return TM_GLYPH7(17U, 17U, 17U, 17U, 17U, 10U, 4U);
-    case 'W':
-        return TM_GLYPH7(17U, 17U, 17U, 21U, 21U, 21U, 10U);
-    case 'X':
-        return TM_GLYPH7(17U, 17U, 10U, 4U, 10U, 17U, 17U);
-    case 'Y':
-        return TM_GLYPH7(17U, 17U, 10U, 4U, 4U, 4U, 4U);
-    case 'Z':
-        return TM_GLYPH7(31U, 1U, 2U, 4U, 8U, 16U, 31U);
-    case '0':
-        return TM_GLYPH7(14U, 17U, 19U, 21U, 25U, 17U, 14U);
-    case '1':
-        return TM_GLYPH7(4U, 12U, 4U, 4U, 4U, 4U, 14U);
-    case '2':
-        return TM_GLYPH7(14U, 17U, 1U, 2U, 4U, 8U, 31U);
-    case '3':
-        return TM_GLYPH7(30U, 1U, 1U, 14U, 1U, 1U, 30U);
-    case '4':
-        return TM_GLYPH7(2U, 6U, 10U, 18U, 31U, 2U, 2U);
-    case '5':
-        return TM_GLYPH7(31U, 16U, 16U, 30U, 1U, 1U, 30U);
-    case '6':
-        return TM_GLYPH7(14U, 16U, 16U, 30U, 17U, 17U, 14U);
-    case '7':
-        return TM_GLYPH7(31U, 1U, 2U, 4U, 8U, 8U, 8U);
-    case '8':
-        return TM_GLYPH7(14U, 17U, 17U, 14U, 17U, 17U, 14U);
-    case '9':
-        return TM_GLYPH7(14U, 17U, 17U, 15U, 1U, 1U, 14U);
-    case '-':
-        return TM_GLYPH7(0U, 0U, 0U, 31U, 0U, 0U, 0U);
-    case '_':
-        return TM_GLYPH7(0U, 0U, 0U, 0U, 0U, 0U, 31U);
-    case '.':
-        return TM_GLYPH7(0U, 0U, 0U, 0U, 0U, 12U, 12U);
-    case ':':
-        return TM_GLYPH7(0U, 12U, 12U, 0U, 12U, 12U, 0U);
-    case '/':
-        return TM_GLYPH7(1U, 1U, 2U, 4U, 8U, 16U, 16U);
-    case '+':
-        return TM_GLYPH7(0U, 4U, 4U, 31U, 4U, 4U, 0U);
-    case '=':
-        return TM_GLYPH7(0U, 0U, 31U, 0U, 31U, 0U, 0U);
-    case '<':
-        return TM_GLYPH7(1U, 2U, 4U, 8U, 4U, 2U, 1U);
-    case '>':
-        return TM_GLYPH7(16U, 8U, 4U, 2U, 4U, 8U, 16U);
-    case '[':
-        return TM_GLYPH7(14U, 8U, 8U, 8U, 8U, 8U, 14U);
-    case ']':
-        return TM_GLYPH7(14U, 2U, 2U, 2U, 2U, 2U, 14U);
-    case '(':
-        return TM_GLYPH7(2U, 4U, 8U, 8U, 8U, 4U, 2U);
-    case ')':
-        return TM_GLYPH7(8U, 4U, 2U, 2U, 2U, 4U, 8U);
-    case '|':
-        return TM_GLYPH7(4U, 4U, 4U, 4U, 4U, 4U, 4U);
-    case '!':
-        return TM_GLYPH7(4U, 4U, 4U, 4U, 4U, 0U, 4U);
-    case '?':
-        return TM_GLYPH7(14U, 17U, 1U, 2U, 4U, 0U, 4U);
-    case '*':
-        return TM_GLYPH7(0U, 21U, 14U, 31U, 14U, 21U, 0U);
-    default:
-        return 0ULL;
+static void tm_ui_load(void) {
+    void *handle;
+    void *sym;
+
+    if (tm_ui_loaded != 0) {
+        return;
     }
+    tm_ui_loaded = 1;
+
+    handle = dlopen("/shell/uwm/uwm_uilib.elf", 0);
+    if (handle == (void *)0) {
+        return;
+    }
+
+    sym = dlsym(handle, "uwm_uilib_surface");
+    if (sym != (void *)0) {
+        tm_ui_surface = (tm_ui_surface_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_fill_rect");
+    if (sym != (void *)0) {
+        tm_ui_fill_rect = (tm_ui_rect_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_stroke_rect");
+    if (sym != (void *)0) {
+        tm_ui_stroke_rect = (tm_ui_rect_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_char");
+    if (sym != (void *)0) {
+        tm_ui_draw_char = (tm_ui_char_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_button");
+    if (sym != (void *)0) {
+        tm_ui_draw_button = (tm_ui_button_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_draw_control_button");
+    if (sym != (void *)0) {
+        tm_ui_draw_control_button = (tm_ui_control_fn)sym;
+    }
+    sym = dlsym(handle, "uwm_uilib_present");
+    if (sym != (void *)0) {
+        tm_ui_present_surface = (tm_ui_present_fn)sym;
+    }
+}
+
+static uwm_ui_surface tm_surface(int canvas_w, int canvas_h) {
+    tm_ui_load();
+    return tm_ui_surface(&tm_canvas[0][0], canvas_w, canvas_h, (int)TM_CANVAS_MAX_W);
 }
 
 static void tm_fill_rect(int canvas_w, int canvas_h, int x, int y, int w, int h, tm_u32 color) {
-    int left = x;
-    int top = y;
-    int right = x + w;
-    int bottom = y + h;
-    int row;
-
-    if (canvas_w <= 0 || canvas_h <= 0 || canvas_w > (int)TM_CANVAS_MAX_W || canvas_h > (int)TM_CANVAS_MAX_H ||
-        w <= 0 || h <= 0) {
-        return;
-    }
-
-    if (left < 0) {
-        left = 0;
-    }
-    if (top < 0) {
-        top = 0;
-    }
-    if (right > canvas_w) {
-        right = canvas_w;
-    }
-    if (bottom > canvas_h) {
-        bottom = canvas_h;
-    }
-    if (left >= right || top >= bottom) {
-        return;
-    }
-
-    for (row = top; row < bottom; row++) {
-        int col;
-        for (col = left; col < right; col++) {
-            tm_canvas[row][col] = color;
-        }
-    }
+    uwm_ui_surface surface = tm_surface(canvas_w, canvas_h);
+    tm_ui_fill_rect(&surface, x, y, w, h, color);
 }
 
 static void tm_stroke_rect(int canvas_w, int canvas_h, int x, int y, int w, int h, tm_u32 color) {
-    tm_fill_rect(canvas_w, canvas_h, x, y, w, 1, color);
-    tm_fill_rect(canvas_w, canvas_h, x, y + h - 1, w, 1, color);
-    tm_fill_rect(canvas_w, canvas_h, x, y, 1, h, color);
-    tm_fill_rect(canvas_w, canvas_h, x + w - 1, y, 1, h, color);
+    uwm_ui_surface surface = tm_surface(canvas_w, canvas_h);
+    tm_ui_stroke_rect(&surface, x, y, w, h, color);
 }
 
 static void tm_draw_char(int canvas_w, int canvas_h, int x, int y, char ch, int scale, tm_u32 color) {
-    u64 mask = tm_glyph_mask(ch);
-    int row;
-
-    if (mask == 0ULL || scale <= 0) {
-        return;
-    }
-
-    for (row = 0; row < 7; row++) {
-        int col;
-        for (col = 0; col < 5; col++) {
-            unsigned int bit_index = (unsigned int)((6 - row) * 5 + (4 - col));
-            if ((mask & (1ULL << bit_index)) != 0ULL) {
-                tm_fill_rect(canvas_w, canvas_h, x + (col * scale), y + (row * scale), scale, scale, color);
-            }
-        }
-    }
+    uwm_ui_surface surface = tm_surface(canvas_w, canvas_h);
+    tm_ui_draw_char(&surface, x, y, ch, scale, color);
 }
 
 static void tm_draw_text_limit(int canvas_w, int canvas_h, int x, int y, const char *text, int scale, tm_u32 color,
@@ -393,7 +297,6 @@ static void tm_draw_text_limit(int canvas_w, int canvas_h, int x, int y, const c
     if (text == (const char *)0 || scale <= 0) {
         return;
     }
-
     while (*text != '\0' && cursor_x + (5 * scale) <= max_x) {
         if (*text != ' ') {
             tm_draw_char(canvas_w, canvas_h, cursor_x, y, *text, scale, color);
@@ -408,32 +311,23 @@ static void tm_draw_text(int canvas_w, int canvas_h, int x, int y, const char *t
 }
 
 static void tm_draw_button(int canvas_w, int canvas_h, int x, int y, int w, int h, const char *label, int hot) {
-    tm_fill_rect(canvas_w, canvas_h, x, y, w, h, hot != 0 ? TM_COLOR_BUTTON_HOT : TM_COLOR_BUTTON);
-    tm_stroke_rect(canvas_w, canvas_h, x, y, w, h, TM_COLOR_BORDER);
-    tm_draw_text_limit(canvas_w, canvas_h, x + 10, y + ((h - 7) / 2), label, 1, TM_COLOR_TEXT, x + w - 6);
+    uwm_ui_surface surface = tm_surface(canvas_w, canvas_h);
+    tm_ui_draw_button(&surface, x, y, w, h, label, TM_COLOR_BUTTON, TM_COLOR_BUTTON_HOT, TM_COLOR_TEXT, TM_COLOR_BORDER,
+                      hot);
 }
 
 static void tm_draw_control_button(int canvas_w, int canvas_h, int x, int active, int kind) {
-    tm_u32 bg = (kind == 2) ? TM_COLOR_CLOSE : (active != 0 ? TM_COLOR_CONTROL_ACTIVE : TM_COLOR_CONTROL_INACTIVE);
-    tm_u32 fg = (kind == 2 || active != 0) ? TM_COLOR_WHITE : TM_COLOR_TEXT;
-    int cy = TM_TITLE_H / 2;
-    int cx = x + (TM_CONTROL_W / 2);
+    uwm_ui_surface surface = tm_surface(canvas_w, canvas_h);
+    int control_kind = UWM_UI_CONTROL_MINIMIZE;
 
-    tm_fill_rect(canvas_w, canvas_h, x, 0, TM_CONTROL_W, TM_TITLE_H, bg);
-    if (kind == 0) {
-        tm_fill_rect(canvas_w, canvas_h, cx - 6, cy + 4, 12, 1, fg);
-    } else if (kind == 1) {
-        tm_stroke_rect(canvas_w, canvas_h, cx - 6, cy - 6, 12, 12, fg);
-        tm_fill_rect(canvas_w, canvas_h, cx - 6, cy - 6, 12, 2, fg);
-    } else {
-        int i;
-        for (i = 0; i < 11; i++) {
-            tm_fill_rect(canvas_w, canvas_h, cx - 5 + i, cy - 5 + i, 1, 1, fg);
-            tm_fill_rect(canvas_w, canvas_h, cx + 5 - i, cy - 5 + i, 1, 1, fg);
-        }
+    if (kind == 1) {
+        control_kind = UWM_UI_CONTROL_MAXIMIZE;
+    } else if (kind == 2) {
+        control_kind = UWM_UI_CONTROL_CLOSE;
     }
-}
 
+    tm_ui_draw_control_button(&surface, x, 0, TM_CONTROL_W, TM_TITLE_H, active, control_kind, TM_COLOR_TEXT);
+}
 static int tm_visible_rows(const tm_app *app) {
     int list_top;
     int list_bottom;
@@ -563,18 +457,14 @@ static void tm_reload(tm_app *app) {
 }
 
 static int tm_present(const tm_app *app) {
-    cleonos_wm_present_req req;
+    uwm_ui_surface surface;
 
     if (app == (const tm_app *)0 || app->window_id == 0ULL || app->w <= 0 || app->h <= 0) {
         return 0;
     }
 
-    req.window_id = app->window_id;
-    req.pixels_ptr = (u64)(usize)&tm_canvas[0][0];
-    req.src_width = (u64)(unsigned int)app->w;
-    req.src_height = (u64)(unsigned int)app->h;
-    req.src_pitch_bytes = (u64)TM_CANVAS_MAX_W * 4ULL;
-    return (cleonos_sys_wm_present(&req) != 0ULL) ? 1 : 0;
+    surface = tm_surface(app->w, app->h);
+    return (tm_ui_present_surface(app->window_id, &surface) != 0ULL) ? 1 : 0;
 }
 
 static void tm_draw_titlebar(const tm_app *app) {

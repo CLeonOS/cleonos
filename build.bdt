@@ -1,0 +1,11 @@
+[module]
+name = cleonos-root
+type = meta
+languages = c, cpp, asm, rust
+
+[sources]
+scan = project.bdt, Makefile, configs/menuconfig/config.clks.bdt, scripts/menuconfig.py
+
+[targets]
+default = iso
+provided = configure, setup, kernel, userapps, ramdisk-root, ramdisk, disk-image, iso, run, debug, clean, clean-all

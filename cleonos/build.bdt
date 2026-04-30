@@ -1,0 +1,13 @@
+[module]
+name = cleonos-userland
+type = userland
+languages = c, rust
+
+[sources]
+scan_dirs = c/src, c/apps, rust/src
+headers = c/include
+third_party = third-party/doomgeneric, third-party/litehtml, third-party/mbedtls
+
+[outputs]
+userapps = build/x86_64/user/apps
+ramdisk = build/x86_64/cleonos_ramdisk.tar

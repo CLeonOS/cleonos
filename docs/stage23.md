@@ -10,7 +10,7 @@
   - `clks/rust/src/lib.rs`
   - exports `clks_rusttest_hello()`
   - output text: `Hello world!`
-- Kernel build integration (CMake):
+- Kernel build integration:
   - build `libclks_kernel_rust.a`
   - link kernel ELF with `${KERNEL_RUST_LIB}`
 - Shell integration:

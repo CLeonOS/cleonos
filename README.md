@@ -25,27 +25,27 @@ Experimental x86_64 operating system project with a C kernel, Rust-assisted runt
 |- kit/                  # Standalone user-app SDK (build ELF without kernel source tree)
 |- ramdisk/              # Static files copied into runtime ramdisk
 |- configs/              # Boot configuration (Limine)
-|- cmake/                # Shared CMake scripts (tool checks, logging, limine setup)
+|- bdt/                  # Build Tool source
 |- docs/                 # Stage documents and syscall reference
 |- wine/                 # Host runner for CLeonOS user ELF (no full VM required)
-|- CMakeLists.txt        # Main build definition
-|- Makefile              # Developer-friendly wrapper around CMake targets
+|- project.bdt           # Main bdt project definition
+|- Makefile              # Developer-friendly wrapper around bdt targets
 ```
 
 ## Build Requirements
 
 Minimum required tools:
 
-- `cmake` (>= 3.20)
 - `make`
+- host C compiler for bootstrapping `bdt`
 - `git`
 - `tar`
 - `xorriso`
 - `sh` (POSIX shell)
 - `rustc`
 - Kernel/user toolchain (resolved automatically with fallback):
-  - kernel: `x86_64-elf-gcc`/`x86_64-elf-ld` (or fallback `gcc`/`clang` + `ld.lld`)
-  - user: `cc` + `ld`
+  - kernel: `gcc`/`g++` + `ld`
+  - user: `gcc` + `ld`
 
 For building Limine from source, install extras such as `autoconf`, `automake`, `libtool`, `pkg-config`, `mtools`, and `nasm`.
 
@@ -67,12 +67,6 @@ This disk is **not** packed into the ISO and is **not** loaded through Limine mo
 Kernel currently uses an in-memory disk cache window (default up to 8MB) for metadata/file operations.
 You can override disk size (MB), for example: `make run DISK_IMAGE_MB=128`.
 Inside CLeonOS, use `diskinfo` to confirm the disk is visible.
-
-If you already have Limine artifacts and want to skip configure:
-
-```bash
-make run LIMINE_SKIP_CONFIGURE=1
-```
 
 ## Common Targets
 

@@ -28,6 +28,7 @@ jobs:
     env:
       MENUCONFIG_PRESET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.menuconfig_preset || 'full' }}
       MENUCONFIG_OVERRIDES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.menuconfig_overrides || '' }}
+      NO_COLOR: "1"
 
     steps:
       - name: Checkout
@@ -40,14 +41,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            cmake \
             git \
+            python3 \
             tar \
             xorriso \
             mtools \
-            clang \
-            lld \
-            llvm \
             autoconf \
             automake \
             libtool \
@@ -57,34 +55,23 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Generate menuconfig (shared preset)
+      - name: Generate menuconfig with bdt
         shell: bash
         run: |
           set -euo pipefail
-          extra_args=()
-          if [[ -n "${MENUCONFIG_OVERRIDES}" ]]; then
-            # shellcheck disable=SC2206
-            extra_args=(${MENUCONFIG_OVERRIDES})
-          fi
-          python3 scripts/menuconfig.py --defaults --non-interactive --preset "${MENUCONFIG_PRESET}" "${extra_args[@]}"
+          make menuconfig \
+            MENUCONFIG_PRESET="${MENUCONFIG_PRESET}" \
+            MENUCONFIG_ARGS="--defaults --non-interactive ${MENUCONFIG_OVERRIDES}"
           echo "menuconfig generated with preset=${MENUCONFIG_PRESET}"
 
-      - name: Configure
+      - name: Build ISO with bdt
         run: |
-          cmake -S . -B build-cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DNO_COLOR=1 \
-            -DCC=gcc \
-            -DKERNEL_CXX=g++ \
-            -DLD=ld.lld \
-            -DUSER_CC=cc \
-            -DUSER_LD=ld.lld \
-            -DNM=llvm-nm \
-            -DADDR2LINE=llvm-addr2line \
-            -DLIMINE_REPO=https://github.com/limine-bootloader/limine.git
-
-      - name: Build ISO
-        run: cmake --build build-cmake --target iso -- -j"$(nproc)"
+          make iso \
+            CC=gcc \
+            KERNEL_CXX=g++ \
+            LD=ld \
+            NM=nm \
+            JOBS="$(nproc)"
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4

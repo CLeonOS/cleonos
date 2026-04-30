@@ -9,7 +9,7 @@
 - Added kernel shell builtin command: `elfloader [path]`.
   - Default target path: `/hello.elf`.
   - Builtin flow: `fs_read -> elf64 inspect -> exec load -> entry call -> return status`.
-- Updated CMake ramdisk placement rules:
+- Updated ramdisk placement rules:
   - `hello.elf` -> `/hello.elf`
 - Simplified user Rust library back to shared helper export (`cleonos_rust_guarded_len`).
 - Added x86_64 exec stack bridge (`clks_exec_call_on_stack_x86_64`) so ELF entry runs on a dedicated execution stack instead of inheriting deep shell call stack.

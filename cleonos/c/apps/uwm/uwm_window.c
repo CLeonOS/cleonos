@@ -494,6 +494,9 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
     int search_w;
     int app_x;
     int i;
+    u64 wm_count;
+    u64 wm_index;
+    u64 shown;
 
     if (sess == (ush_uwm_session *)0) {
         return;
@@ -522,34 +525,55 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
         app_x += search_w + 10;
     }
 
-    for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
-        ush_uwm_window *app = &sess->windows[i];
+    wm_count = cleonos_sys_wm_count();
+    shown = 0ULL;
+    for (wm_index = 0ULL; wm_index < wm_count && shown < USH_UWM_TASKBAR_DYNAMIC_MAX; wm_index++) {
+        u64 window_id = 0ULL;
+        cleonos_wm_snapshot snap;
+        char label[40];
+        int local_index;
         ush_uwm_u32 bg = 0x00282828U;
         ush_uwm_u32 fg = 0x00EAEAEAU;
         int active = 0;
-        int running = (sess->app_pids[i] != 0ULL && sess->app_states[i] != CLEONOS_PROC_STATE_EXITED &&
-                       sess->app_states[i] != CLEONOS_PROC_STATE_UNUSED)
-                          ? 1
-                          : 0;
 
         if (app_x + USH_UWM_TASKBAR_BUTTON_W > taskbar->w - 98) {
             break;
         }
 
-        if (running == 0 && app->closed != 0) {
-            bg = 0x001F1F1FU;
-            fg = 0x008F8F8FU;
-        } else if (running != 0) {
-            bg = 0x00383838U;
-            active = 1;
-        } else if (app->minimized != 0) {
-            bg = 0x002F2F2FU;
-        } else if (sess->active_window == i) {
+        ush_zero(&snap, (u64)sizeof(snap));
+        if (cleonos_sys_wm_id_at(wm_index, &window_id) == 0ULL || window_id == 0ULL ||
+            ush_uwm_taskbar_window_hidden(sess, window_id) != 0) {
+            continue;
+        }
+        if (cleonos_sys_wm_snapshot(window_id, &snap, (u64)sizeof(snap)) == 0ULL || snap.presented == 0ULL ||
+            ush_uwm_taskbar_window_hidden(sess, snap.window_id) != 0) {
+            continue;
+        }
+
+        local_index = ush_uwm_local_window_index_by_id(sess, snap.window_id);
+        if (snap.focused != 0ULL || (ush_uwm_app_index_valid(local_index) != 0 && sess->active_window == local_index)) {
             bg = 0x00383838U;
             active = 1;
         }
 
-        ush_uwm_draw_button(taskbar, app_x, 5, USH_UWM_TASKBAR_BUTTON_W, taskbar->h - 10, app->title, bg, fg, active);
+        ush_uwm_taskbar_window_label(sess, &snap, label, (u64)sizeof(label));
+        ush_uwm_draw_button(taskbar, app_x, 5, USH_UWM_TASKBAR_BUTTON_W, taskbar->h - 10, label, bg, fg, active);
+        app_x += USH_UWM_TASKBAR_BUTTON_W + USH_UWM_TASKBAR_BUTTON_GAP;
+        shown++;
+    }
+
+    for (i = 0; i < (int)USH_UWM_APP_COUNT; i++) {
+        ush_uwm_window *app = &sess->windows[i];
+
+        if (app->closed != 0 || app->minimized == 0) {
+            continue;
+        }
+        if (app_x + USH_UWM_TASKBAR_BUTTON_W > taskbar->w - 98) {
+            break;
+        }
+
+        ush_uwm_draw_button(taskbar, app_x, 5, USH_UWM_TASKBAR_BUTTON_W, taskbar->h - 10, app->title, 0x002F2F2FU,
+                            0x00EAEAEAU, 0);
         app_x += USH_UWM_TASKBAR_BUTTON_W + USH_UWM_TASKBAR_BUTTON_GAP;
     }
 
