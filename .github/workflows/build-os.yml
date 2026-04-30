@@ -36,6 +36,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Prepare submodules
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+          if [[ ! -f limine/GNUmakefile && ! -f limine/Makefile ]]; then
+            git submodule deinit -f limine || true
+            rm -rf limine
+            git submodule update --init --recursive --force limine
+          fi
+          test -f limine/GNUmakefile -o -f limine/Makefile
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
