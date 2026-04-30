@@ -58,7 +58,7 @@ cache = false
 [target.setup-limine]
 deps = setup-tools
 type = command
-command = if [ ! -f "{root}/limine/bootstrap" ] && [ ! -f "{root}/limine/configure" ]; then git submodule deinit -f limine || true; rm -rf "{root}/limine"; git submodule update --init --recursive --force limine; fi; if [ ! -f "{root}/limine/configure" ]; then (cd "{root}/limine" && ./bootstrap); fi; if [ ! -f "{root}/limine/GNUmakefile" ] && [ ! -f "{root}/limine/Makefile" ]; then (cd "{root}/limine" && ./configure --enable-bios --enable-bios-cd --enable-uefi-x86-64 --enable-uefi-cd); fi; make -C "{root}/limine"
+command = if [ ! -f "{root}/limine/bootstrap" ] && [ ! -f "{root}/limine/configure" ]; then git submodule deinit -f limine || true; rm -rf "{root}/limine"; git submodule update --init --recursive --force limine; fi; if [ ! -f "{root}/limine/configure" ]; then (cd "{root}/limine" && ./bootstrap); fi; if [ ! -f "{root}/limine/GNUmakefile" ] && [ ! -f "{root}/limine/Makefile" ]; then (cd "{root}/limine" && CC={CC} CC_FOR_TARGET={CC} LD_FOR_TARGET={LD} OBJCOPY_FOR_TARGET=objcopy OBJDUMP_FOR_TARGET=objdump READELF_FOR_TARGET=readelf STRIP=strip ./configure --enable-bios --enable-bios-cd --enable-uefi-x86-64 --enable-uefi-cd); fi; make -C "{root}/limine"
 cache = false
 
 [target.setup]
