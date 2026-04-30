@@ -42,12 +42,12 @@ jobs:
           set -euo pipefail
           git submodule sync --recursive
           git submodule update --init --recursive --force
-          if [[ ! -f limine/GNUmakefile && ! -f limine/Makefile ]]; then
+          if [[ ! -f limine/bootstrap && ! -f limine/configure ]]; then
             git submodule deinit -f limine || true
             rm -rf limine
             git submodule update --init --recursive --force limine
           fi
-          test -f limine/GNUmakefile -o -f limine/Makefile
+          test -f limine/bootstrap -o -f limine/configure
 
       - name: Install Dependencies
         run: |
