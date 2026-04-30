@@ -58,7 +58,7 @@ cache = false
 [target.setup-limine]
 deps = setup-tools
 type = command
-command = if [ ! -d "{root}/limine" ]; then git submodule update --init --recursive limine; fi; if [ ! -x "{root}/limine/bin/limine" ]; then make -C "{root}/limine"; fi
+command = if [ ! -f "{root}/limine/GNUmakefile" ] && [ ! -f "{root}/limine/Makefile" ]; then git submodule update --init --recursive limine; fi; if [ ! -x "{root}/limine/bin/limine" ]; then make -C "{root}/limine"; fi
 cache = false
 
 [target.setup]
