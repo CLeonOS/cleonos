@@ -209,9 +209,8 @@ int ush_browser_style_equal(const ush_browser_style *a, const ush_browser_style 
 
     return (a->fg_set == b->fg_set && a->fg_rgb == b->fg_rgb && a->bg_set == b->bg_set && a->bg_rgb == b->bg_rgb &&
             a->bold == b->bold && a->italic == b->italic && a->dim == b->dim && a->underline == b->underline &&
-            a->strike == b->strike && a->display_none == b->display_none &&
-            a->white_space_pre == b->white_space_pre && a->text_transform == b->text_transform &&
-            a->font_scale == b->font_scale)
+            a->strike == b->strike && a->display_none == b->display_none && a->white_space_pre == b->white_space_pre &&
+            a->text_transform == b->text_transform && a->font_scale == b->font_scale)
                ? 1
                : 0;
 }

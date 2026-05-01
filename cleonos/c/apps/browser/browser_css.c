@@ -146,9 +146,9 @@ static int ush_browser_css_parse_first_color_token(const char *value, u64 value_
         start = pos;
         if (value[pos] == '#') {
             pos++;
-            while (pos < value_len && ((value[pos] >= '0' && value[pos] <= '9') ||
-                                       (value[pos] >= 'a' && value[pos] <= 'f') ||
-                                       (value[pos] >= 'A' && value[pos] <= 'F'))) {
+            while (pos < value_len &&
+                   ((value[pos] >= '0' && value[pos] <= '9') || (value[pos] >= 'a' && value[pos] <= 'f') ||
+                    (value[pos] >= 'A' && value[pos] <= 'F'))) {
                 pos++;
             }
         } else {
@@ -225,10 +225,9 @@ int ush_browser_css_parse_color_value(const char *value, u64 value_len, u32 *out
         }
     }
 
-    if (((at >= 6ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' &&
-          normalized[3] == '(') ||
-         (at >= 7ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' &&
-          normalized[3] == 'a' && normalized[4] == '(')) &&
+    if (((at >= 6ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' && normalized[3] == '(') ||
+         (at >= 7ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' && normalized[3] == 'a' &&
+          normalized[4] == '(')) &&
         normalized[at - 1ULL] == ')') {
         u64 pos = (normalized[3] == 'a') ? 5ULL : 4ULL;
         u32 r;
@@ -530,11 +529,10 @@ void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_brow
                     io_delta->set_bold = 1;
                     io_delta->bold = 1;
                     io_delta->set_font_scale = 1;
-                    io_delta->font_scale =
-                        (ush_browser_line_has_token_icase(value, value_len, "xx-large") != 0 ||
-                         ush_browser_line_has_token_icase(value, value_len, "32px") != 0)
-                            ? 3
-                            : 2;
+                    io_delta->font_scale = (ush_browser_line_has_token_icase(value, value_len, "xx-large") != 0 ||
+                                            ush_browser_line_has_token_icase(value, value_len, "32px") != 0)
+                                               ? 3
+                                               : 2;
                 }
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "opacity") != 0) {
                 if (ush_browser_line_has_token_icase(value, value_len, "0") != 0) {
@@ -557,8 +555,7 @@ void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_brow
                 }
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "white-space") != 0) {
                 io_delta->set_white_space_pre = 1;
-                io_delta->white_space_pre =
-                    (ush_browser_line_has_token_icase(value, value_len, "pre") != 0) ? 1 : 0;
+                io_delta->white_space_pre = (ush_browser_line_has_token_icase(value, value_len, "pre") != 0) ? 1 : 0;
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "display") != 0) {
                 if (ush_browser_line_has_token_icase(value, value_len, "none") != 0) {
                     io_delta->set_display_none = 1;
