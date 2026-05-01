@@ -233,7 +233,8 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
         }
         ush_writeln("");
         ush_writeln("[browser] interactive mode");
-        ush_writeln("[browser] <number>: open link   o <src>: open URL/path   v: source/render   b: back   r: reload   q: quit");
+        ush_writeln("[browser] <number>: open link   o <src>: open URL/path   v: source/render   b: back   r: reload   "
+                    "q: quit");
         (void)fputs("browser> ", 1);
 
         if (ush_browser_read_line(input_line, (u64)sizeof(input_line)) == 0) {
