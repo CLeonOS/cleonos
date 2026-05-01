@@ -18,6 +18,7 @@ extern u64 ush_browser_css_rule_count;
 
 int ush_browser_render_html(const char *html, u64 html_size);
 void ush_browser_print_rendered(const char *source_desc);
+void ush_browser_print_source(const char *source_desc, const char *html, u64 html_size);
 int ush_browser_run_session(const ush_state *sh, const char *arg);
 int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap, u64 *out_size);
 int ush_browser_read_line(char *out_text, u64 out_size);
@@ -29,6 +30,7 @@ void ush_browser_text_reset(void);
 void ush_browser_text_trim_trailing_spaces(void);
 void ush_browser_text_newline(void);
 void ush_browser_text_append_char(char ch);
+void ush_browser_text_append_raw_char(char ch);
 void ush_browser_text_append(const char *text);
 void ush_browser_text_append_raw(const char *text);
 void ush_browser_text_horizontal_rule(void);
@@ -38,6 +40,7 @@ int ush_browser_style_equal(const ush_browser_style *a, const ush_browser_style 
 void ush_browser_style_apply_delta(ush_browser_style *io_style, const ush_browser_style_delta *delta);
 void ush_browser_style_apply_anchor_default(ush_browser_style *io_style);
 void ush_browser_text_emit_style(const ush_browser_style *style);
+int ush_browser_css_parse_color_value(const char *value, u64 value_len, u32 *out_rgb);
 void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_browser_style_delta *io_delta);
 void ush_browser_css_scan_style_nodes(GumboNode *node);
 void ush_browser_css_apply_rules_for_node(GumboNode *node, ush_browser_style *io_style);

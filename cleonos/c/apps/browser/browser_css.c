@@ -71,7 +71,111 @@ static int ush_browser_css_parse_u32_dec(const char *text, u64 len, u64 *io_pos,
     return 1;
 }
 
-static int ush_browser_css_parse_color(const char *value, u64 value_len, u32 *out_rgb) {
+static int ush_browser_css_parse_color_component(const char *text, u64 len, u64 *io_pos, u32 *out_value) {
+    u32 value;
+
+    if (text == (const char *)0 || io_pos == (u64 *)0 || out_value == (u32 *)0) {
+        return 0;
+    }
+
+    if (ush_browser_css_parse_u32_dec(text, len, io_pos, &value) == 0 || value > 255U) {
+        return 0;
+    }
+
+    if (*io_pos < len && text[*io_pos] == '%') {
+        *io_pos = *io_pos + 1ULL;
+        if (value > 100U) {
+            value = 100U;
+        }
+        value = (value * 255U) / 100U;
+    }
+
+    *out_value = value;
+    return 1;
+}
+
+static int ush_browser_css_value_is_keyword(const char *value, u64 value_len, const char *keyword) {
+    u64 keyword_len;
+    u64 start = 0ULL;
+    u64 end = value_len;
+    u64 i;
+
+    if (value == (const char *)0 || keyword == (const char *)0) {
+        return 0;
+    }
+
+    while (start < end && ush_browser_css_is_space(value[start]) != 0) {
+        start++;
+    }
+    while (end > start && ush_browser_css_is_space(value[end - 1ULL]) != 0) {
+        end--;
+    }
+
+    keyword_len = ush_strlen(keyword);
+    if (end - start != keyword_len) {
+        return 0;
+    }
+
+    for (i = 0ULL; i < keyword_len; i++) {
+        if (ush_browser_ascii_tolower(value[start + i]) != ush_browser_ascii_tolower(keyword[i])) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+static int ush_browser_css_parse_first_color_token(const char *value, u64 value_len, u32 *out_rgb) {
+    u64 pos = 0ULL;
+
+    if (value == (const char *)0 || out_rgb == (u32 *)0) {
+        return 0;
+    }
+
+    while (pos < value_len) {
+        u64 start;
+        u64 end;
+
+        while (pos < value_len && (ush_browser_css_is_space(value[pos]) != 0 || value[pos] == ',')) {
+            pos++;
+        }
+        if (pos >= value_len) {
+            break;
+        }
+
+        start = pos;
+        if (value[pos] == '#') {
+            pos++;
+            while (pos < value_len && ((value[pos] >= '0' && value[pos] <= '9') ||
+                                       (value[pos] >= 'a' && value[pos] <= 'f') ||
+                                       (value[pos] >= 'A' && value[pos] <= 'F'))) {
+                pos++;
+            }
+        } else {
+            while (pos < value_len && ush_browser_css_is_space(value[pos]) == 0 && value[pos] != ',') {
+                if (value[pos] == '(') {
+                    while (pos < value_len && value[pos] != ')') {
+                        pos++;
+                    }
+                    if (pos < value_len) {
+                        pos++;
+                    }
+                    continue;
+                }
+                pos++;
+            }
+        }
+        end = pos;
+
+        if (end > start && ush_browser_css_parse_color_value(value + start, end - start, out_rgb) != 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int ush_browser_css_parse_color_value(const char *value, u64 value_len, u32 *out_rgb) {
     char normalized[96];
     u64 i;
     u64 at = 0ULL;
@@ -121,24 +225,27 @@ static int ush_browser_css_parse_color(const char *value, u64 value_len, u32 *ou
         }
     }
 
-    if (at >= 6ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' && normalized[3] == '(' &&
+    if (((at >= 6ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' &&
+          normalized[3] == '(') ||
+         (at >= 7ULL && normalized[0] == 'r' && normalized[1] == 'g' && normalized[2] == 'b' &&
+          normalized[3] == 'a' && normalized[4] == '(')) &&
         normalized[at - 1ULL] == ')') {
-        u64 pos = 4ULL;
+        u64 pos = (normalized[3] == 'a') ? 5ULL : 4ULL;
         u32 r;
         u32 g;
         u32 b;
 
-        if (ush_browser_css_parse_u32_dec(normalized, at - 1ULL, &pos, &r) == 0 || pos >= at - 1ULL ||
-            normalized[pos] != ',' || r > 255U) {
+        if (ush_browser_css_parse_color_component(normalized, at - 1ULL, &pos, &r) == 0 || pos >= at - 1ULL ||
+            (normalized[pos] != ',' && normalized[pos] != '/')) {
             return 0;
         }
         pos++;
-        if (ush_browser_css_parse_u32_dec(normalized, at - 1ULL, &pos, &g) == 0 || pos >= at - 1ULL ||
-            normalized[pos] != ',' || g > 255U) {
+        if (ush_browser_css_parse_color_component(normalized, at - 1ULL, &pos, &g) == 0 || pos >= at - 1ULL ||
+            (normalized[pos] != ',' && normalized[pos] != '/')) {
             return 0;
         }
         pos++;
-        if (ush_browser_css_parse_u32_dec(normalized, at - 1ULL, &pos, &b) == 0 || b > 255U) {
+        if (ush_browser_css_parse_color_component(normalized, at - 1ULL, &pos, &b) == 0) {
             return 0;
         }
         *out_rgb = (r << 16U) | (g << 8U) | b;
@@ -213,6 +320,77 @@ static int ush_browser_css_parse_color(const char *value, u64 value_len, u32 *ou
         *out_rgb = 0x808000U;
         return 1;
     }
+    if (ush_streq(normalized, "transparent") != 0 || ush_streq(normalized, "currentcolor") != 0) {
+        return 0;
+    }
+    if (ush_streq(normalized, "rebeccapurple") != 0) {
+        *out_rgb = 0x663399U;
+        return 1;
+    }
+    if (ush_streq(normalized, "pink") != 0) {
+        *out_rgb = 0xFFC0CBU;
+        return 1;
+    }
+    if (ush_streq(normalized, "brown") != 0) {
+        *out_rgb = 0xA52A2AU;
+        return 1;
+    }
+    if (ush_streq(normalized, "gold") != 0) {
+        *out_rgb = 0xFFD700U;
+        return 1;
+    }
+    if (ush_streq(normalized, "indigo") != 0) {
+        *out_rgb = 0x4B0082U;
+        return 1;
+    }
+    if (ush_streq(normalized, "violet") != 0) {
+        *out_rgb = 0xEE82EEU;
+        return 1;
+    }
+    if (ush_streq(normalized, "coral") != 0) {
+        *out_rgb = 0xFF7F50U;
+        return 1;
+    }
+    if (ush_streq(normalized, "salmon") != 0) {
+        *out_rgb = 0xFA8072U;
+        return 1;
+    }
+    if (ush_streq(normalized, "khaki") != 0) {
+        *out_rgb = 0xF0E68CU;
+        return 1;
+    }
+    if (ush_streq(normalized, "beige") != 0) {
+        *out_rgb = 0xF5F5DCU;
+        return 1;
+    }
+    if (ush_streq(normalized, "tan") != 0) {
+        *out_rgb = 0xD2B48CU;
+        return 1;
+    }
+    if (ush_streq(normalized, "plum") != 0) {
+        *out_rgb = 0xDDA0DDU;
+        return 1;
+    }
+    if (ush_streq(normalized, "tomato") != 0) {
+        *out_rgb = 0xFF6347U;
+        return 1;
+    }
+    if (ush_streq(normalized, "crimson") != 0) {
+        *out_rgb = 0xDC143CU;
+        return 1;
+    }
+    if (ush_streq(normalized, "darkgreen") != 0) {
+        *out_rgb = 0x006400U;
+        return 1;
+    }
+    if (ush_streq(normalized, "lightgray") != 0 || ush_streq(normalized, "lightgrey") != 0) {
+        *out_rgb = 0xD3D3D3U;
+        return 1;
+    }
+    if (ush_streq(normalized, "darkgray") != 0 || ush_streq(normalized, "darkgrey") != 0) {
+        *out_rgb = 0xA9A9A9U;
+        return 1;
+    }
 
     return 0;
 }
@@ -274,24 +452,42 @@ void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_brow
             const char *value = decl + value_start;
             u64 value_len = value_end - value_start;
 
-            if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "text-decoration") != 0) {
+            if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "text-decoration") != 0 ||
+                ush_browser_css_name_eq(decl + name_start, name_end - name_start, "text-decoration-line") != 0) {
                 if (ush_browser_line_has_token_icase(value, value_len, "none") != 0) {
                     io_delta->set_underline = 1;
                     io_delta->underline = 0;
+                    io_delta->set_strike = 1;
+                    io_delta->strike = 0;
                 }
                 if (ush_browser_line_has_token_icase(value, value_len, "underline") != 0) {
                     io_delta->set_underline = 1;
                     io_delta->underline = 1;
                 }
+                if (ush_browser_line_has_token_icase(value, value_len, "line-through") != 0) {
+                    io_delta->set_strike = 1;
+                    io_delta->strike = 1;
+                }
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "color") != 0) {
-                if (ush_browser_css_parse_color(value, value_len, &rgb) != 0) {
+                if (ush_browser_css_parse_color_value(value, value_len, &rgb) != 0) {
                     io_delta->set_fg = 1;
                     io_delta->fg_rgb = rgb;
                 }
-            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "background-color") != 0) {
-                if (ush_browser_css_parse_color(value, value_len, &rgb) != 0) {
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "background-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "background") != 0) {
+                if (ush_browser_css_parse_first_color_token(value, value_len, &rgb) != 0) {
                     io_delta->set_bg = 1;
                     io_delta->bg_rgb = rgb;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "border-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "border-top-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "border-right-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "border-bottom-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "border-left-color") != 0 ||
+                       ush_browser_css_name_eq(decl + name_start, name_end - name_start, "outline-color") != 0) {
+                if (ush_browser_css_parse_first_color_token(value, value_len, &rgb) != 0) {
+                    io_delta->set_fg = 1;
+                    io_delta->fg_rgb = rgb;
                 }
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "font-weight") != 0) {
                 if (ush_browser_line_has_token_icase(value, value_len, "bold") != 0 ||
@@ -310,9 +506,67 @@ void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_brow
                     io_delta->set_bold = 1;
                     io_delta->bold = 0;
                 }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "font-style") != 0) {
+                if (ush_browser_line_has_token_icase(value, value_len, "italic") != 0 ||
+                    ush_browser_line_has_token_icase(value, value_len, "oblique") != 0) {
+                    io_delta->set_italic = 1;
+                    io_delta->italic = 1;
+                } else if (ush_browser_line_has_token_icase(value, value_len, "normal") != 0) {
+                    io_delta->set_italic = 1;
+                    io_delta->italic = 0;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "font-size") != 0) {
+                if (ush_browser_line_has_token_icase(value, value_len, "small") != 0 ||
+                    ush_browser_line_has_token_icase(value, value_len, "0.") != 0 ||
+                    ush_browser_line_has_token_icase(value, value_len, "8px") != 0 ||
+                    ush_browser_line_has_token_icase(value, value_len, "9px") != 0) {
+                    io_delta->set_dim = 1;
+                    io_delta->dim = 1;
+                } else if (ush_browser_line_has_token_icase(value, value_len, "large") != 0 ||
+                           ush_browser_line_has_token_icase(value, value_len, "x-large") != 0 ||
+                           ush_browser_line_has_token_icase(value, value_len, "xx-large") != 0 ||
+                           ush_browser_line_has_token_icase(value, value_len, "2em") != 0 ||
+                           ush_browser_line_has_token_icase(value, value_len, "32px") != 0) {
+                    io_delta->set_bold = 1;
+                    io_delta->bold = 1;
+                    io_delta->set_font_scale = 1;
+                    io_delta->font_scale =
+                        (ush_browser_line_has_token_icase(value, value_len, "xx-large") != 0 ||
+                         ush_browser_line_has_token_icase(value, value_len, "32px") != 0)
+                            ? 3
+                            : 2;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "opacity") != 0) {
+                if (ush_browser_line_has_token_icase(value, value_len, "0") != 0) {
+                    io_delta->set_display_none = 1;
+                    io_delta->display_none = 1;
+                } else if (ush_browser_line_has_token_icase(value, value_len, ".") != 0) {
+                    io_delta->set_dim = 1;
+                    io_delta->dim = 1;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "text-transform") != 0) {
+                io_delta->set_text_transform = 1;
+                if (ush_browser_line_has_token_icase(value, value_len, "uppercase") != 0) {
+                    io_delta->text_transform = USH_BROWSER_TEXT_TRANSFORM_UPPERCASE;
+                } else if (ush_browser_line_has_token_icase(value, value_len, "lowercase") != 0) {
+                    io_delta->text_transform = USH_BROWSER_TEXT_TRANSFORM_LOWERCASE;
+                } else if (ush_browser_line_has_token_icase(value, value_len, "capitalize") != 0) {
+                    io_delta->text_transform = USH_BROWSER_TEXT_TRANSFORM_CAPITALIZE;
+                } else {
+                    io_delta->text_transform = USH_BROWSER_TEXT_TRANSFORM_NONE;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "white-space") != 0) {
+                io_delta->set_white_space_pre = 1;
+                io_delta->white_space_pre =
+                    (ush_browser_line_has_token_icase(value, value_len, "pre") != 0) ? 1 : 0;
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "display") != 0) {
-                io_delta->set_display_none = 1;
-                io_delta->display_none = (ush_browser_line_has_token_icase(value, value_len, "none") != 0) ? 1 : 0;
+                if (ush_browser_line_has_token_icase(value, value_len, "none") != 0) {
+                    io_delta->set_display_none = 1;
+                    io_delta->display_none = 1;
+                } else {
+                    io_delta->set_display_none = 1;
+                    io_delta->display_none = 0;
+                }
             } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "visibility") != 0) {
                 if (ush_browser_line_has_token_icase(value, value_len, "hidden") != 0) {
                     io_delta->set_display_none = 1;
@@ -320,6 +574,11 @@ void ush_browser_css_apply_declarations(const char *decl, u64 decl_len, ush_brow
                 } else if (ush_browser_line_has_token_icase(value, value_len, "visible") != 0) {
                     io_delta->set_display_none = 1;
                     io_delta->display_none = 0;
+                }
+            } else if (ush_browser_css_name_eq(decl + name_start, name_end - name_start, "content") != 0) {
+                if (ush_browser_css_value_is_keyword(value, value_len, "none") != 0) {
+                    io_delta->set_display_none = 1;
+                    io_delta->display_none = 1;
                 }
             }
         }
@@ -379,8 +638,18 @@ static int ush_browser_css_parse_simple_selector(const char *selector, u64 selec
 
     while (pos < selector_len) {
         char ch = selector[pos];
-        if (ch == ':' || ch == '[') {
+        if (ch == ':') {
             break;
+        }
+        if (ch == '[') {
+            while (pos < selector_len && selector[pos] != ']') {
+                pos++;
+            }
+            if (pos < selector_len && selector[pos] == ']') {
+                pos++;
+            }
+            matched = 1;
+            continue;
         }
         if (ch == '#') {
             pos++;

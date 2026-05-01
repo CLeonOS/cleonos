@@ -49,9 +49,6 @@ static int ush_browser_print_wrapped_span(const char *text, u64 start, u64 end, 
         u64 last_space = (u64)-1;
         u64 col = 0ULL;
 
-        while (pos < end && text[pos] == ' ') {
-            pos++;
-        }
         if (pos >= end) {
             break;
         }
@@ -149,5 +146,101 @@ void ush_browser_print_rendered(const char *source_desc) {
                          " -> " USH_BROWSER_ANSI_BLUE_UNDERLINE "%s" USH_BROWSER_ANSI_RESET "\n",
                          (unsigned long long)(k + 1ULL), ush_browser_links[k].text, ush_browser_links[k].href);
         }
+    }
+}
+
+static void ush_browser_print_source_line_prefix(u64 line_no) {
+    (void)printf("%5llu | ", (unsigned long long)line_no);
+}
+
+static void ush_browser_print_source_char(unsigned char ch, u64 *io_col) {
+    if (io_col == (u64 *)0) {
+        return;
+    }
+
+    if (ch == '\t') {
+        u64 spaces = 4ULL - (*io_col % 4ULL);
+        while (spaces > 0ULL) {
+            (void)fputc(' ', 1);
+            (*io_col)++;
+            spaces--;
+        }
+        return;
+    }
+
+    if (ch >= 0x20U && ch < 0x7FU) {
+        (void)fputc((int)ch, 1);
+        (*io_col)++;
+        return;
+    }
+
+    (void)fputc('.', 1);
+    (*io_col)++;
+}
+
+void ush_browser_print_source(const char *source_desc, const char *html, u64 html_size) {
+    u64 i;
+    u64 line_no = 1ULL;
+    u64 row_count = 0ULL;
+    u64 col = 0ULL;
+    int line_open = 0;
+
+    /* Keep source view isolated from previous rendered pages and scrollback. */
+    ush_writeln("\x1B[3J\x1B[2J\x1B[H");
+    ush_writeln("[browser] source view");
+    (void)printf("[browser] source: %s\n", (source_desc != (const char *)0) ? source_desc : "(unknown)");
+    (void)printf("[browser] bytes: %llu\n", (unsigned long long)html_size);
+    ush_writeln("------------------------------------------------------------");
+
+    if (html == (const char *)0 || html_size == 0ULL) {
+        ush_writeln("[browser] empty source");
+        return;
+    }
+
+    for (i = 0ULL; i < html_size; i++) {
+        unsigned char ch = (unsigned char)html[i];
+
+        if (line_open == 0) {
+            ush_browser_print_source_line_prefix(line_no);
+            line_open = 1;
+            col = 0ULL;
+            row_count++;
+            if (row_count > 260ULL) {
+                ush_writeln("[browser] source truncated at 260 rows");
+                return;
+            }
+        }
+
+        if (ch == '\r') {
+            continue;
+        }
+
+        if (ch == '\n') {
+            (void)fputc('\n', 1);
+            line_no++;
+            line_open = 0;
+            if (line_no > 260ULL) {
+                ush_writeln("[browser] source truncated at 260 lines");
+                return;
+            }
+            continue;
+        }
+
+        if (col >= (u64)USH_BROWSER_OUTPUT_COLS) {
+            (void)fputc('\n', 1);
+            ush_browser_print_source_line_prefix(line_no);
+            col = 0ULL;
+            row_count++;
+            if (row_count > 260ULL) {
+                ush_writeln("[browser] source truncated at 260 rows");
+                return;
+            }
+        }
+
+        ush_browser_print_source_char(ch, &col);
+    }
+
+    if (line_open != 0) {
+        (void)fputc('\n', 1);
     }
 }

@@ -5,12 +5,20 @@
 
 static int ush_browser_is_skip_tag(GumboTag tag) {
     switch (tag) {
+    case GUMBO_TAG_HEAD:
+    case GUMBO_TAG_TITLE:
+    case GUMBO_TAG_BASE:
+    case GUMBO_TAG_LINK:
+    case GUMBO_TAG_META:
     case GUMBO_TAG_SCRIPT:
     case GUMBO_TAG_STYLE:
     case GUMBO_TAG_NOSCRIPT:
     case GUMBO_TAG_TEMPLATE:
-    case GUMBO_TAG_IFRAME:
-    case GUMBO_TAG_OBJECT:
+    case GUMBO_TAG_SOURCE:
+    case GUMBO_TAG_TRACK:
+    case GUMBO_TAG_PARAM:
+    case GUMBO_TAG_COL:
+    case GUMBO_TAG_COLGROUP:
         return 1;
     default:
         return 0;
@@ -72,6 +80,538 @@ static int ush_browser_is_block_tag(GumboTag tag) {
         return 1;
     default:
         return 0;
+    }
+}
+
+static int ush_browser_ascii_is_alpha(char ch) {
+    return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) ? 1 : 0;
+}
+
+static int ush_browser_ascii_is_word(char ch) {
+    return (ush_browser_ascii_is_alpha(ch) != 0 || (ch >= '0' && ch <= '9')) ? 1 : 0;
+}
+
+static char ush_browser_ascii_toupper(char ch) {
+    if (ch >= 'a' && ch <= 'z') {
+        return (char)(ch - 'a' + 'A');
+    }
+    return ch;
+}
+
+static int ush_browser_streq_icase(const char *left, const char *right) {
+    u64 i = 0ULL;
+
+    if (left == (const char *)0 || right == (const char *)0) {
+        return 0;
+    }
+
+    while (left[i] != '\0' && right[i] != '\0') {
+        if (ush_browser_ascii_tolower(left[i]) != ush_browser_ascii_tolower(right[i])) {
+            return 0;
+        }
+        i++;
+    }
+
+    return (left[i] == '\0' && right[i] == '\0') ? 1 : 0;
+}
+
+static const char *ush_browser_attr_value(GumboNode *node, const char *name) {
+    GumboAttribute *attr;
+
+    if (node == (GumboNode *)0 || name == (const char *)0 || node->type != GUMBO_NODE_ELEMENT) {
+        return (const char *)0;
+    }
+
+    attr = gumbo_get_attribute(&node->v.element.attributes, name);
+    if (attr == (GumboAttribute *)0 || attr->value == (const char *)0) {
+        return (const char *)0;
+    }
+
+    return attr->value;
+}
+
+static int ush_browser_attr_present(GumboNode *node, const char *name) {
+    if (node == (GumboNode *)0 || name == (const char *)0 || node->type != GUMBO_NODE_ELEMENT) {
+        return 0;
+    }
+
+    return (gumbo_get_attribute(&node->v.element.attributes, name) != (GumboAttribute *)0) ? 1 : 0;
+}
+
+static int ush_browser_attr_value_is(GumboNode *node, const char *name, const char *expected) {
+    const char *value = ush_browser_attr_value(node, name);
+
+    if (value == (const char *)0 || expected == (const char *)0) {
+        return 0;
+    }
+
+    return ush_browser_streq_icase(value, expected);
+}
+
+static void ush_browser_text_append_limited(const char *text, u64 max_len) {
+    u64 i = 0ULL;
+
+    if (text == (const char *)0 || max_len == 0ULL) {
+        return;
+    }
+
+    while (text[i] != '\0' && i < max_len) {
+        ush_browser_text_append_char(text[i]);
+        i++;
+    }
+}
+
+static void ush_browser_append_attr_value(const char *value, const char *fallback) {
+    if (value != (const char *)0 && value[0] != '\0') {
+        ush_browser_text_append_limited(value, 96ULL);
+    } else if (fallback != (const char *)0) {
+        ush_browser_text_append(fallback);
+    }
+}
+
+static void ush_browser_append_text_styled(const char *text, const ush_browser_style *style) {
+    u64 i = 0ULL;
+    int capitalize_next = 1;
+
+    if (text == (const char *)0 || style == (const ush_browser_style *)0) {
+        return;
+    }
+
+    while (text[i] != '\0') {
+        char ch = text[i];
+
+        if (style->text_transform == USH_BROWSER_TEXT_TRANSFORM_UPPERCASE) {
+            ch = ush_browser_ascii_toupper(ch);
+        } else if (style->text_transform == USH_BROWSER_TEXT_TRANSFORM_LOWERCASE) {
+            ch = ush_browser_ascii_tolower(ch);
+        } else if (style->text_transform == USH_BROWSER_TEXT_TRANSFORM_CAPITALIZE) {
+            if (ush_browser_ascii_is_alpha(ch) != 0) {
+                ch = (capitalize_next != 0) ? ush_browser_ascii_toupper(ch) : ush_browser_ascii_tolower(ch);
+                capitalize_next = 0;
+            } else if (ush_browser_ascii_is_word(ch) == 0) {
+                capitalize_next = 1;
+            }
+        }
+
+        if (style->white_space_pre != 0) {
+            if (ch == '\r') {
+                if (text[i + 1ULL] != '\n') {
+                    ush_browser_text_append_raw_char('\n');
+                }
+            } else if (ch == '\t') {
+                ush_browser_text_append_raw("    ");
+            } else {
+                ush_browser_text_append_raw_char(ch);
+            }
+        } else {
+            ush_browser_text_append_char(ch);
+        }
+
+        i++;
+    }
+}
+
+static void ush_browser_apply_tag_style(GumboTag tag, ush_browser_style *io_style) {
+    if (io_style == (ush_browser_style *)0) {
+        return;
+    }
+
+    switch (tag) {
+    case GUMBO_TAG_A:
+        ush_browser_style_apply_anchor_default(io_style);
+        break;
+    case GUMBO_TAG_H1:
+        io_style->font_scale = 3;
+        io_style->bold = 1;
+        break;
+    case GUMBO_TAG_H2:
+    case GUMBO_TAG_H3:
+        io_style->font_scale = 2;
+        io_style->bold = 1;
+        break;
+    case GUMBO_TAG_B:
+    case GUMBO_TAG_STRONG:
+    case GUMBO_TAG_TH:
+    case GUMBO_TAG_H4:
+    case GUMBO_TAG_H5:
+    case GUMBO_TAG_H6:
+    case GUMBO_TAG_DT:
+    case GUMBO_TAG_LEGEND:
+    case GUMBO_TAG_SUMMARY:
+    case GUMBO_TAG_BIG:
+        io_style->bold = 1;
+        break;
+    case GUMBO_TAG_EM:
+    case GUMBO_TAG_I:
+    case GUMBO_TAG_CITE:
+    case GUMBO_TAG_DFN:
+    case GUMBO_TAG_VAR:
+    case GUMBO_TAG_ADDRESS:
+        io_style->italic = 1;
+        break;
+    case GUMBO_TAG_U:
+    case GUMBO_TAG_INS:
+        io_style->underline = 1;
+        break;
+    case GUMBO_TAG_S:
+    case GUMBO_TAG_DEL:
+    case GUMBO_TAG_STRIKE:
+        io_style->strike = 1;
+        break;
+    case GUMBO_TAG_SMALL:
+    case GUMBO_TAG_RP:
+        io_style->dim = 1;
+        break;
+    case GUMBO_TAG_BLINK:
+        io_style->bold = 1;
+        io_style->fg_set = 1;
+        io_style->fg_rgb = 0xCC0000U;
+        break;
+    case GUMBO_TAG_MARK:
+        io_style->fg_set = 1;
+        io_style->fg_rgb = 0x000000U;
+        io_style->bg_set = 1;
+        io_style->bg_rgb = 0xFFFF00U;
+        break;
+    case GUMBO_TAG_CODE:
+    case GUMBO_TAG_KBD:
+    case GUMBO_TAG_SAMP:
+    case GUMBO_TAG_TT:
+        io_style->fg_set = 1;
+        io_style->fg_rgb = 0x111111U;
+        io_style->bg_set = 1;
+        io_style->bg_rgb = 0xE6E6E6U;
+        break;
+    case GUMBO_TAG_PRE:
+    case GUMBO_TAG_LISTING:
+    case GUMBO_TAG_XMP:
+    case GUMBO_TAG_PLAINTEXT:
+        io_style->white_space_pre = 1;
+        io_style->fg_set = 1;
+        io_style->fg_rgb = 0x111111U;
+        io_style->bg_set = 1;
+        io_style->bg_rgb = 0xF2F2F2U;
+        break;
+    default:
+        break;
+    }
+}
+
+static void ush_browser_apply_html_attr_style(GumboNode *node, ush_browser_style *io_style) {
+    const char *value;
+    u32 rgb;
+
+    if (node == (GumboNode *)0 || io_style == (ush_browser_style *)0 || node->type != GUMBO_NODE_ELEMENT) {
+        return;
+    }
+
+    if (ush_browser_attr_present(node, "hidden") != 0 || ush_browser_attr_value_is(node, "aria-hidden", "true") != 0) {
+        io_style->display_none = 1;
+        return;
+    }
+
+    value = ush_browser_attr_value(node, "color");
+    if (value != (const char *)0 && ush_browser_css_parse_color_value(value, ush_strlen(value), &rgb) != 0) {
+        io_style->fg_set = 1;
+        io_style->fg_rgb = rgb;
+    }
+
+    value = ush_browser_attr_value(node, "bgcolor");
+    if (value != (const char *)0 && ush_browser_css_parse_color_value(value, ush_strlen(value), &rgb) != 0) {
+        io_style->bg_set = 1;
+        io_style->bg_rgb = rgb;
+    }
+
+    value = ush_browser_attr_value(node, "size");
+    if (value != (const char *)0 && (value[0] == '1' || value[0] == '2' || value[0] == '-')) {
+        io_style->dim = 1;
+    } else if (value != (const char *)0 && (value[0] == '5' || value[0] == '6' || value[0] == '7' || value[0] == '+')) {
+        io_style->bold = 1;
+    }
+}
+
+static void ush_browser_append_heading_prefix(GumboTag tag) {
+    switch (tag) {
+    case GUMBO_TAG_H1:
+    case GUMBO_TAG_H2:
+    case GUMBO_TAG_H3:
+        break;
+    case GUMBO_TAG_H4:
+        ush_browser_text_append("#### ");
+        break;
+    case GUMBO_TAG_H5:
+        ush_browser_text_append("##### ");
+        break;
+    case GUMBO_TAG_H6:
+        ush_browser_text_append("###### ");
+        break;
+    default:
+        break;
+    }
+}
+
+static int ush_browser_render_input_tag(GumboNode *node) {
+    const char *type = ush_browser_attr_value(node, "type");
+    const char *name = ush_browser_attr_value(node, "name");
+    const char *value = ush_browser_attr_value(node, "value");
+    const char *placeholder = ush_browser_attr_value(node, "placeholder");
+
+    if (type == (const char *)0 || type[0] == '\0') {
+        type = "text";
+    }
+
+    if (ush_browser_streq_icase(type, "hidden") != 0) {
+        return 1;
+    }
+
+    if (ush_browser_streq_icase(type, "checkbox") != 0 || ush_browser_streq_icase(type, "radio") != 0) {
+        ush_browser_text_append((ush_browser_attr_present(node, "checked") != 0) ? "[x]" : "[ ]");
+        if (value != (const char *)0 && value[0] != '\0') {
+            ush_browser_text_append_char(' ');
+            ush_browser_text_append_limited(value, 48ULL);
+        } else if (name != (const char *)0 && name[0] != '\0') {
+            ush_browser_text_append_char(' ');
+            ush_browser_text_append_limited(name, 48ULL);
+        }
+        return 1;
+    }
+
+    if (ush_browser_streq_icase(type, "button") != 0 || ush_browser_streq_icase(type, "submit") != 0 ||
+        ush_browser_streq_icase(type, "reset") != 0) {
+        ush_browser_text_append("[button: ");
+        ush_browser_append_attr_value(value, type);
+        ush_browser_text_append("]");
+        return 1;
+    }
+
+    if (ush_browser_streq_icase(type, "password") != 0) {
+        ush_browser_text_append("[password]");
+        return 1;
+    }
+
+    ush_browser_text_append("[input");
+    if (name != (const char *)0 && name[0] != '\0') {
+        ush_browser_text_append_char(' ');
+        ush_browser_text_append_limited(name, 48ULL);
+    }
+    if (value != (const char *)0 && value[0] != '\0') {
+        ush_browser_text_append("=\"");
+        ush_browser_text_append_limited(value, 64ULL);
+        ush_browser_text_append("\"");
+    } else if (placeholder != (const char *)0 && placeholder[0] != '\0') {
+        ush_browser_text_append(" placeholder=\"");
+        ush_browser_text_append_limited(placeholder, 64ULL);
+        ush_browser_text_append("\"");
+    }
+    ush_browser_text_append("]");
+    return 1;
+}
+
+static int ush_browser_render_simple_placeholder(GumboNode *node, const char *kind, const char *primary_attr,
+                                                 const char *fallback_attr) {
+    const char *primary = ush_browser_attr_value(node, primary_attr);
+    const char *fallback = ush_browser_attr_value(node, fallback_attr);
+
+    if (kind == (const char *)0) {
+        return 0;
+    }
+
+    ush_browser_text_append("[");
+    ush_browser_text_append(kind);
+    if (primary != (const char *)0 && primary[0] != '\0') {
+        ush_browser_text_append(": ");
+        ush_browser_text_append_limited(primary, 96ULL);
+    } else if (fallback != (const char *)0 && fallback[0] != '\0') {
+        ush_browser_text_append(": ");
+        ush_browser_text_append_limited(fallback, 96ULL);
+    }
+    ush_browser_text_append("]");
+    return 1;
+}
+
+static int ush_browser_render_void_or_replaced_tag(GumboNode *node, GumboTag tag) {
+    const char *value;
+
+    switch (tag) {
+    case GUMBO_TAG_IMG:
+    case GUMBO_TAG_IMAGE:
+        return ush_browser_render_simple_placeholder(node, "image", "alt", "src");
+    case GUMBO_TAG_IFRAME:
+        return ush_browser_render_simple_placeholder(node, "iframe", "title", "src");
+    case GUMBO_TAG_EMBED:
+        return ush_browser_render_simple_placeholder(node, "embed", "title", "src");
+    case GUMBO_TAG_OBJECT:
+        return ush_browser_render_simple_placeholder(node, "object", "title", "data");
+    case GUMBO_TAG_VIDEO:
+        return ush_browser_render_simple_placeholder(node, "video", "title", "src");
+    case GUMBO_TAG_AUDIO:
+        return ush_browser_render_simple_placeholder(node, "audio", "title", "src");
+    case GUMBO_TAG_CANVAS:
+        return ush_browser_render_simple_placeholder(node, "canvas", "aria-label", "title");
+    case GUMBO_TAG_SVG:
+        return ush_browser_render_simple_placeholder(node, "svg", "aria-label", "title");
+    case GUMBO_TAG_MATH:
+        return ush_browser_render_simple_placeholder(node, "math", "aria-label", "title");
+    case GUMBO_TAG_INPUT:
+        return ush_browser_render_input_tag(node);
+    case GUMBO_TAG_PROGRESS:
+        ush_browser_text_append("[progress");
+        value = ush_browser_attr_value(node, "value");
+        if (value != (const char *)0 && value[0] != '\0') {
+            ush_browser_text_append_char(' ');
+            ush_browser_text_append_limited(value, 32ULL);
+            value = ush_browser_attr_value(node, "max");
+            if (value != (const char *)0 && value[0] != '\0') {
+                ush_browser_text_append("/");
+                ush_browser_text_append_limited(value, 32ULL);
+            }
+        }
+        ush_browser_text_append("]");
+        return 1;
+    case GUMBO_TAG_METER:
+        ush_browser_text_append("[meter");
+        value = ush_browser_attr_value(node, "value");
+        if (value != (const char *)0 && value[0] != '\0') {
+            ush_browser_text_append_char(' ');
+            ush_browser_text_append_limited(value, 32ULL);
+        }
+        ush_browser_text_append("]");
+        return 1;
+    case GUMBO_TAG_AREA:
+        return ush_browser_render_simple_placeholder(node, "area", "alt", "href");
+    default:
+        return 0;
+    }
+}
+
+static void ush_browser_emit_tag_prefix(GumboNode *node, GumboTag tag) {
+    const char *title;
+    const char *value;
+
+    switch (tag) {
+    case GUMBO_TAG_LI:
+        ush_browser_text_append("* ");
+        break;
+    case GUMBO_TAG_DT:
+        ush_browser_text_append("- ");
+        break;
+    case GUMBO_TAG_DD:
+        ush_browser_text_append_raw("  ");
+        break;
+    case GUMBO_TAG_BLOCKQUOTE:
+        ush_browser_text_append("> ");
+        break;
+    case GUMBO_TAG_CAPTION:
+        ush_browser_text_append("Table: ");
+        break;
+    case GUMBO_TAG_FIGCAPTION:
+        ush_browser_text_append("Figure: ");
+        break;
+    case GUMBO_TAG_LEGEND:
+        ush_browser_text_append("Legend: ");
+        break;
+    case GUMBO_TAG_SUMMARY:
+        ush_browser_text_append("Summary: ");
+        break;
+    case GUMBO_TAG_Q:
+        ush_browser_text_append("\"");
+        break;
+    case GUMBO_TAG_SUB:
+        ush_browser_text_append("_");
+        break;
+    case GUMBO_TAG_SUP:
+        ush_browser_text_append("^");
+        break;
+    case GUMBO_TAG_ABBR:
+        title = ush_browser_attr_value(node, "title");
+        if (title != (const char *)0 && title[0] != '\0') {
+            ush_browser_text_append("[");
+        }
+        break;
+    case GUMBO_TAG_TIME:
+        value = ush_browser_attr_value(node, "datetime");
+        if (value != (const char *)0 && value[0] != '\0') {
+            ush_browser_text_append("[time ");
+            ush_browser_text_append_limited(value, 48ULL);
+            ush_browser_text_append(": ");
+        }
+        break;
+    case GUMBO_TAG_DATA:
+        value = ush_browser_attr_value(node, "value");
+        if (value != (const char *)0 && value[0] != '\0') {
+            ush_browser_text_append("[data ");
+            ush_browser_text_append_limited(value, 48ULL);
+            ush_browser_text_append(": ");
+        }
+        break;
+    case GUMBO_TAG_BUTTON:
+        ush_browser_text_append("[button: ");
+        break;
+    case GUMBO_TAG_SELECT:
+        ush_browser_text_append("[select: ");
+        break;
+    case GUMBO_TAG_OPTION:
+        if (ush_browser_attr_present(node, "selected") != 0) {
+            ush_browser_text_append("*");
+        }
+        ush_browser_text_append("{");
+        break;
+    case GUMBO_TAG_TEXTAREA:
+        ush_browser_text_append("[textarea: ");
+        break;
+    case GUMBO_TAG_OUTPUT:
+        ush_browser_text_append("[output: ");
+        break;
+    case GUMBO_TAG_TD:
+    case GUMBO_TAG_TH:
+        ush_browser_text_append("| ");
+        break;
+    default:
+        ush_browser_append_heading_prefix(tag);
+        break;
+    }
+}
+
+static void ush_browser_emit_tag_suffix(GumboNode *node, GumboTag tag) {
+    const char *title;
+
+    switch (tag) {
+    case GUMBO_TAG_Q:
+        ush_browser_text_append("\"");
+        break;
+    case GUMBO_TAG_ABBR:
+        title = ush_browser_attr_value(node, "title");
+        if (title != (const char *)0 && title[0] != '\0') {
+            ush_browser_text_append("] (");
+            ush_browser_text_append_limited(title, 72ULL);
+            ush_browser_text_append(")");
+        }
+        break;
+    case GUMBO_TAG_TIME:
+        if (ush_browser_attr_value(node, "datetime") != (const char *)0) {
+            ush_browser_text_append("]");
+        }
+        break;
+    case GUMBO_TAG_DATA:
+        if (ush_browser_attr_value(node, "value") != (const char *)0) {
+            ush_browser_text_append("]");
+        }
+        break;
+    case GUMBO_TAG_BUTTON:
+    case GUMBO_TAG_SELECT:
+    case GUMBO_TAG_TEXTAREA:
+    case GUMBO_TAG_OUTPUT:
+        ush_browser_text_append("]");
+        break;
+    case GUMBO_TAG_OPTION:
+        ush_browser_text_append("} ");
+        break;
+    case GUMBO_TAG_TD:
+    case GUMBO_TAG_TH:
+        ush_browser_text_append_char(' ');
+        break;
+    default:
+        break;
     }
 }
 
@@ -190,7 +730,7 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
     case GUMBO_NODE_WHITESPACE:
     case GUMBO_NODE_CDATA:
         if (parent_style->display_none == 0) {
-            ush_browser_text_append(node->v.text.text);
+            ush_browser_append_text_styled(node->v.text.text, parent_style);
         }
         return;
 
@@ -211,9 +751,10 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
 
         if (tag == GUMBO_TAG_A) {
             ush_browser_collect_anchor_link(node);
-            ush_browser_style_apply_anchor_default(&style);
         }
 
+        ush_browser_apply_tag_style(tag, &style);
+        ush_browser_apply_html_attr_style(node, &style);
         ush_browser_css_apply_rules_for_node(node, &style);
 
         style_attr = gumbo_get_attribute(&node->v.element.attributes, "style");
@@ -224,6 +765,10 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
         }
 
         if (style.display_none != 0) {
+            return;
+        }
+
+        if (ush_browser_render_void_or_replaced_tag(node, tag) != 0) {
             return;
         }
 
@@ -241,18 +786,19 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
 
         if (is_block != 0) {
             ush_browser_text_newline();
-            if (tag == GUMBO_TAG_LI) {
-                ush_browser_text_append("* ");
-            }
         }
 
         if (style_changed != 0) {
             ush_browser_text_emit_style(&style);
         }
 
+        ush_browser_emit_tag_prefix(node, tag);
+
         for (i = 0ULL; i < (u64)children->length; i++) {
             ush_browser_walk_dom_styled((GumboNode *)children->data[i], &style);
         }
+
+        ush_browser_emit_tag_suffix(node, tag);
 
         if (style_changed != 0) {
             ush_browser_text_emit_style(parent_style);

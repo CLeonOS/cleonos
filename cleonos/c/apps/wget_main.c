@@ -1,6 +1,7 @@
 #include "cmd_runtime.h"
 #include "tls/cleonos_tls.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define USH_WGET_HOST_MAX 128U
 #define USH_WGET_PATH_MAX 256U
@@ -506,7 +507,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     int request_len;
     cleonos_net_tcp_connect_req conn_req;
     cleonos_net_tcp_send_req send_req;
-    cleonos_tls_conn tls_conn;
+    cleonos_tls_conn *tls_conn = (cleonos_tls_conn *)0;
     int tcp_open = 0;
     int tls_open = 0;
     u8 header[USH_WGET_HEADER_MAX];
@@ -563,11 +564,16 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     ush_wget_print_ipv4(dst_ipv4_be);
     (void)printf(":%u%s\n", (unsigned int)url.port, (url.tls != 0) ? " tls" : "");
 
-    ush_zero(&tls_conn, (u64)sizeof(tls_conn));
     if (url.tls != 0) {
-        if (cleonos_tls_connect(&tls_conn, dst_ipv4_be, url.port, url.host, USH_WGET_TCP_POLL_BUDGET) == 0) {
+        tls_conn = (cleonos_tls_conn *)malloc(sizeof(*tls_conn));
+        if (tls_conn == (cleonos_tls_conn *)0) {
+            (void)puts("wget: tls allocation failed");
+            goto done;
+        }
+        ush_zero(tls_conn, (u64)sizeof(*tls_conn));
+        if (cleonos_tls_connect(tls_conn, dst_ipv4_be, url.port, url.host, USH_WGET_TCP_POLL_BUDGET) == 0) {
             char tls_error[96];
-            cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+            cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
             (void)printf("wget: tls connect failed: %s\n", tls_error);
             goto done;
         }
@@ -602,9 +608,9 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     }
 
     if (url.tls != 0) {
-        if (cleonos_tls_write_all(&tls_conn, request, (u64)request_len) == 0) {
+        if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
             char tls_error[96];
-            cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+            cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
             (void)printf("wget: tls send failed: %s\n", tls_error);
             goto done;
         }
@@ -623,10 +629,10 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         u64 got = 0ULL;
 
         if (url.tls != 0) {
-            int tls_got = cleonos_tls_read(&tls_conn, chunk, (u64)sizeof(chunk));
+            int tls_got = cleonos_tls_read(tls_conn, chunk, (u64)sizeof(chunk));
             if (tls_got < 0) {
                 char tls_error[96];
-                cleonos_tls_error_text(cleonos_tls_last_error(&tls_conn), tls_error, (u64)sizeof(tls_error));
+                cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
                 (void)printf("wget: tls recv failed: %s\n", tls_error);
                 goto done;
             }
@@ -639,7 +645,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             got = cleonos_sys_net_tcp_recv(&recv_req);
         }
         if (got == 0ULL) {
-            if (url.tls != 0 && cleonos_tls_eof(&tls_conn) != 0) {
+            if (url.tls != 0 && cleonos_tls_eof(tls_conn) != 0) {
                 break;
             }
             idle_loops++;
@@ -696,9 +702,12 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
 
 done:
     if (tls_open != 0) {
-        cleonos_tls_close(&tls_conn, USH_WGET_TCP_POLL_BUDGET);
+        cleonos_tls_close(tls_conn, USH_WGET_TCP_POLL_BUDGET);
     } else if (tcp_open != 0) {
         (void)cleonos_sys_net_tcp_close(USH_WGET_TCP_POLL_BUDGET);
+    }
+    if (tls_conn != (cleonos_tls_conn *)0) {
+        free(tls_conn);
     }
     if (out_fd != (u64)-1) {
         (void)cleonos_sys_fd_close(out_fd);

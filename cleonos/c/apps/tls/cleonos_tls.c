@@ -220,17 +220,27 @@ static void cleonos_tls_log_heap_stats(const char *stage) {
 }
 
 static void cleonos_tls_contexts_init(cleonos_tls_conn *conn) {
+    if (conn == (cleonos_tls_conn *)0) {
+        return;
+    }
+
     mbedtls_ssl_init(&conn->ssl);
     mbedtls_ssl_config_init(&conn->conf);
     mbedtls_ctr_drbg_init(&conn->ctr_drbg);
     mbedtls_entropy_init(&conn->entropy);
+    conn->initialized = 1;
 }
 
 static void cleonos_tls_contexts_free(cleonos_tls_conn *conn) {
+    if (conn == (cleonos_tls_conn *)0 || conn->initialized == 0) {
+        return;
+    }
+
     mbedtls_ssl_free(&conn->ssl);
     mbedtls_ssl_config_free(&conn->conf);
     mbedtls_ctr_drbg_free(&conn->ctr_drbg);
     mbedtls_entropy_free(&conn->entropy);
+    conn->initialized = 0;
 }
 
 void cleonos_tls_init(cleonos_tls_conn *conn) {
@@ -404,6 +414,10 @@ static int cleonos_tls_rng(void *ctx, unsigned char *output, size_t len) {
 }
 
 static void cleonos_tls_drop_context_preserve_error(cleonos_tls_conn *conn, int error_code) {
+    if (conn == (cleonos_tls_conn *)0) {
+        return;
+    }
+
     cleonos_tls_contexts_free(conn);
     cleonos_tls_heap_reset();
     (void)memset(conn, 0, sizeof(*conn));
@@ -505,7 +519,7 @@ int cleonos_tls_write_all(cleonos_tls_conn *conn, const void *buffer, u64 length
     const u8 *bytes = (const u8 *)buffer;
     u64 done = 0ULL;
 
-    if (conn == (cleonos_tls_conn *)0 || buffer == (const void *)0) {
+    if (conn == (cleonos_tls_conn *)0 || conn->initialized == 0 || conn->active == 0 || buffer == (const void *)0) {
         return 0;
     }
 
@@ -540,7 +554,8 @@ int cleonos_tls_write_all(cleonos_tls_conn *conn, const void *buffer, u64 length
 int cleonos_tls_read(cleonos_tls_conn *conn, void *buffer, u64 capacity) {
     int ret;
 
-    if (conn == (cleonos_tls_conn *)0 || buffer == (void *)0 || capacity == 0ULL) {
+    if (conn == (cleonos_tls_conn *)0 || conn->initialized == 0 || conn->active == 0 || buffer == (void *)0 ||
+        capacity == 0ULL) {
         return -1;
     }
     if (capacity > (u64)INT_MAX) {
@@ -582,7 +597,7 @@ void cleonos_tls_close(cleonos_tls_conn *conn, u64 poll_budget) {
         return;
     }
 
-    if (conn->active != 0) {
+    if (conn->initialized != 0 && conn->active != 0) {
         for (loops = 0ULL; loops < 8ULL; loops++) {
             int ret = mbedtls_ssl_close_notify(&conn->ssl);
             if (ret == 0) {

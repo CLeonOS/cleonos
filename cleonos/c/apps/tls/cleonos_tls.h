@@ -16,6 +16,7 @@ typedef struct cleonos_tls_conn {
     mbedtls_entropy_context entropy;
     u64 send_poll_budget;
     u64 recv_poll_budget;
+    int initialized;
     int active;
     int last_error;
     int eof;

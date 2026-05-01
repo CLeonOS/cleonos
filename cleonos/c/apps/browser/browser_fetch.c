@@ -1,6 +1,7 @@
 #include "browser_internal.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../tls/cleonos_tls.h"
@@ -10,7 +11,7 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
     u64 dst_ipv4_be = 0ULL;
     cleonos_net_tcp_connect_req conn_req;
     cleonos_net_tcp_send_req send_req;
-    cleonos_tls_conn tls_conn;
+    cleonos_tls_conn *tls_conn = (cleonos_tls_conn *)0;
     char request[1024];
     int request_len;
     u64 sent;
@@ -66,10 +67,15 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
         }
     }
 
-    ush_zero(&tls_conn, (u64)sizeof(tls_conn));
     if (url.tls != 0) {
-        if (cleonos_tls_connect(&tls_conn, dst_ipv4_be, url.port, url.host, USH_BROWSER_TCP_POLL_BUDGET) == 0) {
-            ush_browser_fetch_error_set_tls("TLS connect failed", &tls_conn);
+        tls_conn = (cleonos_tls_conn *)malloc(sizeof(*tls_conn));
+        if (tls_conn == (cleonos_tls_conn *)0) {
+            ush_browser_fetch_error_set("TLS allocation failed");
+            goto cleanup;
+        }
+        ush_zero(tls_conn, (u64)sizeof(*tls_conn));
+        if (cleonos_tls_connect(tls_conn, dst_ipv4_be, url.port, url.host, USH_BROWSER_TCP_POLL_BUDGET) == 0) {
+            ush_browser_fetch_error_set_tls("TLS connect failed", tls_conn);
             goto cleanup;
         }
         tls_open = 1;
@@ -105,8 +111,8 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
     }
 
     if (url.tls != 0) {
-        if (cleonos_tls_write_all(&tls_conn, request, (u64)request_len) == 0) {
-            ush_browser_fetch_error_set_tls("TLS send failed", &tls_conn);
+        if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
+            ush_browser_fetch_error_set_tls("TLS send failed", tls_conn);
             goto cleanup;
         }
     } else {
@@ -127,9 +133,9 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
         u64 cap_left = (u64)USH_BROWSER_HTML_BUF_CAP - 1ULL - raw_len;
 
         if (url.tls != 0) {
-            int tls_got = cleonos_tls_read(&tls_conn, chunk, (u64)sizeof(chunk));
+            int tls_got = cleonos_tls_read(tls_conn, chunk, (u64)sizeof(chunk));
             if (tls_got < 0) {
-                ush_browser_fetch_error_set_tls("TLS recv failed", &tls_conn);
+                ush_browser_fetch_error_set_tls("TLS recv failed", tls_conn);
                 goto cleanup;
             }
             got = (u64)tls_got;
@@ -148,7 +154,7 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
         }
 
         if (got == 0ULL) {
-            if (url.tls != 0 && cleonos_tls_eof(&tls_conn) != 0) {
+            if (url.tls != 0 && cleonos_tls_eof(tls_conn) != 0) {
                 break;
             }
             if (header_parsed != 0) {
@@ -291,9 +297,12 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
 
 cleanup:
     if (tls_open != 0) {
-        cleonos_tls_close(&tls_conn, USH_BROWSER_TCP_POLL_BUDGET);
+        cleonos_tls_close(tls_conn, USH_BROWSER_TCP_POLL_BUDGET);
     } else if (tcp_open != 0) {
         (void)cleonos_sys_net_tcp_close(USH_BROWSER_TCP_POLL_BUDGET);
+    }
+    if (tls_conn != (cleonos_tls_conn *)0) {
+        free(tls_conn);
     }
     if (ok == 0) {
         *out_size = 0ULL;

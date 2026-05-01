@@ -411,13 +411,14 @@ char *strtok(char *text, const char *delim) {
 }
 
 char *strcat(char *dst, const char *src) {
-    size_t dlen = strlen(dst);
     size_t i = 0U;
+    size_t dlen;
 
     if (dst == (char *)0 || src == (const char *)0) {
         return dst;
     }
 
+    dlen = strlen(dst);
     while (src[i] != '\0') {
         dst[dlen + i] = src[i];
         i++;
@@ -428,13 +429,14 @@ char *strcat(char *dst, const char *src) {
 }
 
 char *strncat(char *dst, const char *src, size_t size) {
-    size_t dlen = strlen(dst);
     size_t i = 0U;
+    size_t dlen;
 
     if (dst == (char *)0 || src == (const char *)0) {
         return dst;
     }
 
+    dlen = strlen(dst);
     while (i < size && src[i] != '\0') {
         dst[dlen + i] = src[i];
         i++;

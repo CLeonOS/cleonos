@@ -21,4 +21,4 @@
 	url = https://github.com/CLeonOS/tls.git
 [submodule "bdt"]
 	path = bdt
-	url = https://github.com/CLeonOS/kbt
+	url = https://github.com/CLeonOS/bdt

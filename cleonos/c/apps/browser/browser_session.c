@@ -67,15 +67,54 @@ static int ush_browser_parse_link_index(const char *text, u64 *out_index) {
     return 1;
 }
 
-static int ush_browser_parse_args(const char *arg, char *out_source, u64 out_source_size) {
+static int ush_browser_has_prefix(const char *text, const char *prefix) {
+    u64 i = 0ULL;
+
+    if (text == (const char *)0 || prefix == (const char *)0) {
+        return 0;
+    }
+
+    while (prefix[i] != '\0') {
+        if (text[i] != prefix[i]) {
+            return 0;
+        }
+        i++;
+    }
+
+    return 1;
+}
+
+static void ush_browser_strip_view_source(char *io_source, int *out_source_mode) {
+    static const char prefix[] = "view-source:";
+    u64 prefix_len = (u64)(sizeof(prefix) - 1U);
+    u64 i = 0ULL;
+
+    if (io_source == (char *)0 || out_source_mode == (int *)0) {
+        return;
+    }
+
+    if (ush_browser_has_prefix(io_source, prefix) == 0) {
+        return;
+    }
+
+    while (io_source[prefix_len + i] != '\0') {
+        io_source[i] = io_source[prefix_len + i];
+        i++;
+    }
+    io_source[i] = '\0';
+    *out_source_mode = 1;
+}
+
+static int ush_browser_parse_args(const char *arg, char *out_source, u64 out_source_size, int *out_source_mode) {
     char first[USH_PATH_MAX];
     const char *rest = "";
 
-    if (out_source == (char *)0 || out_source_size == 0ULL) {
+    if (out_source == (char *)0 || out_source_size == 0ULL || out_source_mode == (int *)0) {
         return 0;
     }
 
     out_source[0] = '\0';
+    *out_source_mode = 0;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
         return 0;
@@ -89,16 +128,28 @@ static int ush_browser_parse_args(const char *arg, char *out_source, u64 out_sou
         return 2;
     }
 
+    if (ush_streq(first, "--source") != 0 || ush_streq(first, "-s") != 0) {
+        if (rest == (const char *)0 || rest[0] == '\0') {
+            return 0;
+        }
+        if (ush_split_first_and_rest(rest, first, (u64)sizeof(first), &rest) == 0) {
+            return 0;
+        }
+        *out_source_mode = 1;
+    }
+
     if (rest != (const char *)0 && rest[0] != '\0') {
         return 0;
     }
 
     ush_copy(out_source, out_source_size, first);
+    ush_browser_strip_view_source(out_source, out_source_mode);
     return (out_source[0] != '\0') ? 1 : 0;
 }
 
 static void ush_browser_usage(void) {
-    ush_writeln("usage: browser <file.html|http://...|https://...>");
+    ush_writeln("usage: browser [--source|-s] <file.html|http://...|https://...>");
+    ush_writeln("       browser view-source:<file.html|http://...|https://...>");
     ush_writeln("note: parser is gumbo from litehtml (no handwritten parser)");
 }
 
@@ -112,6 +163,7 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
     int parse_ret;
     u64 html_size = 0ULL;
     int loaded_once = 0;
+    int source_mode = 0;
     u64 i;
 
     if (sh == (const ush_state *)0) {
@@ -127,7 +179,7 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
         history[i][0] = '\0';
     }
 
-    parse_ret = ush_browser_parse_args(arg, source, (u64)sizeof(source));
+    parse_ret = ush_browser_parse_args(arg, source, (u64)sizeof(source), &source_mode);
     if (parse_ret == 2) {
         ush_browser_usage();
         return 1;
@@ -163,7 +215,7 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
             continue;
         }
 
-        if (ush_browser_render_html(ush_browser_html_buf, html_size) == 0) {
+        if (source_mode == 0 && ush_browser_render_html(ush_browser_html_buf, html_size) == 0) {
             ush_writeln("browser: parse/render failed");
             if (loaded_once == 0 ||
                 ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
@@ -174,10 +226,14 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
         }
 
         loaded_once = 1;
-        ush_browser_print_rendered(current_source);
+        if (source_mode != 0) {
+            ush_browser_print_source(current_source, ush_browser_html_buf, html_size);
+        } else {
+            ush_browser_print_rendered(current_source);
+        }
         ush_writeln("");
         ush_writeln("[browser] interactive mode");
-        ush_writeln("[browser] <number>: open link   o <src>: open source   b: back   r: reload   q: quit");
+        ush_writeln("[browser] <number>: open link   o <src>: open URL/path   v: source/render   b: back   r: reload   q: quit");
         (void)fputs("browser> ", 1);
 
         if (ush_browser_read_line(input_line, (u64)sizeof(input_line)) == 0) {
@@ -198,6 +254,17 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
             continue;
         }
 
+        if (ush_streq(input_line, "v") != 0 || ush_streq(input_line, "view") != 0 ||
+            ush_streq(input_line, "source") != 0 || ush_streq(input_line, "html") != 0) {
+            source_mode = (source_mode == 0) ? 1 : 0;
+            continue;
+        }
+
+        if (ush_streq(input_line, "render") != 0 || ush_streq(input_line, "page") != 0) {
+            source_mode = 0;
+            continue;
+        }
+
         if (ush_streq(input_line, "b") != 0 || ush_streq(input_line, "back") != 0) {
             if (ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
                 ush_writeln("browser: no history");
@@ -209,6 +276,9 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
             ush_writeln("[browser] commands:");
             ush_writeln("  <number>      open link by index");
             ush_writeln("  o <src>       open new URL/path");
+            ush_writeln("  v             toggle source/render view");
+            ush_writeln("  source        toggle source/render view");
+            ush_writeln("  render        switch back to rendered page");
             ush_writeln("  b             back");
             ush_writeln("  r             reload");
             ush_writeln("  q             quit");
@@ -227,6 +297,11 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
         } else {
             u64 link_index = 0ULL;
             if (ush_browser_parse_link_index(input_line, &link_index) != 0) {
+                if (source_mode != 0) {
+                    ush_writeln("browser: link indexes are available in rendered mode");
+                    continue;
+                }
+
                 if (link_index >= ush_browser_link_count) {
                     ush_writeln("browser: link index out of range");
                     continue;
@@ -265,5 +340,6 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
 
         (void)ush_browser_push_history(history, &history_count, current_source);
         ush_copy(current_source, (u64)sizeof(current_source), next_source);
+        source_mode = 0;
     }
 }

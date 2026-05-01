@@ -35,6 +35,11 @@
 #define USH_BROWSER_ANSI_UNDERLINE "\x1B[4m"
 #define USH_BROWSER_ANSI_BLUE_UNDERLINE "\x1B[34;4m"
 
+#define USH_BROWSER_TEXT_TRANSFORM_NONE 0
+#define USH_BROWSER_TEXT_TRANSFORM_UPPERCASE 1
+#define USH_BROWSER_TEXT_TRANSFORM_LOWERCASE 2
+#define USH_BROWSER_TEXT_TRANSFORM_CAPITALIZE 3
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -57,8 +62,14 @@ typedef struct ush_browser_style {
     int bg_set;
     u32 bg_rgb;
     int bold;
+    int italic;
+    int dim;
     int underline;
+    int strike;
     int display_none;
+    int white_space_pre;
+    int text_transform;
+    int font_scale;
 } ush_browser_style;
 
 typedef struct ush_browser_style_delta {
@@ -68,10 +79,22 @@ typedef struct ush_browser_style_delta {
     u32 bg_rgb;
     int set_bold;
     int bold;
+    int set_italic;
+    int italic;
+    int set_dim;
+    int dim;
     int set_underline;
     int underline;
+    int set_strike;
+    int strike;
     int set_display_none;
     int display_none;
+    int set_white_space_pre;
+    int white_space_pre;
+    int set_text_transform;
+    int text_transform;
+    int set_font_scale;
+    int font_scale;
 } ush_browser_style_delta;
 
 typedef struct ush_browser_css_rule {
