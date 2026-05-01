@@ -116,8 +116,7 @@ static int uwm_psf_draw_width(int scale) {
 
     step = uwm_psf_source_step(scale);
     pixel_scale = uwm_psf_pixel_scale(scale);
-    return (int)(((uwm_psf_font.width + (unsigned int)step - 1U) / (unsigned int)step) *
-                 (unsigned int)pixel_scale);
+    return (int)(((uwm_psf_font.width + (unsigned int)step - 1U) / (unsigned int)step) * (unsigned int)pixel_scale);
 }
 
 static int uwm_psf_draw_height(int scale) {
@@ -130,8 +129,7 @@ static int uwm_psf_draw_height(int scale) {
 
     step = uwm_psf_source_step(scale);
     pixel_scale = uwm_psf_pixel_scale(scale);
-    return (int)(((uwm_psf_font.height + (unsigned int)step - 1U) / (unsigned int)step) *
-                 (unsigned int)pixel_scale);
+    return (int)(((uwm_psf_font.height + (unsigned int)step - 1U) / (unsigned int)step) * (unsigned int)pixel_scale);
 }
 
 static int uwm_psf_advance(int scale) {

@@ -84,13 +84,15 @@ static void tuitest_draw_button_line(const tuitest_api *tui, int focused_button)
 }
 
 static void tuitest_draw(const tuitest_api *tui, int focused_button, const char *last_key) {
-    cleonos_tui_style border = tui->make_style(CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_COLOR_DEFAULT, CLEONOS_TUI_ATTR_BOLD);
-    cleonos_tui_style title = tui->make_style(CLEONOS_TUI_COLOR_YELLOW, CLEONOS_TUI_COLOR_DEFAULT, CLEONOS_TUI_ATTR_BOLD);
+    cleonos_tui_style border =
+        tui->make_style(CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_COLOR_DEFAULT, CLEONOS_TUI_ATTR_BOLD);
+    cleonos_tui_style title =
+        tui->make_style(CLEONOS_TUI_COLOR_YELLOW, CLEONOS_TUI_COLOR_DEFAULT, CLEONOS_TUI_ATTR_BOLD);
     cleonos_tui_style bar = tui->make_style(CLEONOS_TUI_COLOR_BLACK, CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_ATTR_BOLD);
 
     tui->clear();
     tuitest_print_line(tui, border, "+------------------------------------------------------------------------------+");
-    tuitest_print_line(tui, title,  "| CLeonOS TUI dynamic library                                                   |");
+    tuitest_print_line(tui, title, "| CLeonOS TUI dynamic library                                                   |");
     tuitest_print_line(tui, border, "+------------------------------------------------------------------------------+");
     (void)puts("|                                                                              |");
     (void)puts("| libtui-style API loaded through dlopen/dlsym.                                 |");
