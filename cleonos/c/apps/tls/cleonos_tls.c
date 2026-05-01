@@ -97,8 +97,7 @@ static int cleonos_tls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
 static int cleonos_tls_seed(cleonos_tls_conn *conn) {
     static const unsigned char pers[] = "cleonos-tls";
 
-    return mbedtls_ctr_drbg_seed(&conn->ctr_drbg, mbedtls_entropy_func, &conn->entropy, pers,
-                                 sizeof(pers) - 1U);
+    return mbedtls_ctr_drbg_seed(&conn->ctr_drbg, mbedtls_entropy_func, &conn->entropy, pers, sizeof(pers) - 1U);
 }
 
 static void cleonos_tls_heap_init(void) {
@@ -114,8 +113,7 @@ static void cleonos_tls_abort_connect(cleonos_tls_conn *conn, u64 poll_budget, i
     cleonos_tls_contexts_free(conn);
 }
 
-int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 port, const char *host,
-                        u64 poll_budget) {
+int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 port, const char *host, u64 poll_budget) {
     cleonos_net_tcp_connect_req tcp_req;
     int ret;
     u64 loops;

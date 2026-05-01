@@ -36,72 +36,138 @@ char uwm_uilib_upper_char(char ch) {
 
 u64 uwm_uilib_glyph_mask(char ch) {
     switch (uwm_uilib_upper_char(ch)) {
-    case 'A': return UWM_UI_GLYPH7(14U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'B': return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 17U, 17U, 30U);
-    case 'C': return UWM_UI_GLYPH7(14U, 17U, 16U, 16U, 16U, 17U, 14U);
-    case 'D': return UWM_UI_GLYPH7(30U, 17U, 17U, 17U, 17U, 17U, 30U);
-    case 'E': return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 31U);
-    case 'F': return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 16U);
-    case 'G': return UWM_UI_GLYPH7(14U, 17U, 16U, 23U, 17U, 17U, 15U);
-    case 'H': return UWM_UI_GLYPH7(17U, 17U, 17U, 31U, 17U, 17U, 17U);
-    case 'I': return UWM_UI_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 31U);
-    case 'J': return UWM_UI_GLYPH7(1U, 1U, 1U, 1U, 17U, 17U, 14U);
-    case 'K': return UWM_UI_GLYPH7(17U, 18U, 20U, 24U, 20U, 18U, 17U);
-    case 'L': return UWM_UI_GLYPH7(16U, 16U, 16U, 16U, 16U, 16U, 31U);
-    case 'M': return UWM_UI_GLYPH7(17U, 27U, 21U, 21U, 17U, 17U, 17U);
-    case 'N': return UWM_UI_GLYPH7(17U, 25U, 21U, 19U, 17U, 17U, 17U);
-    case 'O': return UWM_UI_GLYPH7(14U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'P': return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 16U, 16U, 16U);
-    case 'Q': return UWM_UI_GLYPH7(14U, 17U, 17U, 17U, 21U, 18U, 13U);
-    case 'R': return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 20U, 18U, 17U);
-    case 'S': return UWM_UI_GLYPH7(15U, 16U, 16U, 14U, 1U, 1U, 30U);
-    case 'T': return UWM_UI_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 4U);
-    case 'U': return UWM_UI_GLYPH7(17U, 17U, 17U, 17U, 17U, 17U, 14U);
-    case 'V': return UWM_UI_GLYPH7(17U, 17U, 17U, 17U, 17U, 10U, 4U);
-    case 'W': return UWM_UI_GLYPH7(17U, 17U, 17U, 21U, 21U, 21U, 10U);
-    case 'X': return UWM_UI_GLYPH7(17U, 17U, 10U, 4U, 10U, 17U, 17U);
-    case 'Y': return UWM_UI_GLYPH7(17U, 17U, 10U, 4U, 4U, 4U, 4U);
-    case 'Z': return UWM_UI_GLYPH7(31U, 1U, 2U, 4U, 8U, 16U, 31U);
-    case '0': return UWM_UI_GLYPH7(14U, 17U, 19U, 21U, 25U, 17U, 14U);
-    case '1': return UWM_UI_GLYPH7(4U, 12U, 4U, 4U, 4U, 4U, 14U);
-    case '2': return UWM_UI_GLYPH7(14U, 17U, 1U, 2U, 4U, 8U, 31U);
-    case '3': return UWM_UI_GLYPH7(30U, 1U, 1U, 14U, 1U, 1U, 30U);
-    case '4': return UWM_UI_GLYPH7(2U, 6U, 10U, 18U, 31U, 2U, 2U);
-    case '5': return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 1U, 1U, 30U);
-    case '6': return UWM_UI_GLYPH7(14U, 16U, 16U, 30U, 17U, 17U, 14U);
-    case '7': return UWM_UI_GLYPH7(31U, 1U, 2U, 4U, 8U, 8U, 8U);
-    case '8': return UWM_UI_GLYPH7(14U, 17U, 17U, 14U, 17U, 17U, 14U);
-    case '9': return UWM_UI_GLYPH7(14U, 17U, 17U, 15U, 1U, 1U, 14U);
-    case '-': return UWM_UI_GLYPH7(0U, 0U, 0U, 31U, 0U, 0U, 0U);
-    case '_': return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 0U, 31U);
-    case '.': return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 12U, 12U);
-    case ':': return UWM_UI_GLYPH7(0U, 12U, 12U, 0U, 12U, 12U, 0U);
-    case '/': return UWM_UI_GLYPH7(1U, 1U, 2U, 4U, 8U, 16U, 16U);
-    case '\\': return UWM_UI_GLYPH7(16U, 16U, 8U, 4U, 2U, 1U, 1U);
-    case '+': return UWM_UI_GLYPH7(0U, 4U, 4U, 31U, 4U, 4U, 0U);
-    case '=': return UWM_UI_GLYPH7(0U, 0U, 31U, 0U, 31U, 0U, 0U);
-    case '<': return UWM_UI_GLYPH7(1U, 2U, 4U, 8U, 4U, 2U, 1U);
-    case '>': return UWM_UI_GLYPH7(16U, 8U, 4U, 2U, 4U, 8U, 16U);
-    case '[': return UWM_UI_GLYPH7(14U, 8U, 8U, 8U, 8U, 8U, 14U);
-    case ']': return UWM_UI_GLYPH7(14U, 2U, 2U, 2U, 2U, 2U, 14U);
-    case '(': return UWM_UI_GLYPH7(2U, 4U, 8U, 8U, 8U, 4U, 2U);
-    case ')': return UWM_UI_GLYPH7(8U, 4U, 2U, 2U, 2U, 4U, 8U);
-    case '|': return UWM_UI_GLYPH7(4U, 4U, 4U, 4U, 4U, 4U, 4U);
-    case '!': return UWM_UI_GLYPH7(4U, 4U, 4U, 4U, 4U, 0U, 4U);
-    case '?': return UWM_UI_GLYPH7(14U, 17U, 1U, 2U, 4U, 0U, 4U);
-    case '*': return UWM_UI_GLYPH7(0U, 21U, 14U, 31U, 14U, 21U, 0U);
-    case '^': return UWM_UI_GLYPH7(4U, 10U, 17U, 0U, 0U, 0U, 0U);
-    case ',': return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 4U, 8U);
-    case ';': return UWM_UI_GLYPH7(0U, 4U, 4U, 0U, 0U, 4U, 8U);
-    case '#': return UWM_UI_GLYPH7(10U, 31U, 10U, 10U, 31U, 10U, 10U);
-    case '$': return UWM_UI_GLYPH7(4U, 15U, 20U, 14U, 5U, 30U, 4U);
-    case '%': return UWM_UI_GLYPH7(24U, 25U, 2U, 4U, 8U, 19U, 3U);
-    case '&': return UWM_UI_GLYPH7(12U, 18U, 20U, 8U, 21U, 18U, 13U);
-    case '@': return UWM_UI_GLYPH7(14U, 17U, 23U, 21U, 23U, 16U, 15U);
-    case '~': return UWM_UI_GLYPH7(0U, 0U, 8U, 21U, 2U, 0U, 0U);
-    case '"': return UWM_UI_GLYPH7(10U, 10U, 10U, 0U, 0U, 0U, 0U);
-    case '\'': return UWM_UI_GLYPH7(4U, 4U, 8U, 0U, 0U, 0U, 0U);
-    default: return 0ULL;
+    case 'A':
+        return UWM_UI_GLYPH7(14U, 17U, 17U, 31U, 17U, 17U, 17U);
+    case 'B':
+        return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 17U, 17U, 30U);
+    case 'C':
+        return UWM_UI_GLYPH7(14U, 17U, 16U, 16U, 16U, 17U, 14U);
+    case 'D':
+        return UWM_UI_GLYPH7(30U, 17U, 17U, 17U, 17U, 17U, 30U);
+    case 'E':
+        return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 31U);
+    case 'F':
+        return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 16U, 16U, 16U);
+    case 'G':
+        return UWM_UI_GLYPH7(14U, 17U, 16U, 23U, 17U, 17U, 15U);
+    case 'H':
+        return UWM_UI_GLYPH7(17U, 17U, 17U, 31U, 17U, 17U, 17U);
+    case 'I':
+        return UWM_UI_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 31U);
+    case 'J':
+        return UWM_UI_GLYPH7(1U, 1U, 1U, 1U, 17U, 17U, 14U);
+    case 'K':
+        return UWM_UI_GLYPH7(17U, 18U, 20U, 24U, 20U, 18U, 17U);
+    case 'L':
+        return UWM_UI_GLYPH7(16U, 16U, 16U, 16U, 16U, 16U, 31U);
+    case 'M':
+        return UWM_UI_GLYPH7(17U, 27U, 21U, 21U, 17U, 17U, 17U);
+    case 'N':
+        return UWM_UI_GLYPH7(17U, 25U, 21U, 19U, 17U, 17U, 17U);
+    case 'O':
+        return UWM_UI_GLYPH7(14U, 17U, 17U, 17U, 17U, 17U, 14U);
+    case 'P':
+        return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 16U, 16U, 16U);
+    case 'Q':
+        return UWM_UI_GLYPH7(14U, 17U, 17U, 17U, 21U, 18U, 13U);
+    case 'R':
+        return UWM_UI_GLYPH7(30U, 17U, 17U, 30U, 20U, 18U, 17U);
+    case 'S':
+        return UWM_UI_GLYPH7(15U, 16U, 16U, 14U, 1U, 1U, 30U);
+    case 'T':
+        return UWM_UI_GLYPH7(31U, 4U, 4U, 4U, 4U, 4U, 4U);
+    case 'U':
+        return UWM_UI_GLYPH7(17U, 17U, 17U, 17U, 17U, 17U, 14U);
+    case 'V':
+        return UWM_UI_GLYPH7(17U, 17U, 17U, 17U, 17U, 10U, 4U);
+    case 'W':
+        return UWM_UI_GLYPH7(17U, 17U, 17U, 21U, 21U, 21U, 10U);
+    case 'X':
+        return UWM_UI_GLYPH7(17U, 17U, 10U, 4U, 10U, 17U, 17U);
+    case 'Y':
+        return UWM_UI_GLYPH7(17U, 17U, 10U, 4U, 4U, 4U, 4U);
+    case 'Z':
+        return UWM_UI_GLYPH7(31U, 1U, 2U, 4U, 8U, 16U, 31U);
+    case '0':
+        return UWM_UI_GLYPH7(14U, 17U, 19U, 21U, 25U, 17U, 14U);
+    case '1':
+        return UWM_UI_GLYPH7(4U, 12U, 4U, 4U, 4U, 4U, 14U);
+    case '2':
+        return UWM_UI_GLYPH7(14U, 17U, 1U, 2U, 4U, 8U, 31U);
+    case '3':
+        return UWM_UI_GLYPH7(30U, 1U, 1U, 14U, 1U, 1U, 30U);
+    case '4':
+        return UWM_UI_GLYPH7(2U, 6U, 10U, 18U, 31U, 2U, 2U);
+    case '5':
+        return UWM_UI_GLYPH7(31U, 16U, 16U, 30U, 1U, 1U, 30U);
+    case '6':
+        return UWM_UI_GLYPH7(14U, 16U, 16U, 30U, 17U, 17U, 14U);
+    case '7':
+        return UWM_UI_GLYPH7(31U, 1U, 2U, 4U, 8U, 8U, 8U);
+    case '8':
+        return UWM_UI_GLYPH7(14U, 17U, 17U, 14U, 17U, 17U, 14U);
+    case '9':
+        return UWM_UI_GLYPH7(14U, 17U, 17U, 15U, 1U, 1U, 14U);
+    case '-':
+        return UWM_UI_GLYPH7(0U, 0U, 0U, 31U, 0U, 0U, 0U);
+    case '_':
+        return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 0U, 31U);
+    case '.':
+        return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 12U, 12U);
+    case ':':
+        return UWM_UI_GLYPH7(0U, 12U, 12U, 0U, 12U, 12U, 0U);
+    case '/':
+        return UWM_UI_GLYPH7(1U, 1U, 2U, 4U, 8U, 16U, 16U);
+    case '\\':
+        return UWM_UI_GLYPH7(16U, 16U, 8U, 4U, 2U, 1U, 1U);
+    case '+':
+        return UWM_UI_GLYPH7(0U, 4U, 4U, 31U, 4U, 4U, 0U);
+    case '=':
+        return UWM_UI_GLYPH7(0U, 0U, 31U, 0U, 31U, 0U, 0U);
+    case '<':
+        return UWM_UI_GLYPH7(1U, 2U, 4U, 8U, 4U, 2U, 1U);
+    case '>':
+        return UWM_UI_GLYPH7(16U, 8U, 4U, 2U, 4U, 8U, 16U);
+    case '[':
+        return UWM_UI_GLYPH7(14U, 8U, 8U, 8U, 8U, 8U, 14U);
+    case ']':
+        return UWM_UI_GLYPH7(14U, 2U, 2U, 2U, 2U, 2U, 14U);
+    case '(':
+        return UWM_UI_GLYPH7(2U, 4U, 8U, 8U, 8U, 4U, 2U);
+    case ')':
+        return UWM_UI_GLYPH7(8U, 4U, 2U, 2U, 2U, 4U, 8U);
+    case '|':
+        return UWM_UI_GLYPH7(4U, 4U, 4U, 4U, 4U, 4U, 4U);
+    case '!':
+        return UWM_UI_GLYPH7(4U, 4U, 4U, 4U, 4U, 0U, 4U);
+    case '?':
+        return UWM_UI_GLYPH7(14U, 17U, 1U, 2U, 4U, 0U, 4U);
+    case '*':
+        return UWM_UI_GLYPH7(0U, 21U, 14U, 31U, 14U, 21U, 0U);
+    case '^':
+        return UWM_UI_GLYPH7(4U, 10U, 17U, 0U, 0U, 0U, 0U);
+    case ',':
+        return UWM_UI_GLYPH7(0U, 0U, 0U, 0U, 0U, 4U, 8U);
+    case ';':
+        return UWM_UI_GLYPH7(0U, 4U, 4U, 0U, 0U, 4U, 8U);
+    case '#':
+        return UWM_UI_GLYPH7(10U, 31U, 10U, 10U, 31U, 10U, 10U);
+    case '$':
+        return UWM_UI_GLYPH7(4U, 15U, 20U, 14U, 5U, 30U, 4U);
+    case '%':
+        return UWM_UI_GLYPH7(24U, 25U, 2U, 4U, 8U, 19U, 3U);
+    case '&':
+        return UWM_UI_GLYPH7(12U, 18U, 20U, 8U, 21U, 18U, 13U);
+    case '@':
+        return UWM_UI_GLYPH7(14U, 17U, 23U, 21U, 23U, 16U, 15U);
+    case '~':
+        return UWM_UI_GLYPH7(0U, 0U, 8U, 21U, 2U, 0U, 0U);
+    case '"':
+        return UWM_UI_GLYPH7(10U, 10U, 10U, 0U, 0U, 0U, 0U);
+    case '\'':
+        return UWM_UI_GLYPH7(4U, 4U, 8U, 0U, 0U, 0U, 0U);
+    default:
+        return 0ULL;
     }
 }
 
@@ -178,9 +244,9 @@ void uwm_uilib_draw_text_limit(const uwm_ui_surface *surface, int x, int y, cons
     }
 }
 
-void uwm_uilib_draw_text(const uwm_ui_surface *surface, int x, int y, const char *text, int scale,
-                         uwm_ui_color color) {
-    uwm_uilib_draw_text_limit(surface, x, y, text, scale, color, surface != (const uwm_ui_surface *)0 ? surface->width : 0);
+void uwm_uilib_draw_text(const uwm_ui_surface *surface, int x, int y, const char *text, int scale, uwm_ui_color color) {
+    uwm_uilib_draw_text_limit(surface, x, y, text, scale, color,
+                              surface != (const uwm_ui_surface *)0 ? surface->width : 0);
 }
 
 void uwm_uilib_draw_button(const uwm_ui_surface *surface, int x, int y, int w, int h, const char *label,
@@ -192,9 +258,9 @@ void uwm_uilib_draw_button(const uwm_ui_surface *surface, int x, int y, int w, i
 
 void uwm_uilib_draw_control_button(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,
                                    uwm_ui_color text_color) {
-    uwm_ui_color bg = (kind == UWM_UI_CONTROL_CLOSE) ? UWM_UI_COLOR_CLOSE
-                                                     : (active != 0 ? UWM_UI_COLOR_CONTROL_ACTIVE
-                                                                    : UWM_UI_COLOR_CONTROL_INACTIVE);
+    uwm_ui_color bg = (kind == UWM_UI_CONTROL_CLOSE)
+                          ? UWM_UI_COLOR_CLOSE
+                          : (active != 0 ? UWM_UI_COLOR_CONTROL_ACTIVE : UWM_UI_COLOR_CONTROL_INACTIVE);
     uwm_ui_color fg = (kind == UWM_UI_CONTROL_CLOSE || active != 0) ? UWM_UI_COLOR_WHITE : text_color;
     int cy = y + (h / 2);
     int cx = x + (w / 2);

@@ -77,8 +77,8 @@ static int ush_wget_parse_ipv4_be(const char *text, u64 *out_ipv4_be) {
 
 static void ush_wget_print_ipv4(u64 ipv4_be) {
     (void)printf("%u.%u.%u.%u", (unsigned int)((ipv4_be >> 24ULL) & 0xFFULL),
-                 (unsigned int)((ipv4_be >> 16ULL) & 0xFFULL),
-                 (unsigned int)((ipv4_be >> 8ULL) & 0xFFULL), (unsigned int)(ipv4_be & 0xFFULL));
+                 (unsigned int)((ipv4_be >> 16ULL) & 0xFFULL), (unsigned int)((ipv4_be >> 8ULL) & 0xFFULL),
+                 (unsigned int)(ipv4_be & 0xFFULL));
 }
 
 static int ush_wget_parse_url(const char *url, ush_wget_url *out_url) {
@@ -101,8 +101,8 @@ static int ush_wget_parse_url(const char *url, ush_wget_url *out_url) {
         out_url->tls = 0;
         out_url->port = 80U;
         scheme_len = 7ULL;
-    } else if (url[0] == 'h' && url[1] == 't' && url[2] == 't' && url[3] == 'p' && url[4] == 's' &&
-               url[5] == ':' && url[6] == '/' && url[7] == '/') {
+    } else if (url[0] == 'h' && url[1] == 't' && url[2] == 't' && url[3] == 'p' && url[4] == 's' && url[5] == ':' &&
+               url[6] == '/' && url[7] == '/') {
         out_url->tls = 1;
         out_url->port = 443U;
         scheme_len = 8ULL;
