@@ -3,6 +3,35 @@
 #include "gumbo.h"
 #include <stddef.h>
 
+#define USH_BROWSER_TABLE_MAX_ROWS 48U
+#define USH_BROWSER_TABLE_MAX_COLS 8U
+#define USH_BROWSER_TABLE_CELL_TEXT_MAX 96U
+#define USH_BROWSER_TABLE_CAPTION_MAX 96U
+#define USH_BROWSER_TABLE_CELL_MIN_WIDTH 4U
+#define USH_BROWSER_TABLE_CELL_MAX_WIDTH 24U
+
+typedef struct ush_browser_table_cell {
+    char text[USH_BROWSER_TABLE_CELL_TEXT_MAX];
+    int header;
+} ush_browser_table_cell;
+
+typedef struct ush_browser_table_row {
+    ush_browser_table_cell cells[USH_BROWSER_TABLE_MAX_COLS];
+    u64 cell_count;
+    int has_header;
+} ush_browser_table_row;
+
+typedef struct ush_browser_table_model {
+    ush_browser_table_row rows[USH_BROWSER_TABLE_MAX_ROWS];
+    u64 row_count;
+    u64 col_count;
+    char caption[USH_BROWSER_TABLE_CAPTION_MAX];
+} ush_browser_table_model;
+
+static ush_browser_table_model ush_browser_table_scratch;
+
+static void ush_browser_collect_anchor_link(GumboNode *node);
+
 static int ush_browser_is_skip_tag(GumboTag tag) {
     switch (tag) {
     case GUMBO_TAG_HEAD:
@@ -662,6 +691,308 @@ static void ush_browser_collect_plain_text(GumboNode *node, char *out, u64 out_c
     }
 }
 
+static void ush_browser_trim_ascii_text(char *text) {
+    u64 start = 0ULL;
+    u64 end;
+    u64 i;
+
+    if (text == (char *)0) {
+        return;
+    }
+
+    while (text[start] == ' ' || text[start] == '\t' || text[start] == '\r' || text[start] == '\n') {
+        start++;
+    }
+
+    end = ush_strlen(text);
+    while (end > start && (text[end - 1ULL] == ' ' || text[end - 1ULL] == '\t' || text[end - 1ULL] == '\r' ||
+                           text[end - 1ULL] == '\n')) {
+        end--;
+    }
+
+    if (start > 0ULL) {
+        for (i = 0ULL; start + i < end; i++) {
+            text[i] = text[start + i];
+        }
+        text[i] = '\0';
+    } else {
+        text[end] = '\0';
+    }
+}
+
+static void ush_browser_table_model_reset(ush_browser_table_model *model) {
+    if (model == (ush_browser_table_model *)0) {
+        return;
+    }
+
+    ush_zero(model, (u64)sizeof(*model));
+}
+
+static void ush_browser_table_collect_cell_text(GumboNode *node, char *out, u64 out_cap) {
+    u64 len = 0ULL;
+
+    if (out == (char *)0 || out_cap == 0ULL) {
+        return;
+    }
+
+    out[0] = '\0';
+    ush_browser_collect_plain_text(node, out, out_cap, &len);
+    (void)len;
+    ush_browser_trim_ascii_text(out);
+}
+
+static void ush_browser_table_add_cell(ush_browser_table_model *model, u64 row_index, GumboNode *cell_node,
+                                       int header) {
+    ush_browser_table_row *row;
+    ush_browser_table_cell *cell;
+
+    if (model == (ush_browser_table_model *)0 || cell_node == (GumboNode *)0 ||
+        row_index >= (u64)USH_BROWSER_TABLE_MAX_ROWS) {
+        return;
+    }
+
+    row = &model->rows[row_index];
+    if (row->cell_count >= (u64)USH_BROWSER_TABLE_MAX_COLS) {
+        return;
+    }
+
+    cell = &row->cells[row->cell_count];
+    ush_browser_table_collect_cell_text(cell_node, cell->text, (u64)sizeof(cell->text));
+    ush_browser_collect_anchor_link(cell_node);
+    cell->header = header;
+    if (header != 0) {
+        row->has_header = 1;
+    }
+    row->cell_count++;
+    if (row->cell_count > model->col_count) {
+        model->col_count = row->cell_count;
+    }
+}
+
+static void ush_browser_table_collect_row(ush_browser_table_model *model, GumboNode *row_node) {
+    GumboVector *children;
+    u64 row_index;
+    u64 i;
+
+    if (model == (ush_browser_table_model *)0 || row_node == (GumboNode *)0 || row_node->type != GUMBO_NODE_ELEMENT ||
+        row_node->v.element.tag != GUMBO_TAG_TR || model->row_count >= (u64)USH_BROWSER_TABLE_MAX_ROWS) {
+        return;
+    }
+
+    row_index = model->row_count;
+    model->row_count++;
+    children = &row_node->v.element.children;
+    for (i = 0ULL; i < (u64)children->length; i++) {
+        GumboNode *child = (GumboNode *)children->data[i];
+        GumboTag tag;
+
+        if (child == (GumboNode *)0 || child->type != GUMBO_NODE_ELEMENT) {
+            continue;
+        }
+
+        tag = child->v.element.tag;
+        if (tag == GUMBO_TAG_TD || tag == GUMBO_TAG_TH) {
+            ush_browser_table_add_cell(model, row_index, child, (tag == GUMBO_TAG_TH) ? 1 : 0);
+        }
+    }
+
+    if (model->rows[row_index].cell_count == 0ULL) {
+        model->row_count--;
+    }
+}
+
+static void ush_browser_table_collect_walk(ush_browser_table_model *model, GumboNode *node) {
+    GumboVector *children;
+    u64 i;
+
+    if (model == (ush_browser_table_model *)0 || node == (GumboNode *)0 ||
+        model->row_count >= (u64)USH_BROWSER_TABLE_MAX_ROWS) {
+        return;
+    }
+
+    if (node->type != GUMBO_NODE_ELEMENT && node->type != GUMBO_NODE_TEMPLATE) {
+        return;
+    }
+
+    if (node->v.element.tag == GUMBO_TAG_CAPTION && model->caption[0] == '\0') {
+        ush_browser_table_collect_cell_text(node, model->caption, (u64)sizeof(model->caption));
+        return;
+    }
+
+    if (node->v.element.tag == GUMBO_TAG_TR) {
+        ush_browser_table_collect_row(model, node);
+        return;
+    }
+
+    children = &node->v.element.children;
+    for (i = 0ULL; i < (u64)children->length; i++) {
+        ush_browser_table_collect_walk(model, (GumboNode *)children->data[i]);
+    }
+}
+
+static u64 ush_browser_visible_text_len(const char *text) {
+    u64 i = 0ULL;
+    u64 out = 0ULL;
+
+    if (text == (const char *)0) {
+        return 0ULL;
+    }
+
+    while (text[i] != '\0') {
+        if ((unsigned char)text[i] >= 0x20U) {
+            out++;
+        }
+        i++;
+    }
+    return out;
+}
+
+static void ush_browser_table_append_repeated(char ch, u64 count) {
+    while (count > 0ULL) {
+        ush_browser_text_append_raw_char(ch);
+        count--;
+    }
+}
+
+static void ush_browser_table_append_cell_text(const char *text, u64 width) {
+    u64 i = 0ULL;
+    u64 used = 0ULL;
+
+    if (text == (const char *)0) {
+        text = "";
+    }
+
+    while (text[i] != '\0' && used < width) {
+        unsigned char ch = (unsigned char)text[i];
+        if (ch >= 0x20U) {
+            ush_browser_text_append_raw_char((char)ch);
+            used++;
+        }
+        i++;
+    }
+
+    while (used < width) {
+        ush_browser_text_append_raw_char(' ');
+        used++;
+    }
+}
+
+static void ush_browser_table_append_border(const u64 *widths, u64 cols) {
+    u64 col;
+
+    ush_browser_text_append_raw_char('+');
+    for (col = 0ULL; col < cols; col++) {
+        ush_browser_table_append_repeated('-', widths[col] + 2ULL);
+        ush_browser_text_append_raw_char('+');
+    }
+    ush_browser_text_newline();
+}
+
+static void ush_browser_table_append_row(const ush_browser_table_row *row, const u64 *widths, u64 cols) {
+    u64 col;
+
+    ush_browser_text_append_raw_char('|');
+    for (col = 0ULL; col < cols; col++) {
+        const char *text = "";
+
+        if (row != (const ush_browser_table_row *)0 && col < row->cell_count) {
+            text = row->cells[col].text;
+        }
+
+        ush_browser_text_append_raw_char(' ');
+        ush_browser_table_append_cell_text(text, widths[col]);
+        ush_browser_text_append_raw_char(' ');
+        ush_browser_text_append_raw_char('|');
+    }
+    ush_browser_text_newline();
+}
+
+static void ush_browser_table_compute_widths(const ush_browser_table_model *model, u64 *widths, u64 cols) {
+    u64 col;
+    u64 row;
+    u64 total = 1ULL;
+
+    for (col = 0ULL; col < cols; col++) {
+        widths[col] = (u64)USH_BROWSER_TABLE_CELL_MIN_WIDTH;
+    }
+
+    for (row = 0ULL; row < model->row_count; row++) {
+        for (col = 0ULL; col < cols && col < model->rows[row].cell_count; col++) {
+            u64 len = ush_browser_visible_text_len(model->rows[row].cells[col].text);
+            if (len > widths[col]) {
+                widths[col] = len;
+            }
+        }
+    }
+
+    for (col = 0ULL; col < cols; col++) {
+        if (widths[col] > (u64)USH_BROWSER_TABLE_CELL_MAX_WIDTH) {
+            widths[col] = (u64)USH_BROWSER_TABLE_CELL_MAX_WIDTH;
+        }
+        total += widths[col] + 3ULL;
+    }
+
+    while (total > (u64)USH_BROWSER_OUTPUT_COLS && cols > 0ULL) {
+        int shrunk = 0;
+        for (col = 0ULL; col < cols && total > (u64)USH_BROWSER_OUTPUT_COLS; col++) {
+            if (widths[col] > (u64)USH_BROWSER_TABLE_CELL_MIN_WIDTH) {
+                widths[col]--;
+                total--;
+                shrunk = 1;
+            }
+        }
+        if (shrunk == 0) {
+            break;
+        }
+    }
+}
+
+static int ush_browser_render_table_tag(GumboNode *node) {
+    ush_browser_table_model *model = &ush_browser_table_scratch;
+    u64 widths[USH_BROWSER_TABLE_MAX_COLS];
+    u64 cols;
+    u64 row;
+
+    if (node == (GumboNode *)0 || node->type != GUMBO_NODE_ELEMENT || node->v.element.tag != GUMBO_TAG_TABLE) {
+        return 0;
+    }
+
+    ush_browser_table_model_reset(model);
+    ush_browser_table_collect_walk(model, node);
+    if (model->row_count == 0ULL || model->col_count == 0ULL) {
+        return 0;
+    }
+
+    cols = model->col_count;
+    if (cols > (u64)USH_BROWSER_TABLE_MAX_COLS) {
+        cols = (u64)USH_BROWSER_TABLE_MAX_COLS;
+    }
+    ush_browser_table_compute_widths(model, widths, cols);
+
+    ush_browser_text_newline();
+    if (model->caption[0] != '\0') {
+        ush_browser_text_append("Table: ");
+        ush_browser_text_append(model->caption);
+        ush_browser_text_newline();
+    }
+
+    ush_browser_table_append_border(widths, cols);
+    for (row = 0ULL; row < model->row_count; row++) {
+        ush_browser_table_append_row(&model->rows[row], widths, cols);
+        if (model->rows[row].has_header != 0) {
+            ush_browser_table_append_border(widths, cols);
+        }
+    }
+    ush_browser_table_append_border(widths, cols);
+
+    if (model->row_count >= (u64)USH_BROWSER_TABLE_MAX_ROWS) {
+        ush_browser_text_append("[browser] table truncated");
+        ush_browser_text_newline();
+    }
+
+    return 1;
+}
+
 static void ush_browser_collect_anchor_link(GumboNode *node) {
     GumboAttribute *href;
     u64 text_len = 0ULL;
@@ -779,6 +1110,10 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
 
         if (tag == GUMBO_TAG_HR) {
             ush_browser_text_horizontal_rule();
+            return;
+        }
+
+        if (tag == GUMBO_TAG_TABLE && ush_browser_render_table_tag(node) != 0) {
             return;
         }
 
