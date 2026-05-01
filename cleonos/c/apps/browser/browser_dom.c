@@ -308,7 +308,8 @@ static int ush_browser_html_tag_name_matches(const char *html, u64 html_size, u6
     }
 
     for (i = 0ULL; i < tag_len; i++) {
-        if (pos + i >= html_size || ush_browser_ascii_tolower(html[pos + i]) != ush_browser_ascii_tolower(tag_name[i])) {
+        if (pos + i >= html_size ||
+            ush_browser_ascii_tolower(html[pos + i]) != ush_browser_ascii_tolower(tag_name[i])) {
             return 0;
         }
     }

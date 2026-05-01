@@ -47,8 +47,7 @@ static int ush_browser_read_file(const ush_state *sh, const char *arg, char *out
     return (total > 0ULL) ? 1 : 0;
 }
 
-int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap,
-                                   u64 *out_size) {
+int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap, u64 *out_size) {
     if (sh == (const ush_state *)0 || source == (const char *)0 || out_html == (char *)0 || out_size == (u64 *)0) {
         return 0;
     }

@@ -294,8 +294,8 @@ static void ush_uwm_draw_char(ush_uwm_window *win, int x, int y, char ch, int sc
 
             for (col = 0; col < (int)uwm_psf_font.width; col += step) {
                 if (uwm_psf_glyph_block_any(glyph, (unsigned int)row, (unsigned int)col, step) != 0) {
-                    ush_uwm_fill_rect(win, x + (draw_col * pixel_scale), y + (draw_row * pixel_scale),
-                                      pixel_scale, pixel_scale, color);
+                    ush_uwm_fill_rect(win, x + (draw_col * pixel_scale), y + (draw_row * pixel_scale), pixel_scale,
+                                      pixel_scale, color);
                 }
                 draw_col++;
             }
