@@ -1,4 +1,5 @@
 #include "uwm.h"
+#include "../uwm_psf_font.h"
 
 #define UWM_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                         \
     (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
@@ -277,6 +278,34 @@ static void ush_uwm_draw_char(ush_uwm_window *win, int x, int y, char ch, int sc
     u64 mask = ush_uwm_glyph_mask(ch);
     int row;
 
+    if (uwm_psf_ready() != 0) {
+        const unsigned char *glyph = uwm_psf_glyph(ch);
+        int step = uwm_psf_source_step(scale);
+        int pixel_scale = uwm_psf_pixel_scale(scale);
+        int draw_row = 0;
+
+        if (scale <= 0) {
+            return;
+        }
+
+        for (row = 0; row < (int)uwm_psf_font.height; row += step) {
+            int col;
+            int draw_col = 0;
+
+            for (col = 0; col < (int)uwm_psf_font.width; col += step) {
+                if (uwm_psf_glyph_block_any(glyph, (unsigned int)row, (unsigned int)col, step) != 0) {
+                    ush_uwm_fill_rect(win, x + (draw_col * pixel_scale), y + (draw_row * pixel_scale),
+                                      pixel_scale, pixel_scale, color);
+                }
+                draw_col++;
+            }
+
+            draw_row++;
+        }
+
+        return;
+    }
+
     if (mask == 0ULL || scale <= 0) {
         return;
     }
@@ -304,11 +333,11 @@ static void ush_uwm_draw_text_limit(ush_uwm_window *win, int x, int y, const cha
         max_x = win->w;
     }
 
-    while (*text != 0 && cursor_x + (5 * scale) <= max_x) {
+    while (*text != 0 && cursor_x + uwm_psf_draw_width(scale) <= max_x) {
         if (*text != ' ') {
             ush_uwm_draw_char(win, cursor_x, y, *text, scale, color);
         }
-        cursor_x += 6 * scale;
+        cursor_x += uwm_psf_advance(scale);
         text++;
     }
 }
@@ -384,7 +413,7 @@ static void ush_uwm_draw_button(ush_uwm_window *win, int x, int y, int w, int h,
     if (active != 0) {
         ush_uwm_fill_rect(win, x, y + h - 3, w, 3, UWM_COLOR_WIN_BLUE);
     }
-    ush_uwm_draw_text_limit(win, x + 10, y + ((h - 7) / 2), label, 1, fg, x + w - 8);
+    ush_uwm_draw_text_limit(win, x + 10, y + ((h - uwm_psf_draw_height(1)) / 2), label, 1, fg, x + w - 8);
 }
 
 static void ush_uwm_render_files(ush_uwm_window *win) {

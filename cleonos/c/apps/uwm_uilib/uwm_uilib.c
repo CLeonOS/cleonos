@@ -1,4 +1,5 @@
 #include <uwm_uilib.h>
+#include "../uwm_psf_font.h"
 
 #define UWM_UI_GLYPH7(r0, r1, r2, r3, r4, r5, r6)                                                                      \
     (((u64)(r0) << 30U) | ((u64)(r1) << 25U) | ((u64)(r2) << 20U) | ((u64)(r3) << 15U) | ((u64)(r4) << 10U) |          \
@@ -211,6 +212,34 @@ void uwm_uilib_draw_char(const uwm_ui_surface *surface, int x, int y, char ch, i
     u64 mask = uwm_uilib_glyph_mask(ch);
     int row;
 
+    if (uwm_psf_ready() != 0) {
+        const unsigned char *glyph = uwm_psf_glyph(ch);
+        int step = uwm_psf_source_step(scale);
+        int pixel_scale = uwm_psf_pixel_scale(scale);
+        int draw_row = 0;
+
+        if (scale <= 0) {
+            return;
+        }
+
+        for (row = 0; row < (int)uwm_psf_font.height; row += step) {
+            int col;
+            int draw_col = 0;
+
+            for (col = 0; col < (int)uwm_psf_font.width; col += step) {
+                if (uwm_psf_glyph_block_any(glyph, (unsigned int)row, (unsigned int)col, step) != 0) {
+                    uwm_uilib_fill_rect(surface, x + (draw_col * pixel_scale), y + (draw_row * pixel_scale),
+                                        pixel_scale, pixel_scale, color);
+                }
+                draw_col++;
+            }
+
+            draw_row++;
+        }
+
+        return;
+    }
+
     if (mask == 0ULL || scale <= 0) {
         return;
     }
@@ -235,11 +264,11 @@ void uwm_uilib_draw_text_limit(const uwm_ui_surface *surface, int x, int y, cons
     if (max_x <= 0 || max_x > surface->width) {
         max_x = surface->width;
     }
-    while (*text != '\0' && cursor_x + (5 * scale) <= max_x) {
+    while (*text != '\0' && cursor_x + uwm_psf_draw_width(scale) <= max_x) {
         if (*text != ' ') {
             uwm_uilib_draw_char(surface, cursor_x, y, *text, scale, color);
         }
-        cursor_x += 6 * scale;
+        cursor_x += uwm_psf_advance(scale);
         text++;
     }
 }
@@ -253,7 +282,7 @@ void uwm_uilib_draw_button(const uwm_ui_surface *surface, int x, int y, int w, i
                            uwm_ui_color bg, uwm_ui_color hot_bg, uwm_ui_color text, uwm_ui_color border, int hot) {
     uwm_uilib_fill_rect(surface, x, y, w, h, hot != 0 ? hot_bg : bg);
     uwm_uilib_stroke_rect(surface, x, y, w, h, border);
-    uwm_uilib_draw_text_limit(surface, x + 10, y + ((h - 7) / 2), label, 1, text, x + w - 8);
+    uwm_uilib_draw_text_limit(surface, x + 10, y + ((h - uwm_psf_draw_height(1)) / 2), label, 1, text, x + w - 8);
 }
 
 void uwm_uilib_draw_control_button(const uwm_ui_surface *surface, int x, int y, int w, int h, int active, int kind,

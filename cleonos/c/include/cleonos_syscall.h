@@ -6,6 +6,8 @@ typedef unsigned long long usize;
 
 #define CLEONOS_FS_NAME_MAX 96ULL
 #define CLEONOS_PROC_PATH_MAX 192ULL
+#define CLEONOS_DRIVER_NAME_MAX 32ULL
+#define CLEONOS_DRIVER_PATH_MAX 192ULL
 
 #define CLEONOS_PROC_STATE_UNUSED 0ULL
 #define CLEONOS_PROC_STATE_PENDING 1ULL
@@ -57,6 +59,19 @@ typedef struct cleonos_mouse_state {
     u64 packet_count;
     u64 ready;
 } cleonos_mouse_state;
+
+typedef struct cleonos_driver_info {
+    char name[CLEONOS_DRIVER_NAME_MAX];
+    char path[CLEONOS_DRIVER_PATH_MAX];
+    u64 kind;
+    u64 state;
+    u64 driver_class;
+    u64 from_elf;
+    u64 image_size;
+    u64 elf_entry;
+    u64 load_id;
+    u64 owner_pid;
+} cleonos_driver_info;
 
 #define CLEONOS_WM_EVENT_FOCUS_GAINED 1ULL
 #define CLEONOS_WM_EVENT_FOCUS_LOST 2ULL
@@ -281,6 +296,11 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_WM_ID_AT 118ULL
 #define CLEONOS_SYSCALL_WM_SNAPSHOT 119ULL
 #define CLEONOS_SYSCALL_USER_HEAP_ALLOC 120ULL
+#define CLEONOS_SYSCALL_DRIVER_COUNT 121ULL
+#define CLEONOS_SYSCALL_DRIVER_INFO 122ULL
+#define CLEONOS_SYSCALL_DRIVER_LOAD 123ULL
+#define CLEONOS_SYSCALL_DRIVER_UNLOAD 124ULL
+#define CLEONOS_SYSCALL_DRIVER_RELOAD 125ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -404,5 +424,10 @@ u64 cleonos_sys_wm_id_at(u64 index, u64 *out_window_id);
 u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u64 out_size);
 u64 cleonos_sys_pty_open(void);
 void *cleonos_sys_user_heap_alloc(u64 size);
+u64 cleonos_sys_driver_count(void);
+u64 cleonos_sys_driver_info(u64 index, cleonos_driver_info *out_info, u64 out_size);
+u64 cleonos_sys_driver_load(const char *path);
+u64 cleonos_sys_driver_unload(const char *name_or_path);
+u64 cleonos_sys_driver_reload(void);
 
 #endif

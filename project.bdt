@@ -144,6 +144,8 @@ secondary_entry_suffix = _kmain.c
 secondary_output_group = system
 runtime_exclude_apps = shell
 output_group.default.output = {root}/build/x86_64/user/apps
+output_group.driver.output = {root}/build/x86_64/user/apps/driver
+output_group.driver.apps = ttydrv, serialdrv, fbdrv, pcspeakerdrv, diskdrv, netdrv, kbddrv, mousedrv
 output_group.uwm.output = {root}/build/x86_64/user/apps/uwm
 output_group.uwm.apps = file_explorer, terminal, taskmgr, uwm_uilib
 output_group.system.output = {root}/build/x86_64/user/system
@@ -162,12 +164,20 @@ app.wget.sources = {USER_TLS_SOURCES}
 app.doom.cflags = {USER_DOOM_CFLAGS}
 app.doom.source_dirs = {root}/cleonos/third-party/doomgeneric/doomgeneric
 app.doom.exclude_sources = doomgeneric_allegro.c,doomgeneric_emscripten.c,doomgeneric_linuxvt.c,doomgeneric_sdl.c,doomgeneric_soso.c,doomgeneric_sosox.c,doomgeneric_win.c,doomgeneric_xlib.c,i_allegromusic.c,i_allegrosound.c,i_sdlmusic.c,i_sdlsound.c,icon.c
+app.ttydrv.include_runtime = false
+app.serialdrv.include_runtime = false
+app.fbdrv.include_runtime = false
+app.pcspeakerdrv.include_runtime = false
+app.diskdrv.include_runtime = false
+app.netdrv.include_runtime = false
+app.kbddrv.include_runtime = false
+app.mousedrv.include_runtime = false
 cache = true
 
 [target.ramdisk-root]
 deps = userapps, kernel-symbols
 type = group
-steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
+steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" "{root}/build/x86_64/ramdisk_root/driver" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/apps/driver/"*.elf "{root}/build/x86_64/ramdisk_root/driver/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
 cache = false
 
 [target.ramdisk]

@@ -571,7 +571,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg2`: `u64 mode`（当前保留）
 - 返回：成功返回 `fd`，失败返回 `-1`
 - 说明：
-- 当前支持普通文件与设备文件：`/dev/tty`、`/dev/null`、`/dev/zero`、`/dev/random`、`/dev/urandom`。
+- 当前支持普通文件与设备文件：`/dev/tty`、`/dev/tty0`、`/dev/null`、`/dev/zero`、`/dev/random`、`/dev/urandom`、`/dev/fb0`、`/dev/input/kbd`、`/dev/input/mouse`、`/dev/net0`、`/dev/disk0`。
 - 默认进程会预置 `fd 0/1/2`（stdin/stdout/stderr）。
 - 标志位兼容子集：`O_RDONLY/O_WRONLY/O_RDWR/O_CREAT/O_TRUNC/O_APPEND`。
 
@@ -953,6 +953,50 @@ typedef struct cleonos_wm_snapshot {
 - 单次申请上限当前为 `4 MiB`；需要更大内存时用户态 allocator 会多次申请块。
 - 因为当前用户态 ELF 仍是内核直接加载/调用模型，这不是完整 POSIX `brk/mmap`，但可以避免把几 MiB heap 静态放进 ELF `.bss` 导致 `ELF LOAD ALLOC FAILED`。
 
+### 121 `CLEONOS_SYSCALL_DRIVER_COUNT`
+
+- 参数：无
+- 返回：当前 driver model 登记的驱动数量。
+- 说明：包括启动时自动扫描到的标准 `/driver/*.elf` 驱动，以及之后手动加载的第三方 `/driver/*.elf` 驱动。当前标准驱动也不再登记为 builtin 表项。
+
+### 122 `CLEONOS_SYSCALL_DRIVER_INFO`
+
+- 参数：
+- `arg0`: `u64 index`
+- `arg1`: `struct cleonos_driver_info *out_info`
+- `arg2`: `u64 out_size`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 说明：按索引读取驱动快照。结构包含 `name/path/kind/state/driver_class/from_elf/image_size/elf_entry/load_id/owner_pid`。
+
+### 123 `CLEONOS_SYSCALL_DRIVER_LOAD`
+
+- 参数：
+- `arg0`: `const char *path`
+- 返回：成功返回 `load_id`，失败返回 `0`。
+- 说明：校验 `/driver/*.elf`，登记到 driver model，并以普通用户态进程方式启动该驱动 ELF。当前不会把第三方 ELF 直接跳入内核态执行。
+
+### 124 `CLEONOS_SYSCALL_DRIVER_UNLOAD`
+
+- 参数：
+- `arg0`: `const char *name_or_path`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 说明：仅支持卸载 ELF 驱动。卸载会终止该驱动对应的 `owner_pid`，并将 driver model 条目标记为 `unloaded`。
+
+### 125 `CLEONOS_SYSCALL_DRIVER_RELOAD`
+
+- 参数：无
+- 返回：本次从 `/driver` 新加载的驱动数量。
+- 说明：重新扫描 `/driver/*.elf`，已登记的驱动会被跳过。
+
+## 4.1 `/dev` 设备文件
+
+- `/dev/fb0`：`FD_READ` 返回 framebuffer 信息；`FD_WRITE` 支持 `clear RRGGBB` 或写入整屏 RGBA buffer。
+- `/dev/input/kbd`：`FD_READ` 从当前 TTY 键盘队列读取字节，非阻塞。
+- `/dev/input/mouse`：`FD_READ` 返回鼠标 ready/x/y/buttons/packets 文本快照。
+- `/dev/net0`：`FD_READ` 返回 available/ipv4/netmask/gateway/dns 文本快照；`FD_WRITE` 触发一次网络 poll 并返回写入长度。
+- `/dev/disk0`：`FD_READ` 返回 present/bytes/sectors/fat32/mounted 文本快照。
+- `/dev/tty0`：固定访问 TTY0；`/dev/tty` 仍表示当前进程所在 TTY。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -971,6 +1015,7 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_getpid()` / `cleonos_sys_spawn_path()` / `cleonos_sys_wait_pid()`
 - `cleonos_sys_wm_count()` / `cleonos_sys_wm_id_at()` / `cleonos_sys_wm_snapshot()`
 - `cleonos_sys_user_heap_alloc()`
+- `cleonos_sys_driver_count()` / `cleonos_sys_driver_info()` / `cleonos_sys_driver_load()` / `cleonos_sys_driver_unload()` / `cleonos_sys_driver_reload()`
 - `cleonos_sys_spawn_pathv()`
 - `cleonos_sys_exit()` / `cleonos_sys_sleep_ticks()` / `cleonos_sys_yield()` / `cleonos_sys_shutdown()` / `cleonos_sys_restart()`
 - `cleonos_sys_audio_available()` / `cleonos_sys_audio_play_tone()` / `cleonos_sys_audio_stop()`

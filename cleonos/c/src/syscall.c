@@ -515,3 +515,23 @@ u64 cleonos_sys_pty_open(void) {
 void *cleonos_sys_user_heap_alloc(u64 size) {
     return (void *)(usize)cleonos_syscall(CLEONOS_SYSCALL_USER_HEAP_ALLOC, size, 0ULL, 0ULL);
 }
+
+u64 cleonos_sys_driver_count(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DRIVER_COUNT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_driver_info(u64 index, cleonos_driver_info *out_info, u64 out_size) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DRIVER_INFO, index, (u64)out_info, out_size);
+}
+
+u64 cleonos_sys_driver_load(const char *path) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DRIVER_LOAD, (u64)path, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_driver_unload(const char *name_or_path) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DRIVER_UNLOAD, (u64)name_or_path, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_driver_reload(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DRIVER_RELOAD, 0ULL, 0ULL, 0ULL);
+}
