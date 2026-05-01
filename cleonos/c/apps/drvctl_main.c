@@ -73,8 +73,8 @@ static int drvctl_list(void) {
             continue;
         }
 
-        (void)printf("%llu: %-16s %-7s %-8s %-6s id=%llu size=%llu entry=0X%llX path=%s\n",
-                     (unsigned long long)i, info.name, drvctl_kind_name(info.kind), drvctl_state_name(info.state),
+        (void)printf("%llu: %-16s %-7s %-8s %-6s id=%llu size=%llu entry=0X%llX path=%s\n", (unsigned long long)i,
+                     info.name, drvctl_kind_name(info.kind), drvctl_state_name(info.state),
                      drvctl_class_name(info.driver_class), (unsigned long long)info.load_id,
                      (unsigned long long)info.image_size, (unsigned long long)info.elf_entry,
                      info.path[0] != '\0' ? info.path : "-");
