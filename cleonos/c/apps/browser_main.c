@@ -4,7 +4,6 @@
 
 #include "browser/browser_internal.h"
 
-
 int cleonos_app_main(void) {
     ush_cmd_ctx ctx;
     ush_cmd_ret ret;
