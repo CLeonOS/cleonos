@@ -334,8 +334,9 @@ void cleonos_tui_button(cleonos_tui_rect rect, const char *label, int focused) {
         return;
     }
 
-    style = focused != 0 ? cleonos_tui_make_style(CLEONOS_TUI_COLOR_BLACK, CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_ATTR_BOLD)
-                         : cleonos_tui_make_style(CLEONOS_TUI_COLOR_WHITE, CLEONOS_TUI_COLOR_BLUE, 0U);
+    style = focused != 0
+                ? cleonos_tui_make_style(CLEONOS_TUI_COLOR_BLACK, CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_ATTR_BOLD)
+                : cleonos_tui_make_style(CLEONOS_TUI_COLOR_WHITE, CLEONOS_TUI_COLOR_BLUE, 0U);
     cleonos_tui_fill_rect(rect, ' ', style);
 
     if (label == (const char *)0) {
@@ -355,7 +356,8 @@ void cleonos_tui_button(cleonos_tui_rect rect, const char *label, int focused) {
 }
 
 void cleonos_tui_status_bar(int y, const char *left, const char *right) {
-    cleonos_tui_style style = cleonos_tui_make_style(CLEONOS_TUI_COLOR_BLACK, CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_ATTR_BOLD);
+    cleonos_tui_style style =
+        cleonos_tui_make_style(CLEONOS_TUI_COLOR_BLACK, CLEONOS_TUI_COLOR_CYAN, CLEONOS_TUI_ATTR_BOLD);
     int width = 80;
     int right_len = (int)tui_strlen(right);
     int right_x = width - right_len - 1;
