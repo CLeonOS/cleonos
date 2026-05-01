@@ -161,6 +161,7 @@ app.httpget.cflags = {USER_TLS_CFLAGS}
 app.httpget.sources = {USER_TLS_SOURCES}
 app.wget.cflags = {USER_TLS_CFLAGS}
 app.wget.sources = {USER_TLS_SOURCES}
+app.pkg.sources = {root}/cleonos/c/pkg/pkg_client.c
 app.doom.cflags = {USER_DOOM_CFLAGS}
 app.doom.source_dirs = {root}/cleonos/third-party/doomgeneric/doomgeneric
 app.doom.exclude_sources = doomgeneric_allegro.c,doomgeneric_emscripten.c,doomgeneric_linuxvt.c,doomgeneric_sdl.c,doomgeneric_soso.c,doomgeneric_sosox.c,doomgeneric_win.c,doomgeneric_xlib.c,i_allegromusic.c,i_allegrosound.c,i_sdlmusic.c,i_sdlsound.c,icon.c

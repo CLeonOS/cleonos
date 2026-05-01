@@ -22,3 +22,6 @@
 [submodule "bdt"]
 	path = bdt
 	url = https://github.com/CLeonOS/bdt
+[submodule "cleonos/c/pkg"]
+	path = cleonos/c/pkg
+	url = https://github.com/CLeonOS/pkg
