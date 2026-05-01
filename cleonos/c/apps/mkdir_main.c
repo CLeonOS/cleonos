@@ -12,11 +12,6 @@ static int ush_cmd_mkdir(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("mkdir: target must be under /temp");
-        return 0;
-    }
-
     if (cleonos_sys_fs_mkdir(path) == 0ULL) {
         ush_writeln("mkdir: failed");
         return 0;

@@ -24,13 +24,13 @@ static int ush_cmd_help(void) {
     ush_writeln("  tty [index]");
     ush_writeln("  dmesg [n]");
     ush_writeln("  kbdstat");
-    ush_writeln("  mkdir <dir>      (/temp only)");
-    ush_writeln("  touch <file>     (/temp only)");
-    ush_writeln("  write <file> <text>   (/temp only, or from pipeline)");
-    ush_writeln("  append <file> <text>  (/temp only, or from pipeline)");
-    ush_writeln("  cp <src> <dst>   (dst /temp only)");
-    ush_writeln("  mv <src> <dst>   (/temp only)");
-    ush_writeln("  rm <path>        (/temp only)");
+    ush_writeln("  mkdir <dir>");
+    ush_writeln("  touch <file>");
+    ush_writeln("  write <file> <text>   (or from pipeline)");
+    ush_writeln("  append <file> <text>  (or from pipeline)");
+    ush_writeln("  cp <src> <dst>");
+    ush_writeln("  mv <src> <dst>");
+    ush_writeln("  rm <path>");
     ush_writeln("  diskinfo");
     ush_writeln("  mkfsfat32 [label]");
     ush_writeln("  mount [path]     (default suggested: /temp/disk)");
@@ -53,8 +53,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  shutdown / restart");
     ush_writeln("  exit [code]");
     ush_writeln("  rusttest / panic / elfloader (kernel shell only)");
-    ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > /temp/out.txt");
-    ush_writeln("redirection append:   cmd >> /temp/out.txt");
+    ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt");
+    ush_writeln("redirection append:   cmd >> out.txt");
     ush_writeln("edit keys: Left/Right, Home/End, Up/Down history");
     return 1;
 }

@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Experimental x86_64 operating system project with a C kernel, Rust-assisted runtime pieces, user-space ELF apps, and a stage-based development history.
+Experimental x86_64 operating system project with a C kernel, Rust-assisted runtime pieces and  user-space ELF apps.
 
 ## Highlights
 
@@ -127,9 +127,18 @@ GitHub Actions workflow [`build-os.yml`](.github/workflows/build-os.yml) builds 
 ## Contributing
 
 1. Fork and create a feature branch.
-2. Keep changes stage-oriented and update docs when behavior changes.
-3. Run at least `make iso` before opening a PR.
-4. Include boot log snippets or screenshots for kernel/user visible changes.
+2. Run at least `make iso` before opening a PR.
+3. Include boot log snippets or screenshots for kernel/user visible changes.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=cleonos%2Fcleonos&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## License
 

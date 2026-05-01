@@ -87,7 +87,6 @@ void ush_print_kv_hex(const char *label, u64 value);
 int ush_resolve_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);
 int ush_resolve_exec_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);
 int ush_path_is_under_system(const char *path);
-int ush_path_is_under_temp(const char *path);
 
 int ush_split_first_and_rest(const char *arg, char *out_first, u64 out_first_size, const char **out_rest);
 int ush_split_two_args(const char *arg, char *out_first, u64 out_first_size, char *out_second, u64 out_second_size);

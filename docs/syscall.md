@@ -73,7 +73,10 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 文件系统写入类 syscall 的权限限制：
 
-- `FS_MKDIR` / `FS_WRITE` / `FS_APPEND` / `FS_REMOVE` 仅允许 `/temp` 树下路径，或已挂载磁盘路径树下（默认挂载点通常为 `/temp/disk`）。
+- `FS_MKDIR` / `FS_WRITE` / `FS_APPEND` / `FS_REMOVE` 不再限制到 `/temp`。
+- 仍禁止直接修改根路径 `/` 与动态设备文件（例如 `/dev/fb0`、`/dev/net0`、`/dev/disk0`、`/dev/tty0`、`/dev/input/kbd`、`/dev/input/mouse`）。
+- `/proc` 仍为只读虚拟目录，写入类 syscall 不支持修改。
+- 已挂载磁盘路径仍走磁盘后端；默认挂载点通常为 `/temp/disk`，但写入权限不再依赖 `/temp` 前缀。
 
 UserSafeController（USC）危险 syscall 确认：
 
@@ -270,7 +273,7 @@ UserSafeController（USC）危险 syscall 确认：
 - 参数：
 - `arg0`: `const char *path`
 - 返回：成功 `1`，失败 `0`
-- 说明：仅允许 `/temp` 下创建目录。
+- 说明：创建目录；不允许目标为根路径或动态设备文件。
 
 ### 30 `CLEONOS_SYSCALL_FS_WRITE`
 
@@ -279,7 +282,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg1`: `const char *data`
 - `arg2`: `u64 size`
 - 返回：成功 `1`，失败 `0`
-- 说明：覆盖写；仅允许 `/temp` 下文件。
+- 说明：覆盖写；不允许目标为根路径、目录或动态设备文件。
 
 ### 31 `CLEONOS_SYSCALL_FS_APPEND`
 
@@ -288,14 +291,14 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg1`: `const char *data`
 - `arg2`: `u64 size`
 - 返回：成功 `1`，失败 `0`
-- 说明：追加写；仅允许 `/temp` 下文件。
+- 说明：追加写；不允许目标为根路径、目录或动态设备文件。
 
 ### 32 `CLEONOS_SYSCALL_FS_REMOVE`
 
 - 参数：
 - `arg0`: `const char *path`
 - 返回：成功 `1`，失败 `0`
-- 说明：仅允许 `/temp` 下删除；目录需为空。
+- 说明：删除文件或空目录；不允许删除根路径或动态设备文件，目录需为空。
 
 ### 33 `CLEONOS_SYSCALL_LOG_JOURNAL_COUNT`
 
@@ -1044,7 +1047,7 @@ typedef struct cleonos_wm_snapshot {
 
 - 传入的字符串/缓冲指针目前按“同地址空间可直接访问”模型处理，后续若引入严格用户态地址隔离，需要补充用户内存校验。
 - `FS_READ` 不保证文本终止符；读取文本请预留 1 字节并手动 `buf[n] = '\0'`。
-- `FS_WRITE`/`FS_APPEND` 仅允许 `/temp` 或已挂载磁盘路径；大数据写入由内核自动分块处理。
+- `FS_WRITE`/`FS_APPEND` 不再限制到 `/temp`；大数据写入由内核自动分块处理。
 - `/proc` 由 syscall 层虚拟导出，不占用 RAMDISK 节点，也不能通过写入类 syscall 修改。
 
 ## 7. Wine 兼容说明
@@ -1064,7 +1067,7 @@ typedef struct cleonos_wm_snapshot {
 - `DISK_*`（`85..94`）在 Wine 中已实现：
 - 提供虚拟磁盘容量信息与 FAT32 格式化状态查询。
 - `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
-- `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理，并与 `FS_MKDIR/WRITE/APPEND/REMOVE` 的路径规则联动。
+- `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理；挂载路径内的 `FS_MKDIR/WRITE/APPEND/REMOVE` 会走磁盘后端。
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。

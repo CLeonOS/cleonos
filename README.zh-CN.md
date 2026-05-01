@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-一个实验性的 x86_64 操作系统项目，包含 C 内核、Rust 辅助运行时代码、用户态 ELF 应用，以及按 Stage 演进的开发历史。
+一个实验性的 x86_64 操作系统项目，包含 C 内核、Rust 辅助运行时代码和用户态 ELF 应用。
 
 ## 项目特性
 
@@ -127,9 +127,18 @@ GitHub Actions 工作流 [`build-os.yml`](.github/workflows/build-os.yml) 会在
 ## 贡献指南
 
 1. Fork 仓库并创建功能分支。
-2. 尽量按 Stage 组织改动，并同步更新文档。
-3. 提交 PR 前至少执行一次 `make iso`。
-4. 涉及可见行为变化时，附上启动日志片段或截图。
+2. 提交 PR 前至少执行一次 `make iso`。
+3. 涉及可见行为变化时，附上启动日志片段或截图。
+
+## Star 历史
+
+<a href="https://www.star-history.com/?repos=cleonos%2Fcleonos&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=cleonos/cleonos&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## 许可证
 

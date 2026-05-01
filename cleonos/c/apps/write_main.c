@@ -20,11 +20,6 @@ static int ush_cmd_write(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(abs_path) == 0) {
-        ush_writeln("write: target must be under /temp");
-        return 0;
-    }
-
     if (payload == (const char *)0 || payload[0] == '\0') {
         if (ush_pipeline_stdin_text == (const char *)0) {
             ush_writeln("write: usage write <file> <text>");

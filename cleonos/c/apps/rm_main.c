@@ -12,11 +12,6 @@ static int ush_cmd_rm(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("rm: target must be under /temp");
-        return 0;
-    }
-
     if (cleonos_sys_fs_remove(path) == 0ULL) {
         ush_writeln("rm: failed (directory must be empty)");
         return 0;

@@ -22,18 +22,6 @@ static u64 ush_pipeline_stdin_len = 0ULL;
 static char ush_pipeline_capture_a[USH_PIPE_CAPTURE_MAX + 1U];
 static char ush_pipeline_capture_b[USH_PIPE_CAPTURE_MAX + 1U];
 
-static int ush_path_is_under_temp(const char *path) {
-    if (path == (const char *)0) {
-        return 0;
-    }
-
-    if (path[0] != '/' || path[1] != 't' || path[2] != 'e' || path[3] != 'm' || path[4] != 'p') {
-        return 0;
-    }
-
-    return (path[5] == '\0' || path[5] == '/') ? 1 : 0;
-}
-
 static int ush_split_first_and_rest(const char *arg, char *out_first, u64 out_first_size, const char **out_rest) {
     u64 i = 0ULL;
     u64 p = 0ULL;
@@ -146,13 +134,13 @@ static int ush_cmd_help(void) {
     ush_writeln("  tty [index]");
     ush_writeln("  dmesg [n]");
     ush_writeln("  kbdstat");
-    ush_writeln("  mkdir <dir>      (/temp only)");
-    ush_writeln("  touch <file>     (/temp only)");
-    ush_writeln("  write <file> <text>   (/temp only, or from pipeline)");
-    ush_writeln("  append <file> <text>  (/temp only, or from pipeline)");
-    ush_writeln("  cp <src> <dst>   (dst /temp only)");
-    ush_writeln("  mv <src> <dst>   (/temp only)");
-    ush_writeln("  rm <path>        (/temp only)");
+    ush_writeln("  mkdir <dir>");
+    ush_writeln("  touch <file>");
+    ush_writeln("  write <file> <text>   (or from pipeline)");
+    ush_writeln("  append <file> <text>  (or from pipeline)");
+    ush_writeln("  cp <src> <dst>");
+    ush_writeln("  mv <src> <dst>");
+    ush_writeln("  rm <path>");
     ush_writeln("  pid");
     ush_writeln("  spawn <path|name> [args...] / bg <path|name> [args...]");
     ush_writeln("  wait <pid> / fg [pid]");
@@ -165,8 +153,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  shutdown / restart");
     ush_writeln("  exit [code]");
     ush_writeln("  rusttest / panic / elfloader (kernel shell only)");
-    ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > /temp/out.txt");
-    ush_writeln("redirection append:   cmd >> /temp/out.txt");
+    ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt");
+    ush_writeln("redirection append:   cmd >> out.txt");
     ush_writeln("edit keys: Left/Right, Home/End, Up/Down history");
     return 1;
 }
@@ -2137,11 +2125,6 @@ static int ush_cmd_mkdir(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("mkdir: target must be under /temp");
-        return 0;
-    }
-
     if (cleonos_sys_fs_mkdir(path) == 0ULL) {
         ush_writeln("mkdir: failed");
         return 0;
@@ -2161,11 +2144,6 @@ static int ush_cmd_touch(const ush_state *sh, const char *arg) {
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
         ush_writeln("touch: invalid path");
-        return 0;
-    }
-
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("touch: target must be under /temp");
         return 0;
     }
 
@@ -2195,11 +2173,6 @@ static int ush_cmd_write(const ush_state *sh, const char *arg) {
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
         ush_writeln("write: invalid path");
-        return 0;
-    }
-
-    if (ush_path_is_under_temp(abs_path) == 0) {
-        ush_writeln("write: target must be under /temp");
         return 0;
     }
 
@@ -2240,11 +2213,6 @@ static int ush_cmd_append(const ush_state *sh, const char *arg) {
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
         ush_writeln("append: invalid path");
-        return 0;
-    }
-
-    if (ush_path_is_under_temp(abs_path) == 0) {
-        ush_writeln("append: target must be under /temp");
         return 0;
     }
 
@@ -2333,11 +2301,6 @@ static int ush_cmd_cp(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(dst_path) == 0) {
-        ush_writeln("cp: destination must be under /temp");
-        return 0;
-    }
-
     return ush_copy_file(src_path, dst_path);
 }
 
@@ -2363,11 +2326,6 @@ static int ush_cmd_mv(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(src_path) == 0 || ush_path_is_under_temp(dst_path) == 0) {
-        ush_writeln("mv: source and destination must be under /temp");
-        return 0;
-    }
-
     if (ush_copy_file(src_path, dst_path) == 0) {
         return 0;
     }
@@ -2390,11 +2348,6 @@ static int ush_cmd_rm(const ush_state *sh, const char *arg) {
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
         ush_writeln("rm: invalid path");
-        return 0;
-    }
-
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("rm: target must be under /temp");
         return 0;
     }
 
@@ -2856,11 +2809,6 @@ static int ush_pipeline_open_redirect_fd(const ush_state *sh, const ush_pipeline
 
     if (ush_resolve_path(sh, stage->redirect_path, abs_path, (u64)sizeof(abs_path)) == 0) {
         ush_writeln("redirect: invalid path");
-        return 0;
-    }
-
-    if (ush_path_is_under_temp(abs_path) == 0) {
-        ush_writeln("redirect: path must be under /temp");
         return 0;
     }
 

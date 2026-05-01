@@ -78,11 +78,6 @@ static int ush_cmd_cp(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(dst_path) == 0) {
-        ush_writeln("cp: destination must be under /temp");
-        return 0;
-    }
-
     return ush_copy_file(src_path, dst_path);
 }
 

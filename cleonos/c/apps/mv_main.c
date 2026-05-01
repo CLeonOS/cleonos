@@ -65,11 +65,6 @@ static int ush_cmd_mv(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(src_path) == 0 || ush_path_is_under_temp(dst_path) == 0) {
-        ush_writeln("mv: source and destination must be under /temp");
-        return 0;
-    }
-
     if (ush_copy_file(src_path, dst_path) == 0) {
         return 0;
     }

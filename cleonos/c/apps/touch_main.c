@@ -13,11 +13,6 @@ static int ush_cmd_touch(const ush_state *sh, const char *arg) {
         return 0;
     }
 
-    if (ush_path_is_under_temp(path) == 0) {
-        ush_writeln("touch: target must be under /temp");
-        return 0;
-    }
-
     if (cleonos_sys_fs_write(path, empty_data, 0ULL) == 0ULL) {
         ush_writeln("touch: failed");
         return 0;

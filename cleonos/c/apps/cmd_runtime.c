@@ -480,16 +480,6 @@ int ush_path_is_under_system(const char *path) {
     return (path[7] == '\0' || path[7] == '/') ? 1 : 0;
 }
 
-int ush_path_is_under_temp(const char *path) {
-    if (path == (const char *)0) {
-        return 0;
-    }
-    if (strncmp(path, "/temp", 5U) != 0) {
-        return 0;
-    }
-    return (path[5] == '\0' || path[5] == '/') ? 1 : 0;
-}
-
 int ush_split_first_and_rest(const char *arg, char *out_first, u64 out_first_size, const char **out_rest) {
     u64 i = 0ULL;
     u64 p = 0ULL;
