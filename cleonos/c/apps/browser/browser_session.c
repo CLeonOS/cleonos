@@ -1,0 +1,269 @@
+#include "browser_internal.h"
+
+#include <stdio.h>
+
+static int ush_browser_push_history(char history[][USH_BROWSER_SOURCE_MAX], u64 *io_count, const char *source) {
+    u64 i;
+
+    if (history == (char(*)[USH_BROWSER_SOURCE_MAX])0 || io_count == (u64 *)0 || source == (const char *)0 ||
+        source[0] == '\0') {
+        return 0;
+    }
+
+    if (*io_count > 0ULL && ush_streq(history[*io_count - 1ULL], source) != 0) {
+        return 1;
+    }
+
+    if (*io_count >= (u64)USH_BROWSER_HISTORY_MAX) {
+        for (i = 1ULL; i < (u64)USH_BROWSER_HISTORY_MAX; i++) {
+            ush_copy(history[i - 1ULL], (u64)USH_BROWSER_SOURCE_MAX, history[i]);
+        }
+        *io_count = (u64)USH_BROWSER_HISTORY_MAX - 1ULL;
+    }
+
+    ush_copy(history[*io_count], (u64)USH_BROWSER_SOURCE_MAX, source);
+    (*io_count)++;
+    return 1;
+}
+
+static int ush_browser_pop_history(char history[][USH_BROWSER_SOURCE_MAX], u64 *io_count, char *out_source,
+                                   u64 out_size) {
+    if (history == (char(*)[USH_BROWSER_SOURCE_MAX])0 || io_count == (u64 *)0 || out_source == (char *)0 ||
+        out_size == 0ULL) {
+        return 0;
+    }
+
+    if (*io_count == 0ULL) {
+        return 0;
+    }
+
+    (*io_count)--;
+    ush_copy(out_source, out_size, history[*io_count]);
+    history[*io_count][0] = '\0';
+    return 1;
+}
+
+static int ush_browser_parse_link_index(const char *text, u64 *out_index) {
+    u64 i = 0ULL;
+    u64 value = 0ULL;
+
+    if (text == (const char *)0 || out_index == (u64 *)0 || text[0] == '\0') {
+        return 0;
+    }
+
+    while (text[i] != '\0') {
+        if (text[i] < '0' || text[i] > '9') {
+            return 0;
+        }
+        value = value * 10ULL + (u64)(text[i] - '0');
+        i++;
+    }
+
+    if (value == 0ULL) {
+        return 0;
+    }
+
+    *out_index = value - 1ULL;
+    return 1;
+}
+
+static int ush_browser_parse_args(const char *arg, char *out_source, u64 out_source_size) {
+    char first[USH_PATH_MAX];
+    const char *rest = "";
+
+    if (out_source == (char *)0 || out_source_size == 0ULL) {
+        return 0;
+    }
+
+    out_source[0] = '\0';
+
+    if (arg == (const char *)0 || arg[0] == '\0') {
+        return 0;
+    }
+
+    if (ush_split_first_and_rest(arg, first, (u64)sizeof(first), &rest) == 0) {
+        return 0;
+    }
+
+    if (ush_streq(first, "--help") != 0 || ush_streq(first, "-h") != 0) {
+        return 2;
+    }
+
+    if (rest != (const char *)0 && rest[0] != '\0') {
+        return 0;
+    }
+
+    ush_copy(out_source, out_source_size, first);
+    return (out_source[0] != '\0') ? 1 : 0;
+}
+
+static void ush_browser_usage(void) {
+    ush_writeln("usage: browser <file.html|http://...|https://...>");
+    ush_writeln("note: parser is gumbo from litehtml (no handwritten parser)");
+}
+
+int ush_browser_run_session(const ush_state *sh, const char *arg) {
+    char source[USH_BROWSER_SOURCE_MAX];
+    char current_source[USH_BROWSER_SOURCE_MAX];
+    char next_source[USH_BROWSER_SOURCE_MAX];
+    char input_line[USH_BROWSER_INPUT_MAX];
+    char history[USH_BROWSER_HISTORY_MAX][USH_BROWSER_SOURCE_MAX];
+    u64 history_count = 0ULL;
+    int parse_ret;
+    u64 html_size = 0ULL;
+    int loaded_once = 0;
+    u64 i;
+
+    if (sh == (const ush_state *)0) {
+        return 0;
+    }
+
+    if (ush_browser_ensure_buffers() == 0) {
+        ush_writeln("browser: memory allocation failed");
+        return 0;
+    }
+
+    for (i = 0ULL; i < (u64)USH_BROWSER_HISTORY_MAX; i++) {
+        history[i][0] = '\0';
+    }
+
+    parse_ret = ush_browser_parse_args(arg, source, (u64)sizeof(source));
+    if (parse_ret == 2) {
+        ush_browser_usage();
+        return 1;
+    }
+
+    if (parse_ret == 0) {
+        ush_browser_usage();
+        return 0;
+    }
+
+    if (ush_browser_is_http_url(source) != 0 || ush_browser_is_https_url(source) != 0) {
+        ush_copy(current_source, (u64)sizeof(current_source), source);
+    } else {
+        if (ush_resolve_path(sh, source, current_source, (u64)sizeof(current_source)) == 0) {
+            ush_copy(current_source, (u64)sizeof(current_source), source);
+        }
+    }
+
+    for (;;) {
+        if (ush_browser_load_source(sh, current_source, ush_browser_html_buf, (u64)USH_BROWSER_HTML_BUF_CAP,
+                                    &html_size) == 0) {
+            if (ush_browser_is_http_url(current_source) != 0 || ush_browser_is_https_url(current_source) != 0) {
+                (void)printf("browser: URL fetch failed: %s\n", ush_browser_fetch_last_error());
+            } else {
+                ush_writeln("browser: file read failed");
+            }
+
+            if (loaded_once == 0 ||
+                ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
+                return 0;
+            }
+            ush_writeln("browser: returned to previous page");
+            continue;
+        }
+
+        if (ush_browser_render_html(ush_browser_html_buf, html_size) == 0) {
+            ush_writeln("browser: parse/render failed");
+            if (loaded_once == 0 ||
+                ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
+                return 0;
+            }
+            ush_writeln("browser: returned to previous page");
+            continue;
+        }
+
+        loaded_once = 1;
+        ush_browser_print_rendered(current_source);
+        ush_writeln("");
+        ush_writeln("[browser] interactive mode");
+        ush_writeln("[browser] <number>: open link   o <src>: open source   b: back   r: reload   q: quit");
+        (void)fputs("browser> ", 1);
+
+        if (ush_browser_read_line(input_line, (u64)sizeof(input_line)) == 0) {
+            return 1;
+        }
+        ush_trim_line(input_line);
+
+        if (input_line[0] == '\0') {
+            continue;
+        }
+
+        if (ush_streq(input_line, "q") != 0 || ush_streq(input_line, "quit") != 0 ||
+            ush_streq(input_line, "exit") != 0) {
+            return 1;
+        }
+
+        if (ush_streq(input_line, "r") != 0 || ush_streq(input_line, "reload") != 0) {
+            continue;
+        }
+
+        if (ush_streq(input_line, "b") != 0 || ush_streq(input_line, "back") != 0) {
+            if (ush_browser_pop_history(history, &history_count, current_source, (u64)sizeof(current_source)) == 0) {
+                ush_writeln("browser: no history");
+            }
+            continue;
+        }
+
+        if (ush_streq(input_line, "h") != 0 || ush_streq(input_line, "help") != 0) {
+            ush_writeln("[browser] commands:");
+            ush_writeln("  <number>      open link by index");
+            ush_writeln("  o <src>       open new URL/path");
+            ush_writeln("  b             back");
+            ush_writeln("  r             reload");
+            ush_writeln("  q             quit");
+            continue;
+        }
+
+        ush_zero(next_source, (u64)sizeof(next_source));
+        if ((input_line[0] == 'o' && input_line[1] == ' ') ||
+            (input_line[0] == 'o' && input_line[1] == 'p' && input_line[2] == 'e' && input_line[3] == 'n' &&
+             input_line[4] == ' ')) {
+            const char *payload = (input_line[1] == ' ') ? (input_line + 2) : (input_line + 5);
+            while (*payload == ' ') {
+                payload++;
+            }
+            ush_copy(next_source, (u64)sizeof(next_source), payload);
+        } else {
+            u64 link_index = 0ULL;
+            if (ush_browser_parse_link_index(input_line, &link_index) != 0) {
+                if (link_index >= ush_browser_link_count) {
+                    ush_writeln("browser: link index out of range");
+                    continue;
+                }
+
+                if (ush_browser_resolve_href(current_source, ush_browser_links[link_index].href, next_source,
+                                             (u64)sizeof(next_source)) == 0) {
+                    ush_writeln("browser: cannot resolve link target");
+                    continue;
+                }
+            } else {
+                ush_copy(next_source, (u64)sizeof(next_source), input_line);
+            }
+        }
+
+        if (next_source[0] == '\0') {
+            ush_writeln("browser: empty target");
+            continue;
+        }
+
+        if (ush_browser_is_http_url(next_source) == 0 && ush_browser_is_https_url(next_source) == 0 &&
+            next_source[0] != '/') {
+            char resolved_target[USH_BROWSER_SOURCE_MAX];
+
+            if (ush_browser_resolve_href(current_source, next_source, resolved_target, (u64)sizeof(resolved_target)) !=
+                0) {
+                ush_copy(next_source, (u64)sizeof(next_source), resolved_target);
+            } else if (ush_resolve_path(sh, next_source, resolved_target, (u64)sizeof(resolved_target)) != 0) {
+                ush_copy(next_source, (u64)sizeof(next_source), resolved_target);
+            }
+        }
+
+        if (ush_streq(next_source, current_source) != 0) {
+            continue;
+        }
+
+        (void)ush_browser_push_history(history, &history_count, current_source);
+        ush_copy(current_source, (u64)sizeof(current_source), next_source);
+    }
+}
