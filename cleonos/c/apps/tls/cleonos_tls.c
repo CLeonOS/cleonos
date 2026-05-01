@@ -182,8 +182,8 @@ static void cleonos_tls_log_error(const char *stage, int error_code) {
     char error_text[96];
 
     cleonos_tls_error_text(error_code, error_text, (u64)sizeof(error_text));
-    if (snprintf(text, sizeof(text), "[TLS] %s: %s (code=%d)",
-                 (stage == (const char *)0) ? "error" : stage, error_text, error_code) <= 0) {
+    if (snprintf(text, sizeof(text), "[TLS] %s: %s (code=%d)", (stage == (const char *)0) ? "error" : stage, error_text,
+                 error_code) <= 0) {
         cleonos_tls_log_line("[TLS] error formatting failed");
         return;
     }
