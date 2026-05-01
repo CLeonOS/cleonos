@@ -3,9 +3,14 @@ name = CLeonOS
 default = iso
 build_dir = .bdt
 language = zh-CN
+doctor_tools = {CC},{KERNEL_CXX},{LD},{RUSTC},{TAR},{XORRISO}
 
 [subprojects]
 paths = bdt, clks, cleonos
+
+[cache]
+path = {root}/{build_dir}/cache
+archive = {root}/{build_dir}/bdt-cache.tar
 
 [tools]
 CC = gcc
@@ -27,7 +32,7 @@ USER_CFLAGS = -std=c11,-ffreestanding,-fno-stack-protector,-fno-builtin,-Wall,-W
 USER_TLS_CFLAGS = -I{root}/cleonos/third-party/mbedtls/include,-DMBEDTLS_CONFIG_FILE='<tls/cleonos_mbedtls_config.h>',-DMBEDTLS_HAVE_INT32
 USER_GUMBO_CFLAGS = -I{root}/cleonos/third-party/litehtml/src/gumbo/include,-I{root}/cleonos/third-party/litehtml/src/gumbo/include/gumbo,-I{root}/cleonos/third-party/litehtml/src/gumbo,-DNDEBUG
 USER_DOOM_CFLAGS = -I{root}/cleonos/third-party/doomgeneric/doomgeneric,-I{root}/cleonos/c/apps/doom,-include,{root}/cleonos/c/apps/doom/doom_shim.h,-DNORMALUNIX,-D_DEFAULT_SOURCE
-USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/memory_buffer_alloc.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
+USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
 USER_LDFLAGS = -nostdlib,-z,max-page-size=0x1000,--gc-sections
 DISK_IMAGE_MB = 64
 DISK_IMAGE_BYTES = 67108864
@@ -74,7 +79,7 @@ tool = {CC}
 sources = clks/kernel/boot/limine/limine_requests.c, clks/kernel/core/interrupts.c, clks/kernel/core/kmain.c, clks/kernel/core/log.c, clks/kernel/core/panic.c, clks/kernel/core/scheduler.c, clks/kernel/core/service.c, clks/kernel/hal/audio/pcspeaker.c, clks/kernel/hal/serial/serial.c, clks/kernel/hal/video/font8x8.c, clks/kernel/hal/video/framebuffer.c, clks/kernel/hal/video/psf_font.c, clks/kernel/input/keyboard.c, clks/kernel/input/mouse.c, clks/kernel/interface/desktop.c, clks/kernel/interface/shell.c, clks/kernel/interface/tty.c, clks/kernel/interface/wm.c, clks/kernel/memory/heap.c, clks/kernel/memory/pmm.c, clks/kernel/runtime/driver.c, clks/kernel/runtime/elf64.c, clks/kernel/runtime/elfrunner.c, clks/kernel/runtime/exec.c, clks/kernel/runtime/kelf.c, clks/kernel/runtime/net.c, clks/kernel/runtime/pty.c, clks/kernel/runtime/syscall.c, clks/kernel/runtime/userland.c, clks/kernel/storage/disk.c, clks/kernel/storage/fs.c, clks/kernel/storage/ramdisk.c, clks/kernel/support/libc_compat.c, clks/kernel/support/string.c, clks/arch/x86_64/startup/boot.c, clks/third_party/miniz/miniz_support.c, clks/third_party/miniz/miniz_tdef.c, clks/third_party/qrcodegen/qrcodegen.c
 output = {root}/build/x86_64/obj
 cflags = {KERNEL_CFLAGS}
-cache = false
+cache = true
 
 [target.kernel-cpp-objects]
 deps = setup-freestanding-headers, menuconfig-headers
@@ -83,7 +88,7 @@ tool = {KERNEL_CXX}
 sources = clks/kernel/core/panic_qr.cpp
 output = {root}/build/x86_64/obj
 cxxflags = {KERNEL_CXXFLAGS}
-cache = false
+cache = true
 
 [target.kernel-asm-objects]
 deps = setup-freestanding-headers, menuconfig-headers
@@ -92,7 +97,7 @@ tool = {CC}
 sources = clks/arch/x86_64/interrupt/interrupt_stubs.S, clks/arch/x86_64/startup/exec_stack_call.S
 output = {root}/build/x86_64/obj
 asflags = {KERNEL_ASFLAGS}
-cache = false
+cache = true
 
 [target.kernel-rust]
 type = rust-staticlib
@@ -110,7 +115,7 @@ objects = {root}/build/x86_64/libclks_kernel_rust.a
 output = {root}/build/x86_64/clks_kernel.elf
 linker_script = {root}/clks/arch/x86_64/linker.ld
 ldflags = {KERNEL_LDFLAGS}
-cache = false
+cache = true
 
 [target.kernel-symbols]
 deps = kernel
@@ -134,13 +139,19 @@ common_dirs = {root}/cleonos/c/src
 runtime_sources = {root}/cleonos/c/apps/cmd_runtime.c, {root}/cleonos/c/apps/uwm_uilib/uwm_uilib.c
 objects = {root}/build/x86_64/user/obj
 output = {root}/build/x86_64/user/apps
-uwm_output = {root}/build/x86_64/user/apps/uwm
-system_output = {root}/build/x86_64/user/system
-uwm_apps = file_explorer, terminal, taskmgr, uwm_uilib
+entry_suffix = _main.c
+secondary_entry_suffix = _kmain.c
+secondary_output_group = system
+runtime_exclude_apps = shell
+output_group.default.output = {root}/build/x86_64/user/apps
+output_group.uwm.output = {root}/build/x86_64/user/apps/uwm
+output_group.uwm.apps = file_explorer, terminal, taskmgr, uwm_uilib
+output_group.system.output = {root}/build/x86_64/user/system
+output_group.system.linker_script = {root}/cleonos/c/kelf.ld
 linker_script = {root}/cleonos/c/user.ld
-system_linker_script = {root}/cleonos/c/kelf.ld
 cflags = {USER_CFLAGS}
 ldflags = {USER_LDFLAGS}
+app.shell.include_runtime = false
 app.browser.cflags = {USER_TLS_CFLAGS},{USER_GUMBO_CFLAGS}
 app.browser.sources = {USER_TLS_SOURCES}
 app.browser.source_dirs = {root}/cleonos/third-party/litehtml/src/gumbo
@@ -151,7 +162,7 @@ app.wget.sources = {USER_TLS_SOURCES}
 app.doom.cflags = {USER_DOOM_CFLAGS}
 app.doom.source_dirs = {root}/cleonos/third-party/doomgeneric/doomgeneric
 app.doom.exclude_sources = doomgeneric_allegro.c,doomgeneric_emscripten.c,doomgeneric_linuxvt.c,doomgeneric_sdl.c,doomgeneric_soso.c,doomgeneric_sosox.c,doomgeneric_win.c,doomgeneric_xlib.c,i_allegromusic.c,i_allegrosound.c,i_sdlmusic.c,i_sdlsound.c,icon.c
-cache = false
+cache = true
 
 [target.ramdisk-root]
 deps = userapps, kernel-symbols

@@ -942,6 +942,17 @@ typedef struct cleonos_wm_snapshot {
 
 - 说明：`owner_pid` 是创建窗口的用户进程 PID；内核仍会限制窗口修改/销毁等操作只能由窗口拥有者执行。
 
+### 120 `CLEONOS_SYSCALL_USER_HEAP_ALLOC`
+
+- 参数：
+- `arg0`: `u64 size`
+- 返回：成功返回当前进程可读写的 heap 块指针，失败返回 `0`。
+- 说明：
+- 这是当前 CLeonOS 用户态执行模型下的动态 heap 后端。用户态 `malloc/calloc/realloc/free` 会按需调用它申请大块内存，然后在用户态块内做 free-list 管理。
+- 内核按进程追踪这些块，进程退出、异常终止或被 kill 时统一释放。
+- 单次申请上限当前为 `4 MiB`；需要更大内存时用户态 allocator 会多次申请块。
+- 因为当前用户态 ELF 仍是内核直接加载/调用模型，这不是完整 POSIX `brk/mmap`，但可以避免把几 MiB heap 静态放进 ELF `.bss` 导致 `ELF LOAD ALLOC FAILED`。
+
 ## 5. 用户态封装函数
 
 用户态封装位于：
@@ -959,6 +970,7 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_kbd_get_char()` / `cleonos_sys_kbd_buffered()`
 - `cleonos_sys_getpid()` / `cleonos_sys_spawn_path()` / `cleonos_sys_wait_pid()`
 - `cleonos_sys_wm_count()` / `cleonos_sys_wm_id_at()` / `cleonos_sys_wm_snapshot()`
+- `cleonos_sys_user_heap_alloc()`
 - `cleonos_sys_spawn_pathv()`
 - `cleonos_sys_exit()` / `cleonos_sys_sleep_ticks()` / `cleonos_sys_yield()` / `cleonos_sys_shutdown()` / `cleonos_sys_restart()`
 - `cleonos_sys_audio_available()` / `cleonos_sys_audio_play_tone()` / `cleonos_sys_audio_stop()`

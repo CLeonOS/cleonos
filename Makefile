@@ -25,6 +25,10 @@ BDT_NAME := bdt.exe
 endif
 BDT ?= $(BDT_BUILD_DIR)/$(BDT_NAME)
 BDT_SRC := $(wildcard bdt/src/*.c)
+BDT_LDLIBS :=
+ifneq ($(OS),Windows_NT)
+BDT_LDLIBS += -ldl
+endif
 
 BDT_VERBOSE :=
 ifneq ($(filter 1 ON on TRUE true YES yes Y y,$(SHOW_COMMANDS) $(V)),)
@@ -41,7 +45,7 @@ bdt: $(BDT)
 
 $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > @mkdir -p $(BDT_BUILD_DIR)
-> $(HOST_CC) -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT)
+> $(HOST_CC) -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
 configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)

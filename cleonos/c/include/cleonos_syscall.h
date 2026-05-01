@@ -280,6 +280,7 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_WM_COUNT 117ULL
 #define CLEONOS_SYSCALL_WM_ID_AT 118ULL
 #define CLEONOS_SYSCALL_WM_SNAPSHOT 119ULL
+#define CLEONOS_SYSCALL_USER_HEAP_ALLOC 120ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -402,5 +403,6 @@ u64 cleonos_sys_wm_count(void);
 u64 cleonos_sys_wm_id_at(u64 index, u64 *out_window_id);
 u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u64 out_size);
 u64 cleonos_sys_pty_open(void);
+void *cleonos_sys_user_heap_alloc(u64 size);
 
 #endif

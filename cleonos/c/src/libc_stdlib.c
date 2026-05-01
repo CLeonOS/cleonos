@@ -318,15 +318,21 @@ unsigned long long strtoull(const char *text, char **out_end, int base) {
 #ifndef CLIB_HEAP_CAPACITY
 #define CLIB_HEAP_CAPACITY (256U * 1024U)
 #endif
-#define CLIB_HEAP_ALIGN 8U
+#define CLIB_HEAP_ALIGN 16U
+#define CLIB_HEAP_MAGIC 0xC10B5A7EU
+#define CLIB_HEAP_CHUNK_MIN (64U * 1024U)
+#define CLIB_HEAP_CHUNK_MAX (4U * 1024U * 1024U)
 
-typedef union clib_heap_storage {
-    unsigned long long align;
-    unsigned char bytes[CLIB_HEAP_CAPACITY];
-} clib_heap_storage;
+typedef struct clib_heap_block {
+    size_t size;
+    unsigned int used;
+    unsigned int magic;
+    struct clib_heap_block *next;
+    struct clib_heap_block *prev;
+} clib_heap_block;
 
-static clib_heap_storage clib_heap;
-static size_t clib_heap_used = 0U;
+static clib_heap_block *clib_heap_head = (clib_heap_block *)0;
+static clib_heap_block *clib_heap_tail = (clib_heap_block *)0;
 
 static size_t clib_align_up(size_t value, size_t align) {
     size_t mask;
@@ -339,34 +345,163 @@ static size_t clib_align_up(size_t value, size_t align) {
     return (value + mask) & ~mask;
 }
 
+static size_t clib_heap_header_size(void) {
+    return clib_align_up(sizeof(clib_heap_block), CLIB_HEAP_ALIGN);
+}
+
+static void clib_heap_split(clib_heap_block *block, size_t need) {
+    size_t header_size = clib_heap_header_size();
+    unsigned char *next_addr;
+    clib_heap_block *next;
+
+    if (block == (clib_heap_block *)0 || block->size <= need + header_size + CLIB_HEAP_ALIGN) {
+        return;
+    }
+
+    next_addr = ((unsigned char *)(void *)block) + header_size + need;
+    next = (clib_heap_block *)(void *)next_addr;
+    next->size = block->size - need - header_size;
+    next->used = 0U;
+    next->magic = CLIB_HEAP_MAGIC;
+    next->next = block->next;
+    next->prev = block;
+    if (next->next != (clib_heap_block *)0) {
+        next->next->prev = next;
+    } else {
+        clib_heap_tail = next;
+    }
+
+    block->next = next;
+    block->size = need;
+}
+
+static void clib_heap_merge_next(clib_heap_block *block) {
+    size_t header_size = clib_heap_header_size();
+    clib_heap_block *next;
+
+    if (block == (clib_heap_block *)0 || block->used != 0U) {
+        return;
+    }
+
+    next = block->next;
+    if (next == (clib_heap_block *)0 || next->magic != CLIB_HEAP_MAGIC || next->used != 0U) {
+        return;
+    }
+
+    block->size += header_size + next->size;
+    block->next = next->next;
+    if (block->next != (clib_heap_block *)0) {
+        block->next->prev = block;
+    } else {
+        clib_heap_tail = block;
+    }
+}
+
+static clib_heap_block *clib_heap_block_from_ptr(void *ptr) {
+    size_t header_size = clib_heap_header_size();
+    clib_heap_block *current;
+
+    if (ptr == (void *)0) {
+        return (clib_heap_block *)0;
+    }
+
+    current = clib_heap_head;
+    while (current != (clib_heap_block *)0) {
+        void *payload = (void *)(((unsigned char *)(void *)current) + header_size);
+
+        if (current->magic != CLIB_HEAP_MAGIC) {
+            return (clib_heap_block *)0;
+        }
+
+        if (payload == ptr && current->used != 0U) {
+            return current;
+        }
+
+        current = current->next;
+    }
+
+    return (clib_heap_block *)0;
+}
+
+static clib_heap_block *clib_heap_request_chunk(size_t need) {
+    size_t header_size = clib_heap_header_size();
+    size_t chunk_size = (size_t)CLIB_HEAP_CAPACITY;
+    clib_heap_block *block;
+
+    if (chunk_size < (size_t)CLIB_HEAP_CHUNK_MIN) {
+        chunk_size = (size_t)CLIB_HEAP_CHUNK_MIN;
+    }
+    if (chunk_size > (size_t)CLIB_HEAP_CHUNK_MAX) {
+        chunk_size = (size_t)CLIB_HEAP_CHUNK_MAX;
+    }
+    if (chunk_size < need + header_size) {
+        chunk_size = need + header_size;
+    }
+
+    chunk_size = clib_align_up(chunk_size, CLIB_HEAP_ALIGN);
+    block = (clib_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    if (block == (clib_heap_block *)0) {
+        return (clib_heap_block *)0;
+    }
+
+    block->size = chunk_size - header_size;
+    block->used = 0U;
+    block->magic = CLIB_HEAP_MAGIC;
+    block->next = (clib_heap_block *)0;
+    block->prev = clib_heap_tail;
+
+    if (clib_heap_tail != (clib_heap_block *)0) {
+        clib_heap_tail->next = block;
+    } else {
+        clib_heap_head = block;
+    }
+
+    clib_heap_tail = block;
+    return block;
+}
+
 __attribute__((weak)) void *malloc(size_t size) {
+    clib_heap_block *current;
     size_t need;
-    size_t begin;
-    size_t end;
-    size_t *hdr;
+    size_t header_size = clib_heap_header_size();
 
     if (size == 0U) {
         return (void *)0;
     }
 
-    size = clib_align_up(size, CLIB_HEAP_ALIGN);
-    need = sizeof(size_t) + size;
-    begin = clib_align_up(clib_heap_used, CLIB_HEAP_ALIGN);
+    need = clib_align_up(size, CLIB_HEAP_ALIGN);
+    current = clib_heap_head;
+    while (current != (clib_heap_block *)0) {
+        if (current->magic == CLIB_HEAP_MAGIC && current->used == 0U && current->size >= need) {
+            clib_heap_split(current, need);
+            current->used = 1U;
+            return (void *)(((unsigned char *)(void *)current) + header_size);
+        }
+        current = current->next;
+    }
 
-    if (begin > (size_t)CLIB_HEAP_CAPACITY || need > (size_t)CLIB_HEAP_CAPACITY - begin) {
+    current = clib_heap_request_chunk(need);
+    if (current == (clib_heap_block *)0) {
         return (void *)0;
     }
 
-    end = begin + need;
-    hdr = (size_t *)(void *)(clib_heap.bytes + begin);
-    *hdr = size;
-    clib_heap_used = end;
-    return (void *)(hdr + 1);
+    clib_heap_split(current, need);
+    current->used = 1U;
+    return (void *)(((unsigned char *)(void *)current) + header_size);
 }
 
 __attribute__((weak)) void free(void *ptr) {
-    (void)ptr;
-    /* monotonic allocator: memory is reclaimed when process exits */
+    clib_heap_block *block = clib_heap_block_from_ptr(ptr);
+
+    if (block == (clib_heap_block *)0) {
+        return;
+    }
+
+    block->used = 0U;
+    clib_heap_merge_next(block);
+    if (block->prev != (clib_heap_block *)0) {
+        clib_heap_merge_next(block->prev);
+    }
 }
 
 __attribute__((weak)) void *calloc(size_t count, size_t size) {
@@ -392,6 +527,7 @@ __attribute__((weak)) void *calloc(size_t count, size_t size) {
 }
 
 __attribute__((weak)) void *realloc(void *ptr, size_t size) {
+    clib_heap_block *block;
     void *out;
     size_t old_size;
 
@@ -404,7 +540,26 @@ __attribute__((weak)) void *realloc(void *ptr, size_t size) {
         return (void *)0;
     }
 
-    old_size = *((size_t *)ptr - 1U);
+    block = clib_heap_block_from_ptr(ptr);
+    if (block == (clib_heap_block *)0) {
+        return (void *)0;
+    }
+
+    old_size = block->size;
+    size = clib_align_up(size, CLIB_HEAP_ALIGN);
+    if (old_size >= size) {
+        clib_heap_split(block, size);
+        return ptr;
+    }
+
+    if (block->next != (clib_heap_block *)0 && block->next->used == 0U) {
+        clib_heap_merge_next(block);
+        if (block->size >= size) {
+            clib_heap_split(block, size);
+            return ptr;
+        }
+    }
+
     out = malloc(size);
     if (out == (void *)0) {
         return (void *)0;

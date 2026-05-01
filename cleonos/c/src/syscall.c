@@ -511,3 +511,7 @@ u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u6
 u64 cleonos_sys_pty_open(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_PTY_OPEN, 0ULL, 0ULL, 0ULL);
 }
+
+void *cleonos_sys_user_heap_alloc(u64 size) {
+    return (void *)(usize)cleonos_syscall(CLEONOS_SYSCALL_USER_HEAP_ALLOC, size, 0ULL, 0ULL);
+}

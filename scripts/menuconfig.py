@@ -994,10 +994,13 @@ def _safe_addch(stdscr, y: int, x: int, ch, attr: int = 0) -> None:
 def _curses_theme() -> Dict[str, int]:
     # Reasonable monochrome fallback first.
     theme = {
+        "background": 0,
         "header": curses.A_BOLD,
         "subtitle": curses.A_DIM,
         "panel_border": curses.A_DIM,
         "panel_title": curses.A_BOLD,
+        "panel_fill": 0,
+        "shadow": curses.A_DIM,
         "selected": curses.A_REVERSE | curses.A_BOLD,
         "enabled": curses.A_BOLD,
         "disabled": curses.A_DIM,
@@ -1025,59 +1028,113 @@ def _curses_theme() -> Dict[str, int]:
     except Exception:
         pass
 
-    # Pair index map
-    # 1: Header
-    # 2: Subtitle
-    # 3: Panel border/title
-    # 4: Selected row
-    # 5: Enabled accent
-    # 6: Disabled accent
-    # 7: Footer/help
-    # 8: Success/status
-    # 9: Warning/status
-    # 10: Scroll thumb
+    # DOS/Turbo Vision-ish palette.
+    # 1: yellow-on-blue title bar
+    # 2: black-on-cyan menu/status strip
+    # 3: cyan-on-blue window border
+    # 4: black-on-cyan selected row
+    # 5: bright white-on-blue enabled text
+    # 6: black-on-blue disabled text
+    # 7: black-on-white footer/help
+    # 8: black-on-green OK badge
+    # 9: red-on-yellow warning badge
+    # 10: yellow-on-blue scroll thumb
+    # 11: white-on-blue screen background
+    # 12: black-on-black window shadow
+    # 13: white-on-blue panel fill
     try:
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
-        curses.init_pair(2, curses.COLOR_CYAN, -1)
-        curses.init_pair(3, curses.COLOR_BLUE, -1)
-        curses.init_pair(4, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(5, curses.COLOR_GREEN, -1)
-        curses.init_pair(6, curses.COLOR_RED, -1)
+        curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLUE)
+        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        curses.init_pair(3, curses.COLOR_CYAN, curses.COLOR_BLUE)
+        curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        curses.init_pair(5, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_BLUE)
         curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE)
         curses.init_pair(8, curses.COLOR_BLACK, curses.COLOR_GREEN)
-        curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW)
-        curses.init_pair(10, curses.COLOR_MAGENTA, -1)
+        curses.init_pair(9, curses.COLOR_RED, curses.COLOR_YELLOW)
+        curses.init_pair(10, curses.COLOR_YELLOW, curses.COLOR_BLUE)
+        curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(12, curses.COLOR_BLACK, curses.COLOR_BLACK)
+        curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_BLUE)
     except Exception:
         return theme
 
     theme.update(
         {
+            "background": curses.color_pair(11),
             "header": curses.color_pair(1) | curses.A_BOLD,
-            "subtitle": curses.color_pair(2) | curses.A_DIM,
-            "panel_border": curses.color_pair(3),
+            "subtitle": curses.color_pair(2) | curses.A_BOLD,
+            "panel_border": curses.color_pair(3) | curses.A_BOLD,
             "panel_title": curses.color_pair(3) | curses.A_BOLD,
+            "panel_fill": curses.color_pair(13),
+            "shadow": curses.color_pair(12),
             "selected": curses.color_pair(4) | curses.A_BOLD,
             "enabled": curses.color_pair(5) | curses.A_BOLD,
             "disabled": curses.color_pair(6) | curses.A_DIM,
-            "value_key": curses.color_pair(2) | curses.A_DIM,
-            "value_label": curses.A_BOLD,
+            "value_key": curses.color_pair(10) | curses.A_BOLD,
+            "value_label": curses.color_pair(5) | curses.A_BOLD,
             "help": curses.color_pair(7),
             "status_ok": curses.color_pair(8) | curses.A_BOLD,
             "status_warn": curses.color_pair(9) | curses.A_BOLD,
-            "progress_on": curses.color_pair(5) | curses.A_REVERSE,
-            "progress_off": curses.A_DIM,
-            "scroll_track": curses.A_DIM,
+            "progress_on": curses.color_pair(2) | curses.A_BOLD,
+            "progress_off": curses.color_pair(6) | curses.A_DIM,
+            "scroll_track": curses.color_pair(3),
             "scroll_thumb": curses.color_pair(10) | curses.A_BOLD,
         }
     )
     return theme
 
 
-def _draw_box(stdscr, y: int, x: int, h: int, w: int, title: str, border_attr: int, title_attr: int) -> None:
+def _erase_screen(stdscr, theme: Dict[str, int]) -> None:
+    try:
+        stdscr.bkgd(" ", theme.get("background", 0))
+    except Exception:
+        pass
+    stdscr.erase()
+
+
+def _fill_line(stdscr, y: int, attr: int) -> None:
+    h, w = stdscr.getmaxyx()
+    if y < 0 or y >= h:
+        return
+    _safe_addnstr(stdscr, y, 0, " " * max(0, w - 1), attr)
+
+
+def _draw_shadow(stdscr, y: int, x: int, h: int, w: int, attr: int) -> None:
+    if h < 2 or w < 4:
+        return
+    right = x + w
+    bottom = y + h
+    for row in range(y + 1, bottom + 1):
+        _safe_addch(stdscr, row, right, " ", attr)
+        _safe_addch(stdscr, row, right + 1, " ", attr)
+    for col in range(x + 2, right + 2):
+        _safe_addch(stdscr, bottom, col, " ", attr)
+
+
+def _draw_box(
+    stdscr,
+    y: int,
+    x: int,
+    h: int,
+    w: int,
+    title: str,
+    border_attr: int,
+    title_attr: int,
+    fill_attr: int = 0,
+    shadow_attr: int = 0,
+) -> None:
     if h < 2 or w < 4:
         return
     right = x + w - 1
     bottom = y + h - 1
+
+    if shadow_attr:
+        _draw_shadow(stdscr, y, x, h, w, shadow_attr)
+
+    if fill_attr:
+        for row in range(y + 1, bottom):
+            _safe_addnstr(stdscr, row, x + 1, " " * max(0, w - 2), fill_attr)
 
     _safe_addch(stdscr, y, x, curses.ACS_ULCORNER, border_attr)
     _safe_addch(stdscr, y, right, curses.ACS_URCORNER, border_attr)
@@ -1111,11 +1168,13 @@ def _draw_progress_bar(
     if bar_w < 4:
         return
     fill = int((enabled_count * bar_w) / total_count)
+    _safe_addch(stdscr, y, x, "[", off_attr | curses.A_BOLD)
     for i in range(bar_w):
-        ch = "#" if i < fill else "-"
+        ch = curses.ACS_CKBOARD if i < fill else " "
         attr = on_attr if i < fill else off_attr
-        _safe_addch(stdscr, y, x + i, ch, attr)
-    _safe_addnstr(stdscr, y, x + bar_w + 1, f"{enabled_count:>3}/{total_count:<3}", off_attr | curses.A_BOLD)
+        _safe_addch(stdscr, y, x + 1 + i, ch, attr)
+    _safe_addch(stdscr, y, x + bar_w + 1, "]", off_attr | curses.A_BOLD)
+    _safe_addnstr(stdscr, y, x + bar_w + 3, f"{enabled_count:>3}/{total_count:<3}", off_attr | curses.A_BOLD)
 
 
 def _option_enabled(ev: EvalResult, item: OptionItem) -> bool:
@@ -1141,11 +1200,11 @@ def _draw_scrollbar(stdscr, y: int, x: int, height: int, total: int, top: int, v
     if height <= 0:
         return
     for r in range(height):
-        _safe_addch(stdscr, y + r, x, "|", track_attr)
+        _safe_addch(stdscr, y + r, x, curses.ACS_VLINE, track_attr)
 
     if total <= 0 or visible <= 0 or total <= visible:
         for r in range(height):
-            _safe_addch(stdscr, y + r, x, "|", thumb_attr)
+            _safe_addch(stdscr, y + r, x, curses.ACS_CKBOARD, thumb_attr)
         return
 
     thumb_h = max(1, int((visible * height) / total))
@@ -1157,7 +1216,7 @@ def _draw_scrollbar(stdscr, y: int, x: int, height: int, total: int, top: int, v
     thumb_y = int((top * max_pos) / max_top)
 
     for r in range(thumb_h):
-        _safe_addch(stdscr, y + thumb_y + r, x, "#", thumb_attr)
+        _safe_addch(stdscr, y + thumb_y + r, x, curses.ACS_CKBOARD, thumb_attr)
 
 
 def _run_ncurses_section(
@@ -1173,7 +1232,7 @@ def _run_ncurses_section(
 
     while True:
         ev = evaluate_config(all_options, values)
-        stdscr.erase()
+        _erase_screen(stdscr, theme)
         h, w = stdscr.getmaxyx()
 
         if h < 14 or w < 70:
@@ -1206,9 +1265,11 @@ def _run_ncurses_section(
         detail_box_h = h - 4
         detail_box_w = w - left_w
 
+        _fill_line(stdscr, 0, theme["header"])
         _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} ", theme["header"])
         enabled_count = sum(1 for item in section_options if _option_enabled(ev, item))
         module_count = sum(1 for item in section_options if ev.effective.get(item.key, TRI_N) == TRI_M)
+        _fill_line(stdscr, 1, theme["subtitle"])
         _safe_addnstr(
             stdscr,
             1,
@@ -1229,6 +1290,8 @@ def _run_ncurses_section(
             _t("Options", "选项"),
             theme["panel_border"],
             theme["panel_title"],
+            theme["panel_fill"],
+            theme["shadow"],
         )
         _draw_box(
             stdscr,
@@ -1239,6 +1302,8 @@ def _run_ncurses_section(
             _t("Details", "详情"),
             theme["panel_border"],
             theme["panel_title"],
+            theme["panel_fill"],
+            theme["shadow"],
         )
 
         list_inner_y = list_box_y + 1
@@ -1271,6 +1336,7 @@ def _run_ncurses_section(
             line = f"{prefix} {idx + 1:03d} [{tri_char(eff)}|{tri_char(req)}] {item.title}"
             if flags != "-":
                 line += f" [{flags}]"
+            line = line.ljust(max(1, list_inner_w - 1))
             base_attr = theme["enabled"] if eff > TRI_N else theme["disabled"]
             attr = theme["selected"] if idx == selected else base_attr
             _safe_addnstr(stdscr, list_inner_y + row, list_inner_x, line, attr)
@@ -1336,8 +1402,9 @@ def _run_ncurses_section(
                     wrapped_lines.append(raw_line)
             max_desc_lines = max(1, detail_inner_h - 8)
             for i, part in enumerate(wrapped_lines[:max_desc_lines]):
-                _safe_addnstr(stdscr, desc_title_y + 1 + i, detail_inner_x, part, 0)
+                _safe_addnstr(stdscr, desc_title_y + 1 + i, detail_inner_x, part, theme["panel_fill"])
 
+        _fill_line(stdscr, h - 1, theme["help"])
         _safe_addnstr(
             stdscr,
             h - 1,
@@ -1405,7 +1472,7 @@ def _run_ncurses_grouped_section(
 
     while True:
         ev = evaluate_config(all_options, values)
-        stdscr.erase()
+        _erase_screen(stdscr, theme)
         h, w = stdscr.getmaxyx()
         items: List[Tuple[str, List[OptionItem]]] = [("All", section_options)] + groups
 
@@ -1423,10 +1490,23 @@ def _run_ncurses_grouped_section(
                 return
             continue
 
+        _fill_line(stdscr, 0, theme["header"])
         _safe_addnstr(stdscr, 0, 0, f" CLeonOS menuconfig / {title} / {_t('Groups', '分组')} ", theme["header"])
+        _fill_line(stdscr, 1, theme["subtitle"])
         _safe_addnstr(stdscr, 1, 0, _t(" Enter: open group  ESC: back ", " Enter:打开分组  ESC:返回 "), theme["subtitle"])
 
-        _draw_box(stdscr, 2, 0, h - 4, w, _t("CLKS Groups", "CLKS 分组"), theme["panel_border"], theme["panel_title"])
+        _draw_box(
+            stdscr,
+            2,
+            0,
+            h - 4,
+            w,
+            _t("CLKS Groups", "CLKS 分组"),
+            theme["panel_border"],
+            theme["panel_title"],
+            theme["panel_fill"],
+            theme["shadow"],
+        )
 
         if selected < 0:
             selected = 0
@@ -1440,9 +1520,11 @@ def _run_ncurses_grouped_section(
             on_count = _group_enabled_count(opts, ev)
             localized_name = _t("All", "全部") if name == "All" else name
             line = f"{'>' if i == selected else ' '} {i:02d}  {localized_name}  ({on_count}/{len(opts)} {_t('enabled', '已启用')})"
+            line = line.ljust(max(1, w - 6))
             attr = theme["selected"] if i == selected else theme["value_label"]
             _safe_addnstr(stdscr, row, 2, line, attr)
 
+        _fill_line(stdscr, h - 1, theme["help"])
         _safe_addnstr(stdscr, h - 1, 0, _t(" Arrows/jk move  Enter open  ESC back ", " 方向键/jk移动  Enter打开  ESC返回 "), theme["help"])
         stdscr.refresh()
         key = stdscr.getch()
@@ -1475,7 +1557,7 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
     selected = 0
 
     while True:
-        stdscr.erase()
+        _erase_screen(stdscr, theme)
         h, w = stdscr.getmaxyx()
 
         ev = evaluate_config(all_options, values)
@@ -1506,21 +1588,35 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             stdscr.getch()
             continue
 
+        _fill_line(stdscr, 0, theme["header"])
         _safe_addnstr(stdscr, 0, 0, " CLeonOS menuconfig ", theme["header"])
+        _fill_line(stdscr, 1, theme["subtitle"])
         _safe_addnstr(
             stdscr,
             1,
             0,
-            _t(" Stylish ncurses UI  |  Enter: open/select  s: save  q: quit ", " 现代 ncurses 界面  |  Enter:打开/选择  s:保存  q:退出 "),
+            _t(" DOS-style setup UI  |  Enter: open/select  s: save  q: quit ", " DOS 风格配置界面  |  Enter:打开/选择  s:保存  q:退出 "),
             theme["subtitle"],
         )
 
-        _draw_box(stdscr, 2, 0, h - 5, w, _t("Main", "主菜单"), theme["panel_border"], theme["panel_title"])
+        _draw_box(
+            stdscr,
+            2,
+            0,
+            h - 5,
+            w,
+            _t("Main", "主菜单"),
+            theme["panel_border"],
+            theme["panel_title"],
+            theme["panel_fill"],
+            theme["shadow"],
+        )
 
         base = 4
         for i, (_action, text) in enumerate(menu_entries):
             prefix = ">" if i == selected else " "
             row_text = f"{prefix} {text}"
+            row_text = row_text.ljust(max(1, w - 6))
             attr = theme["selected"] if i == selected else theme["value_label"]
             _safe_addnstr(stdscr, base + i, 2, row_text, attr)
 
@@ -1536,7 +1632,9 @@ def _run_ncurses_main(stdscr, clks_options: List[OptionItem], user_options: List
             theme["progress_off"],
         )
 
+        _fill_line(stdscr, h - 2, theme["help"])
         _safe_addnstr(stdscr, h - 2, 0, _t(" Arrows/jk move  Enter select  s save  q quit ", " 方向键/jk移动  Enter选择  s保存  q退出 "), theme["help"])
+        _fill_line(stdscr, h - 1, theme["help"])
         if user_options:
             _safe_addnstr(
                 stdscr,

@@ -13,7 +13,6 @@
 #define MBEDTLS_PLATFORM_STD_MEM_HDR <stdio.h>
 #define MBEDTLS_PLATFORM_VSNPRINTF_MACRO vsnprintf
 #define MBEDTLS_PLATFORM_ZEROIZE_ALT
-#define MBEDTLS_MEMORY_BUFFER_ALLOC_C
 
 /*
  * Verification is intentionally disabled until CLeonOS has CA storage and

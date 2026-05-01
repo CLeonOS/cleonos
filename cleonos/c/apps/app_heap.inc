@@ -1,3 +1,5 @@
+#include <cleonos_syscall.h>
+
 #include <stddef.h>
 #include <string.h>
 
@@ -5,13 +7,10 @@
 #define CLEONOS_APP_HEAP_CAPACITY (2U * 1024U * 1024U)
 #endif
 
-#define CLEONOS_APP_HEAP_ALIGN 8U
+#define CLEONOS_APP_HEAP_ALIGN 16U
 #define CLEONOS_APP_HEAP_MAGIC 0xC10A5A7EU
-
-typedef union cleonos_app_heap_storage {
-    unsigned long long align;
-    unsigned char bytes[CLEONOS_APP_HEAP_CAPACITY];
-} cleonos_app_heap_storage;
+#define CLEONOS_APP_HEAP_CHUNK_MIN (64U * 1024U)
+#define CLEONOS_APP_HEAP_CHUNK_MAX (4U * 1024U * 1024U)
 
 typedef struct cleonos_app_heap_block {
     size_t size;
@@ -21,9 +20,8 @@ typedef struct cleonos_app_heap_block {
     struct cleonos_app_heap_block *prev;
 } cleonos_app_heap_block;
 
-static cleonos_app_heap_storage cleonos_app_heap;
 static cleonos_app_heap_block *cleonos_app_heap_head = (cleonos_app_heap_block *)0;
-static int cleonos_app_heap_ready = 0;
+static cleonos_app_heap_block *cleonos_app_heap_tail = (cleonos_app_heap_block *)0;
 
 static size_t cleonos_app_heap_align_up(size_t value, size_t align) {
     size_t mask;
@@ -36,28 +34,12 @@ static size_t cleonos_app_heap_align_up(size_t value, size_t align) {
     return (value + mask) & ~mask;
 }
 
-static void cleonos_app_heap_init(void) {
-    size_t header_size = cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
-
-    if (cleonos_app_heap_ready != 0) {
-        return;
-    }
-
-    if ((size_t)CLEONOS_APP_HEAP_CAPACITY <= header_size + CLEONOS_APP_HEAP_ALIGN) {
-        return;
-    }
-
-    cleonos_app_heap_head = (cleonos_app_heap_block *)(void *)cleonos_app_heap.bytes;
-    cleonos_app_heap_head->size = (size_t)CLEONOS_APP_HEAP_CAPACITY - header_size;
-    cleonos_app_heap_head->used = 0U;
-    cleonos_app_heap_head->magic = CLEONOS_APP_HEAP_MAGIC;
-    cleonos_app_heap_head->next = (cleonos_app_heap_block *)0;
-    cleonos_app_heap_head->prev = (cleonos_app_heap_block *)0;
-    cleonos_app_heap_ready = 1;
+static size_t cleonos_app_heap_header_size(void) {
+    return cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
 }
 
 static void cleonos_app_heap_split(cleonos_app_heap_block *block, size_t need) {
-    size_t header_size = cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
+    size_t header_size = cleonos_app_heap_header_size();
     unsigned char *next_addr;
     cleonos_app_heap_block *next;
 
@@ -74,6 +56,8 @@ static void cleonos_app_heap_split(cleonos_app_heap_block *block, size_t need) {
     next->prev = block;
     if (next->next != (cleonos_app_heap_block *)0) {
         next->next->prev = next;
+    } else {
+        cleonos_app_heap_tail = next;
     }
 
     block->next = next;
@@ -81,7 +65,7 @@ static void cleonos_app_heap_split(cleonos_app_heap_block *block, size_t need) {
 }
 
 static void cleonos_app_heap_merge_next(cleonos_app_heap_block *block) {
-    size_t header_size = cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
+    size_t header_size = cleonos_app_heap_header_size();
     cleonos_app_heap_block *next;
 
     if (block == (cleonos_app_heap_block *)0 || block->used != 0U) {
@@ -97,42 +81,84 @@ static void cleonos_app_heap_merge_next(cleonos_app_heap_block *block) {
     block->next = next->next;
     if (block->next != (cleonos_app_heap_block *)0) {
         block->next->prev = block;
+    } else {
+        cleonos_app_heap_tail = block;
     }
 }
 
 static cleonos_app_heap_block *cleonos_app_heap_block_from_ptr(void *ptr) {
-    size_t header_size = cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
-    unsigned char *raw = (unsigned char *)ptr;
-    unsigned char *begin = cleonos_app_heap.bytes;
-    unsigned char *end = cleonos_app_heap.bytes + (size_t)CLEONOS_APP_HEAP_CAPACITY;
+    size_t header_size = cleonos_app_heap_header_size();
+    cleonos_app_heap_block *current;
+
+    if (ptr == (void *)0) {
+        return (cleonos_app_heap_block *)0;
+    }
+
+    current = cleonos_app_heap_head;
+    while (current != (cleonos_app_heap_block *)0) {
+        void *payload = (void *)(((unsigned char *)(void *)current) + header_size);
+
+        if (current->magic != CLEONOS_APP_HEAP_MAGIC) {
+            return (cleonos_app_heap_block *)0;
+        }
+
+        if (payload == ptr && current->used != 0U) {
+            return current;
+        }
+
+        current = current->next;
+    }
+
+    return (cleonos_app_heap_block *)0;
+}
+
+static cleonos_app_heap_block *cleonos_app_heap_request_chunk(size_t need) {
+    size_t header_size = cleonos_app_heap_header_size();
+    size_t chunk_size = (size_t)CLEONOS_APP_HEAP_CAPACITY;
     cleonos_app_heap_block *block;
 
-    if (ptr == (void *)0 || raw < begin + header_size || raw >= end) {
+    if (chunk_size < (size_t)CLEONOS_APP_HEAP_CHUNK_MIN) {
+        chunk_size = (size_t)CLEONOS_APP_HEAP_CHUNK_MIN;
+    }
+    if (chunk_size > (size_t)CLEONOS_APP_HEAP_CHUNK_MAX) {
+        chunk_size = (size_t)CLEONOS_APP_HEAP_CHUNK_MAX;
+    }
+    if (chunk_size < need + header_size) {
+        chunk_size = need + header_size;
+    }
+
+    chunk_size = cleonos_app_heap_align_up(chunk_size, CLEONOS_APP_HEAP_ALIGN);
+    block = (cleonos_app_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    if (block == (cleonos_app_heap_block *)0) {
         return (cleonos_app_heap_block *)0;
     }
 
-    block = (cleonos_app_heap_block *)(void *)(raw - header_size);
-    if (block->magic != CLEONOS_APP_HEAP_MAGIC || block->used == 0U) {
-        return (cleonos_app_heap_block *)0;
+    block->size = chunk_size - header_size;
+    block->used = 0U;
+    block->magic = CLEONOS_APP_HEAP_MAGIC;
+    block->next = (cleonos_app_heap_block *)0;
+    block->prev = cleonos_app_heap_tail;
+
+    if (cleonos_app_heap_tail != (cleonos_app_heap_block *)0) {
+        cleonos_app_heap_tail->next = block;
+    } else {
+        cleonos_app_heap_head = block;
     }
 
+    cleonos_app_heap_tail = block;
     return block;
 }
 
 void *malloc(size_t size) {
     cleonos_app_heap_block *current;
-    size_t need = cleonos_app_heap_align_up(size, CLEONOS_APP_HEAP_ALIGN);
-    size_t header_size = cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
+    size_t need;
+    size_t header_size = cleonos_app_heap_header_size();
 
     if (size == 0U) {
         return (void *)0;
     }
 
-    cleonos_app_heap_init();
-    if (cleonos_app_heap_ready == 0) {
-        return (void *)0;
-    }
-
+    need = cleonos_app_heap_align_up(size, CLEONOS_APP_HEAP_ALIGN);
     current = cleonos_app_heap_head;
     while (current != (cleonos_app_heap_block *)0) {
         if (current->magic == CLEONOS_APP_HEAP_MAGIC && current->used == 0U && current->size >= need) {
@@ -143,7 +169,14 @@ void *malloc(size_t size) {
         current = current->next;
     }
 
-    return (void *)0;
+    current = cleonos_app_heap_request_chunk(need);
+    if (current == (cleonos_app_heap_block *)0) {
+        return (void *)0;
+    }
+
+    cleonos_app_heap_split(current, need);
+    current->used = 1U;
+    return (void *)(((unsigned char *)(void *)current) + header_size);
 }
 
 void free(void *ptr) {
@@ -221,12 +254,7 @@ void *realloc(void *ptr, size_t size) {
         return (void *)0;
     }
 
-    if (old_size < size) {
-        (void)memcpy(out, ptr, old_size);
-    } else {
-        (void)memcpy(out, ptr, size);
-    }
-
+    (void)memcpy(out, ptr, (old_size < size) ? old_size : size);
     free(ptr);
     return out;
 }

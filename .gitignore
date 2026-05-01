@@ -1,7 +1,11 @@
 build/
 build-cmake*/
+.bdt/
 *.iso
 *.tar
+*.o
+*.o.d
+*.d
 
 # CMake generated files
 CMakeCache.txt
