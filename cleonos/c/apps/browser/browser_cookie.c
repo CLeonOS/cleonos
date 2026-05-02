@@ -53,9 +53,8 @@ static void ush_browser_cookie_copy_trimmed(char *out, u64 out_size, const char 
     while (start < end && (text[start] == ' ' || text[start] == '\t' || text[start] == '\r' || text[start] == '\n')) {
         start++;
     }
-    while (end > start &&
-           (text[end - 1ULL] == ' ' || text[end - 1ULL] == '\t' || text[end - 1ULL] == '\r' ||
-            text[end - 1ULL] == '\n')) {
+    while (end > start && (text[end - 1ULL] == ' ' || text[end - 1ULL] == '\t' || text[end - 1ULL] == '\r' ||
+                           text[end - 1ULL] == '\n')) {
         end--;
     }
 
@@ -290,8 +289,7 @@ int ush_browser_cookie_build_header(const ush_browser_url *url, char *out_header
         if (first != 0) {
             (void)snprintf(out_header + used, (unsigned long)(out_size - used), "%s=%s", cookie->name, cookie->value);
         } else {
-            (void)snprintf(out_header + used, (unsigned long)(out_size - used), "; %s=%s", cookie->name,
-                           cookie->value);
+            (void)snprintf(out_header + used, (unsigned long)(out_size - used), "; %s=%s", cookie->name, cookie->value);
         }
         used = ush_strlen(out_header);
         first = 0;
