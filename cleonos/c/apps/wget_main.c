@@ -8,11 +8,73 @@
 #define USH_WGET_DNS_PACKET_MAX 512U
 #define USH_WGET_RECV_CHUNK 2048U
 #define USH_WGET_HEADER_MAX 4096U
+#define USH_WGET_TIMEOUT_SECONDS 10ULL
 #define USH_WGET_TCP_POLL_BUDGET 200000000ULL
-#define USH_WGET_TCP_RECV_IDLE_LOOPS 160ULL
+#define USH_WGET_RECV_POLL_BUDGET 60000ULL
 
 typedef unsigned char u8;
 typedef unsigned short u16;
+
+typedef struct ush_wget_chunk_state {
+    u64 remaining;
+    u64 size_acc;
+    u64 trailer_line_len;
+    int state;
+    int has_digit;
+    int in_extension;
+    int done;
+} ush_wget_chunk_state;
+
+#define USH_WGET_CHUNK_SIZE 0
+#define USH_WGET_CHUNK_SIZE_LF 1
+#define USH_WGET_CHUNK_DATA 2
+#define USH_WGET_CHUNK_DATA_LF 3
+#define USH_WGET_CHUNK_TRAILER 4
+#define USH_WGET_CHUNK_TRAILER_LF 5
+
+static u64 ush_wget_timeout_ticks(void) {
+    u64 hz = cleonos_sys_timer_hz();
+    if (hz == 0ULL || hz == (u64)-1) {
+        hz = 100ULL;
+    }
+    return hz * USH_WGET_TIMEOUT_SECONDS;
+}
+
+static u64 ush_wget_deadline_after_timeout(void) {
+    return cleonos_sys_timer_ticks() + ush_wget_timeout_ticks();
+}
+
+static int ush_wget_deadline_expired(u64 deadline_tick) {
+    return (cleonos_sys_timer_ticks() >= deadline_tick) ? 1 : 0;
+}
+
+static const char *ush_wget_tcp_error_text(u64 error_code) {
+    switch (error_code) {
+    case 0ULL:
+        return "none";
+    case 1ULL:
+        return "network unavailable";
+    case 2ULL:
+        return "bad address or port";
+    case 3ULL:
+        return "arp/gateway resolve failed";
+    case 4ULL:
+        return "syn transmit failed";
+    case 5ULL:
+        return "connection reset/refused";
+    case 6ULL:
+        return "syn-ack timeout";
+    case 7ULL:
+        return "stale ack from previous connection";
+    default:
+        return "unknown";
+    }
+}
+
+static void ush_wget_print_tcp_connect_failed(void) {
+    u64 err = cleonos_sys_net_tcp_last_error();
+    (void)printf("wget: tcp connect failed: %s (%llu)\n", ush_wget_tcp_error_text(err), (unsigned long long)err);
+}
 
 typedef struct ush_wget_url {
     char host[USH_WGET_HOST_MAX];
@@ -306,7 +368,7 @@ static int ush_wget_dns_resolve_ipv4(const char *host, u64 *out_ipv4_be) {
     u16 txid;
     u16 src_port;
     cleonos_net_udp_send_req send_req;
-    u64 loops;
+    u64 deadline_tick;
 
     if (host == (const char *)0 || out_ipv4_be == (u64 *)0 || host[0] == '\0') {
         return 0;
@@ -344,7 +406,8 @@ static int ush_wget_dns_resolve_ipv4(const char *host, u64 *out_ipv4_be) {
         return 0;
     }
 
-    for (loops = 0ULL; loops < 700ULL; loops++) {
+    deadline_tick = ush_wget_deadline_after_timeout();
+    while (ush_wget_deadline_expired(deadline_tick) == 0) {
         cleonos_net_udp_recv_req recv_req;
         u64 got;
         u64 src_ip = 0ULL;
@@ -358,7 +421,7 @@ static int ush_wget_dns_resolve_ipv4(const char *host, u64 *out_ipv4_be) {
         recv_req.out_dst_port_ptr = (u64)(usize)&dst_p;
         got = cleonos_sys_net_udp_recv(&recv_req);
         if (got == 0ULL) {
-            (void)cleonos_sys_sleep_ticks(2ULL);
+            (void)cleonos_sys_sleep_ms(20ULL);
             continue;
         }
         if (src_p == 53ULL && src_ip == dns_server && ush_wget_dns_parse_first_a(answer, got, txid, out_ipv4_be) != 0) {
@@ -380,6 +443,304 @@ static int ush_wget_write_all(u64 fd, const void *buffer, u64 size) {
         }
         done += written;
     }
+    return 1;
+}
+
+static char ush_wget_ascii_lower(char ch) {
+    if (ch >= 'A' && ch <= 'Z') {
+        return (char)(ch - 'A' + 'a');
+    }
+    return ch;
+}
+
+static int ush_wget_header_name_match_icase(const u8 *line, u64 line_len, const char *name) {
+    u64 i = 0ULL;
+
+    if (line == (const u8 *)0 || name == (const char *)0) {
+        return 0;
+    }
+
+    while (name[i] != '\0') {
+        if (i >= line_len || ush_wget_ascii_lower((char)line[i]) != ush_wget_ascii_lower(name[i])) {
+            return 0;
+        }
+        i++;
+    }
+
+    return (i < line_len && line[i] == (u8)':') ? 1 : 0;
+}
+
+static int ush_wget_line_has_token_icase(const u8 *value, u64 value_len, const char *token) {
+    u64 token_len;
+    u64 i;
+
+    if (value == (const u8 *)0 || token == (const char *)0) {
+        return 0;
+    }
+
+    token_len = ush_strlen(token);
+    if (token_len == 0ULL || value_len < token_len) {
+        return 0;
+    }
+
+    for (i = 0ULL; i + token_len <= value_len; i++) {
+        u64 j;
+        int match = 1;
+        if (i > 0ULL && value[i - 1ULL] != (u8)',' && value[i - 1ULL] != (u8)' ' && value[i - 1ULL] != (u8)'\t') {
+            continue;
+        }
+        for (j = 0ULL; j < token_len; j++) {
+            if (ush_wget_ascii_lower((char)value[i + j]) != ush_wget_ascii_lower(token[j])) {
+                match = 0;
+                break;
+            }
+        }
+        if (match != 0 &&
+            (i + token_len == value_len || value[i + token_len] == (u8)',' || value[i + token_len] == (u8)' ' ||
+             value[i + token_len] == (u8)'\t' || value[i + token_len] == (u8)';')) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int ush_wget_parse_content_length(const u8 *value, u64 value_len, u64 *out_len) {
+    u64 i = 0ULL;
+    u64 acc = 0ULL;
+    int has_digit = 0;
+
+    if (value == (const u8 *)0 || out_len == (u64 *)0) {
+        return 0;
+    }
+
+    while (i < value_len && (value[i] == (u8)' ' || value[i] == (u8)'\t')) {
+        i++;
+    }
+    while (i < value_len && value[i] >= (u8)'0' && value[i] <= (u8)'9') {
+        u64 next = acc * 10ULL + (u64)(value[i] - (u8)'0');
+        if (next < acc) {
+            return 0;
+        }
+        acc = next;
+        has_digit = 1;
+        i++;
+    }
+
+    if (has_digit == 0) {
+        return 0;
+    }
+
+    *out_len = acc;
+    return 1;
+}
+
+static int ush_wget_parse_http_headers(const u8 *header, u64 body_offset, int *out_chunked, u64 *out_content_len,
+                                       int *out_has_content_len) {
+    u64 off = 0ULL;
+
+    if (header == (const u8 *)0 || out_chunked == (int *)0 || out_content_len == (u64 *)0 ||
+        out_has_content_len == (int *)0) {
+        return 0;
+    }
+
+    *out_chunked = 0;
+    *out_content_len = 0ULL;
+    *out_has_content_len = 0;
+
+    while (off < body_offset) {
+        u64 line_start = off;
+        u64 line_len;
+
+        while (off < body_offset && header[off] != (u8)'\r' && header[off] != (u8)'\n') {
+            off++;
+        }
+        line_len = off - line_start;
+        if (off < body_offset && header[off] == (u8)'\r') {
+            off++;
+        }
+        if (off < body_offset && header[off] == (u8)'\n') {
+            off++;
+        }
+
+        if (line_len == 0ULL) {
+            break;
+        }
+
+        if (ush_wget_header_name_match_icase(header + line_start, line_len, "Transfer-Encoding") != 0) {
+            u64 key_len = (u64)(sizeof("Transfer-Encoding") - 1U + 1U);
+            const u8 *value = header + line_start + key_len;
+            u64 value_len = line_len - key_len;
+            while (value_len > 0ULL && (*value == (u8)' ' || *value == (u8)'\t')) {
+                value++;
+                value_len--;
+            }
+            if (ush_wget_line_has_token_icase(value, value_len, "chunked") != 0) {
+                *out_chunked = 1;
+            }
+        } else if (ush_wget_header_name_match_icase(header + line_start, line_len, "Content-Length") != 0) {
+            u64 key_len = (u64)(sizeof("Content-Length") - 1U + 1U);
+            const u8 *value = header + line_start + key_len;
+            u64 value_len = line_len - key_len;
+            u64 parsed = 0ULL;
+            if (ush_wget_parse_content_length(value, value_len, &parsed) != 0) {
+                *out_content_len = parsed;
+                *out_has_content_len = 1;
+            }
+        }
+    }
+
+    return 1;
+}
+
+static int ush_wget_chunk_finish_size_line(ush_wget_chunk_state *state) {
+    if (state == (ush_wget_chunk_state *)0 || state->has_digit == 0) {
+        return 0;
+    }
+
+    state->remaining = state->size_acc;
+    state->size_acc = 0ULL;
+    state->has_digit = 0;
+    state->in_extension = 0;
+    if (state->remaining == 0ULL) {
+        state->trailer_line_len = 0ULL;
+        state->state = USH_WGET_CHUNK_TRAILER;
+    } else {
+        state->state = USH_WGET_CHUNK_DATA;
+    }
+    return 1;
+}
+
+static int ush_wget_chunked_write_feed(ush_wget_chunk_state *state, u64 fd, const u8 *data, u64 len, u64 *saved) {
+    u64 i = 0ULL;
+
+    if (state == (ush_wget_chunk_state *)0 || data == (const u8 *)0 || saved == (u64 *)0) {
+        return 0;
+    }
+
+    while (i < len && state->done == 0) {
+        u8 ch = data[i];
+
+        if (state->state == USH_WGET_CHUNK_DATA) {
+            u64 n = state->remaining;
+            if (n > len - i) {
+                n = len - i;
+            }
+            if (n == 0ULL) {
+                state->state = USH_WGET_CHUNK_DATA_LF;
+                continue;
+            }
+            if (ush_wget_write_all(fd, data + i, n) == 0) {
+                return 0;
+            }
+            *saved += n;
+            state->remaining -= n;
+            i += n;
+            if (state->remaining == 0ULL) {
+                state->state = USH_WGET_CHUNK_DATA_LF;
+            }
+            continue;
+        }
+
+        if (state->state == USH_WGET_CHUNK_SIZE) {
+            u64 v = 0ULL;
+
+            if (ch == (u8)'\r') {
+                state->state = USH_WGET_CHUNK_SIZE_LF;
+                i++;
+                continue;
+            }
+            if (ch == (u8)'\n') {
+                if (ush_wget_chunk_finish_size_line(state) == 0) {
+                    return 0;
+                }
+                i++;
+                continue;
+            }
+            if (ch == (u8)';') {
+                if (state->has_digit == 0) {
+                    return 0;
+                }
+                state->in_extension = 1;
+                i++;
+                continue;
+            }
+            if (state->in_extension != 0 || ch == (u8)' ' || ch == (u8)'\t') {
+                i++;
+                continue;
+            }
+            if (ch >= (u8)'0' && ch <= (u8)'9') {
+                v = (u64)(ch - (u8)'0');
+            } else if (ch >= (u8)'a' && ch <= (u8)'f') {
+                v = (u64)(ch - (u8)'a') + 10ULL;
+            } else if (ch >= (u8)'A' && ch <= (u8)'F') {
+                v = (u64)(ch - (u8)'A') + 10ULL;
+            } else {
+                return 0;
+            }
+            if (state->size_acc > (0xFFFFFFFFFFFFFFFFULL >> 4U)) {
+                return 0;
+            }
+            state->size_acc = (state->size_acc << 4U) | v;
+            state->has_digit = 1;
+            i++;
+            continue;
+        }
+
+        if (state->state == USH_WGET_CHUNK_SIZE_LF) {
+            if (ch != (u8)'\n' || ush_wget_chunk_finish_size_line(state) == 0) {
+                return 0;
+            }
+            i++;
+            continue;
+        }
+
+        if (state->state == USH_WGET_CHUNK_DATA_LF) {
+            if (ch == (u8)'\r') {
+                i++;
+                continue;
+            }
+            if (ch != (u8)'\n') {
+                return 0;
+            }
+            state->state = USH_WGET_CHUNK_SIZE;
+            i++;
+            continue;
+        }
+
+        if (state->state == USH_WGET_CHUNK_TRAILER) {
+            if (ch == (u8)'\r') {
+                state->state = USH_WGET_CHUNK_TRAILER_LF;
+            } else if (ch == (u8)'\n') {
+                if (state->trailer_line_len == 0ULL) {
+                    state->done = 1;
+                } else {
+                    state->trailer_line_len = 0ULL;
+                }
+            } else {
+                state->trailer_line_len++;
+            }
+            i++;
+            continue;
+        }
+
+        if (state->state == USH_WGET_CHUNK_TRAILER_LF) {
+            if (ch != (u8)'\n') {
+                return 0;
+            }
+            if (state->trailer_line_len == 0ULL) {
+                state->done = 1;
+            } else {
+                state->trailer_line_len = 0ULL;
+                state->state = USH_WGET_CHUNK_TRAILER;
+            }
+            i++;
+            continue;
+        }
+
+        return 0;
+    }
+
     return 1;
 }
 
@@ -515,13 +876,18 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     int header_done = 0;
     int status = 0;
     u64 saved = 0ULL;
-    u64 idle_loops = 0ULL;
+    u64 idle_deadline_tick;
+    int is_chunked = 0;
+    int has_content_length = 0;
+    u64 content_length = 0ULL;
+    ush_wget_chunk_state chunk_state;
     int ok = 0;
 
     if (arg == (const char *)0 || arg[0] == '\0' || ush_streq(arg, "--help") != 0 || ush_streq(arg, "-h") != 0) {
         (void)puts("usage: wget <http://host[:port]/path> [output]");
         (void)puts("       wget <https://host[:port]/path> [output]");
         (void)puts("       wget -O <output> <url>");
+        (void)puts("note: default network timeout is 10 seconds");
         (void)puts("note: TLS uses encryption + SNI; certificate verification is not available yet");
         return 0;
     }
@@ -571,7 +937,8 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             goto done;
         }
         ush_zero(tls_conn, (u64)sizeof(*tls_conn));
-        if (cleonos_tls_connect(tls_conn, dst_ipv4_be, url.port, url.host, USH_WGET_TCP_POLL_BUDGET) == 0) {
+        if (cleonos_tls_connect_deadline(tls_conn, dst_ipv4_be, url.port, url.host, USH_WGET_TCP_POLL_BUDGET,
+                                         ush_wget_deadline_after_timeout()) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
             (void)printf("wget: tls connect failed: %s\n", tls_error);
@@ -585,7 +952,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         conn_req.src_port = 0ULL;
         conn_req.poll_budget = USH_WGET_TCP_POLL_BUDGET;
         if (cleonos_sys_net_tcp_connect(&conn_req) == 0ULL) {
-            (void)puts("wget: tcp connect failed");
+            ush_wget_print_tcp_connect_failed();
             goto done;
         }
         tcp_open = 1;
@@ -594,11 +961,13 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     if ((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U)) {
         request_len = snprintf(request, sizeof(request),
                                "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-wget/1.0\r\nAccept: */*\r\n"
+                               "Accept-Encoding: identity\r\n"
                                "Connection: close\r\n\r\n",
                                url.path, url.host);
     } else {
         request_len = snprintf(request, sizeof(request),
                                "GET %s HTTP/1.1\r\nHost: %s:%u\r\nUser-Agent: cleonos-wget/1.0\r\nAccept: */*\r\n"
+                               "Accept-Encoding: identity\r\n"
                                "Connection: close\r\n\r\n",
                                url.path, url.host, (unsigned int)url.port);
     }
@@ -624,6 +993,8 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         }
     }
 
+    ush_zero(&chunk_state, (u64)sizeof(chunk_state));
+    idle_deadline_tick = ush_wget_deadline_after_timeout();
     for (;;) {
         u8 chunk[USH_WGET_RECV_CHUNK];
         u64 got = 0ULL;
@@ -641,22 +1012,33 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             cleonos_net_tcp_recv_req recv_req;
             recv_req.out_payload_ptr = (u64)(usize)chunk;
             recv_req.payload_capacity = (u64)sizeof(chunk);
-            recv_req.poll_budget = 60000ULL;
+            recv_req.poll_budget = USH_WGET_RECV_POLL_BUDGET;
             got = cleonos_sys_net_tcp_recv(&recv_req);
         }
         if (got == 0ULL) {
             if (url.tls != 0 && cleonos_tls_eof(tls_conn) != 0) {
                 break;
             }
-            idle_loops++;
-            if (idle_loops >= USH_WGET_TCP_RECV_IDLE_LOOPS) {
-                break;
+            if (header_done != 0) {
+                if (is_chunked == 0 && has_content_length != 0 && saved >= content_length) {
+                    break;
+                }
+                if (is_chunked != 0 && chunk_state.done != 0) {
+                    break;
+                }
             }
-            (void)cleonos_sys_sleep_ticks(1ULL);
+            if (ush_wget_deadline_expired(idle_deadline_tick) != 0) {
+                if (header_done != 0 && saved > 0ULL && has_content_length == 0 && is_chunked == 0) {
+                    break;
+                }
+                (void)puts("wget: network timeout");
+                goto done;
+            }
+            (void)cleonos_sys_sleep_ms(10ULL);
             continue;
         }
 
-        idle_loops = 0ULL;
+        idle_deadline_tick = ush_wget_deadline_after_timeout();
         if (header_done == 0) {
             u64 body_offset = 0ULL;
             if (header_used + got > (u64)sizeof(header)) {
@@ -674,15 +1056,67 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                 (void)printf("wget: HTTP status %d\n", status);
                 goto done;
             }
+            if (ush_wget_parse_http_headers(header, body_offset, &is_chunked, &content_length, &has_content_length) ==
+                0) {
+                (void)puts("wget: invalid HTTP headers");
+                goto done;
+            }
             if (header_used > body_offset) {
                 u64 body_len = header_used - body_offset;
-                if (ush_wget_write_all(out_fd, header + body_offset, body_len) == 0) {
+                if (is_chunked != 0) {
+                    if (ush_wget_chunked_write_feed(&chunk_state, out_fd, header + body_offset, body_len, &saved) ==
+                        0) {
+                        (void)puts("wget: invalid chunked HTTP body");
+                        goto done;
+                    }
+                    if (chunk_state.done != 0) {
+                        break;
+                    }
+                } else if (has_content_length != 0) {
+                    if (body_len > content_length) {
+                        body_len = content_length;
+                    }
+                    if (body_len > 0ULL && ush_wget_write_all(out_fd, header + body_offset, body_len) == 0) {
+                        (void)puts("wget: write failed");
+                        goto done;
+                    }
+                    saved += body_len;
+                    if (saved >= content_length) {
+                        break;
+                    }
+                } else if (ush_wget_write_all(out_fd, header + body_offset, body_len) == 0) {
+                    (void)puts("wget: write failed");
+                    goto done;
+                } else {
+                    saved += body_len;
+                }
+            }
+            continue;
+        }
+
+        if (is_chunked != 0) {
+            if (ush_wget_chunked_write_feed(&chunk_state, out_fd, chunk, got, &saved) == 0) {
+                (void)puts("wget: invalid chunked HTTP body");
+                goto done;
+            }
+            if (chunk_state.done != 0) {
+                break;
+            }
+            continue;
+        }
+
+        if (has_content_length != 0) {
+            if (got > content_length - saved) {
+                got = content_length - saved;
+            }
+            if (got == 0ULL || saved + got >= content_length) {
+                if (got > 0ULL && ush_wget_write_all(out_fd, chunk, got) == 0) {
                     (void)puts("wget: write failed");
                     goto done;
                 }
-                saved += body_len;
+                saved += got;
+                break;
             }
-            continue;
         }
 
         if (ush_wget_write_all(out_fd, chunk, got) == 0) {

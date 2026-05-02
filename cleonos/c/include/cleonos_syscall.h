@@ -301,10 +301,16 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_DRIVER_LOAD 123ULL
 #define CLEONOS_SYSCALL_DRIVER_UNLOAD 124ULL
 #define CLEONOS_SYSCALL_DRIVER_RELOAD 125ULL
+#define CLEONOS_SYSCALL_TIMER_HZ 126ULL
+#define CLEONOS_SYSCALL_TIME_MS 127ULL
+#define CLEONOS_SYSCALL_SLEEP_MS 128ULL
+#define CLEONOS_SYSCALL_NET_TCP_LAST_ERROR 129ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
 u64 cleonos_sys_timer_ticks(void);
+u64 cleonos_sys_timer_hz(void);
+u64 cleonos_sys_time_ms(void);
 u64 cleonos_sys_task_count(void);
 u64 cleonos_sys_service_count(void);
 u64 cleonos_sys_service_ready_count(void);
@@ -351,6 +357,7 @@ u64 cleonos_sys_spawn_pathv(const char *path, const char *argv_line, const char 
 u64 cleonos_sys_wait_pid(u64 pid, u64 *out_status);
 u64 cleonos_sys_exit(u64 status);
 u64 cleonos_sys_sleep_ticks(u64 ticks);
+u64 cleonos_sys_sleep_ms(u64 ms);
 u64 cleonos_sys_yield(void);
 u64 cleonos_sys_shutdown(void);
 u64 cleonos_sys_restart(void);
@@ -410,6 +417,7 @@ u64 cleonos_sys_net_tcp_connect(const cleonos_net_tcp_connect_req *req);
 u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req);
 u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req);
 u64 cleonos_sys_net_tcp_close(u64 poll_budget);
+u64 cleonos_sys_net_tcp_last_error(void);
 u64 cleonos_sys_mouse_state(cleonos_mouse_state *out_state);
 u64 cleonos_sys_wm_create(const cleonos_wm_create_req *req);
 u64 cleonos_sys_wm_destroy(u64 window_id);

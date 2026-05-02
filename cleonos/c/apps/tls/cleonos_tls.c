@@ -431,7 +431,8 @@ static void cleonos_tls_abort_connect(cleonos_tls_conn *conn, u64 poll_budget, i
     cleonos_tls_drop_context_preserve_error(conn, error_code);
 }
 
-int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 port, const char *host, u64 poll_budget) {
+int cleonos_tls_connect_deadline(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 port, const char *host,
+                                 u64 poll_budget, u64 deadline_tick) {
     cleonos_net_tcp_connect_req tcp_req;
     int ret;
     u64 loops;
@@ -456,6 +457,7 @@ int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 por
     tcp_req.poll_budget = poll_budget;
     if (cleonos_sys_net_tcp_connect(&tcp_req) == 0ULL) {
         cleonos_tls_log_error("tcp connect failed", -1);
+        cleonos_tls_log_u64("TCP_LAST_ERROR", cleonos_sys_net_tcp_last_error());
         cleonos_tls_drop_context_preserve_error(conn, -1);
         return 0;
     }
@@ -493,6 +495,9 @@ int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 por
     mbedtls_ssl_set_bio(&conn->ssl, conn, cleonos_tls_bio_send, cleonos_tls_bio_recv, (void *)0);
 
     for (loops = 0ULL; loops < CLEONOS_TLS_HANDSHAKE_LOOPS; loops++) {
+        if (deadline_tick != 0ULL && cleonos_sys_timer_ticks() >= deadline_tick) {
+            break;
+        }
         ret = mbedtls_ssl_handshake(&conn->ssl);
         if (ret == 0) {
             conn->active = 1;
@@ -513,6 +518,10 @@ int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 por
 
     cleonos_tls_abort_connect(conn, poll_budget, MBEDTLS_ERR_SSL_TIMEOUT);
     return 0;
+}
+
+int cleonos_tls_connect(cleonos_tls_conn *conn, u64 ipv4_be, cleonos_tls_u16 port, const char *host, u64 poll_budget) {
+    return cleonos_tls_connect_deadline(conn, ipv4_be, port, host, poll_budget, 0ULL);
 }
 
 int cleonos_tls_write_all(cleonos_tls_conn *conn, const void *buffer, u64 length) {
