@@ -128,7 +128,10 @@ static cleonos_app_heap_block *cleonos_app_heap_request_chunk(size_t need) {
     }
 
     chunk_size = cleonos_app_heap_align_up(chunk_size, CLEONOS_APP_HEAP_ALIGN);
-    block = (cleonos_app_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    block = (cleonos_app_heap_block *)cleonos_sys_vm_alloc((u64)chunk_size, CLEONOS_VM_FLAG_READ | CLEONOS_VM_FLAG_WRITE);
+    if (block == (cleonos_app_heap_block *)0) {
+        block = (cleonos_app_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    }
     if (block == (cleonos_app_heap_block *)0) {
         return (cleonos_app_heap_block *)0;
     }

@@ -439,7 +439,10 @@ static clib_heap_block *clib_heap_request_chunk(size_t need) {
     }
 
     chunk_size = clib_align_up(chunk_size, CLIB_HEAP_ALIGN);
-    block = (clib_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    block = (clib_heap_block *)cleonos_sys_vm_alloc((u64)chunk_size, CLEONOS_VM_FLAG_READ | CLEONOS_VM_FLAG_WRITE);
+    if (block == (clib_heap_block *)0) {
+        block = (clib_heap_block *)cleonos_sys_user_heap_alloc((u64)chunk_size);
+    }
     if (block == (clib_heap_block *)0) {
         return (clib_heap_block *)0;
     }

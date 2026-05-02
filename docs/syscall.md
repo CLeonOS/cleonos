@@ -94,7 +94,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~129）
+## 4. Syscall 列表（0~131）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1027,6 +1027,49 @@ typedef struct cleonos_wm_snapshot {
 - `6` = SYN-ACK 超时
 - `7` = 收到旧连接的 stale ACK
 
+### 130 `CLEONOS_SYSCALL_VM_ALLOC`
+
+- 参数：
+- `arg0`: `u64 size`
+- `arg1`: `u64 flags`
+- 返回：成功返回当前进程可访问的虚拟内存起始地址，失败返回 `0`。
+- flags：
+- `CLEONOS_VM_FLAG_READ` = `0x1`
+- `CLEONOS_VM_FLAG_WRITE` = `0x2`
+- `CLEONOS_VM_FLAG_EXEC` = `0x4`
+- `CLEONOS_VM_FLAG_USER` = `0x8`（用户态可不传，内核会为用户 VM 区域自动设置）
+- 说明：
+- 内核按 4 KiB 页对齐分配物理页，并映射到当前进程页表中的用户 VM 窗口。
+- 单次申请上限当前为 `32 MiB`。
+- 进程退出、异常终止或被 kill 时，内核会自动解除映射并归还物理页。
+- 当前这是匿名私有映射；暂不支持文件映射、共享映射、指定地址映射或部分区间释放。
+- 用户态 `malloc/calloc/realloc` 已优先走该接口，失败时回退旧 `USER_HEAP_ALLOC`。
+
+### 131 `CLEONOS_SYSCALL_VM_FREE`
+
+- 参数：
+- `arg0`: `void *addr`
+- `arg1`: `u64 size`
+- 返回：成功返回 `1`，失败返回 `0`。
+- 说明：
+- `addr` 必须是 `VM_ALLOC` 返回的起始地址。
+- `size` 可传 `0`，也可传原始请求大小或页对齐后的映射大小。
+- 当前不支持释放映射中间的一段；需要释放整个 VM 区域。
+
+用户态 mmap 兼容层：
+
+- 头文件：`#include <sys/mman.h>`
+- 支持：`mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`
+- 支持：`munmap(addr, length)`
+- 不支持：文件映射、共享映射、固定地址映射、非零 offset。
+
+页表隔离状态：
+
+- 当前已加入页表管理器、每进程地址空间 PML4、按进程追踪的 VM 区域、页级 map/unmap/translate 基础设施。
+- 进程运行期间会切换到该进程 CR3，`VM_ALLOC` 的低地址 VM 映射不再写进全局内核页表。
+- 当前用户 ELF 执行器仍是 CPL0 直接调用模型，ELF image/运行栈仍位于共享的内核高半区映射，不是完整 ring3 安全进程。
+- 真正“页表隔离”还需要后续补 GDT/TSS 用户段、ring3 入口/返回、每进程 CR3、用户指针跨页表拷贝与 ELF 按段映射。
+
 ## 4.1 `/dev` 设备文件
 
 - `/dev/fb0`：`FD_READ` 返回 framebuffer 信息；`FD_WRITE` 支持 `clear RRGGBB` 或写入整屏 RGBA buffer。
@@ -1082,7 +1125,7 @@ typedef struct cleonos_wm_snapshot {
 
 ## 6. 开发注意事项
 
-- 传入的字符串/缓冲指针目前按“同地址空间可直接访问”模型处理，后续若引入严格用户态地址隔离，需要补充用户内存校验。
+- 传入的字符串/缓冲指针目前仍按“同地址空间可直接访问”模型处理；`VM_ALLOC` 区域已经纳入进程指针校验，但完整用户/内核地址隔离还需要后续每进程 CR3 与 copyin/copyout。
 - `FS_READ` 不保证文本终止符；读取文本请预留 1 字节并手动 `buf[n] = '\0'`。
 - `FS_WRITE`/`FS_APPEND` 不再限制到 `/temp`；大数据写入由内核自动分块处理。
 - `/proc` 由 syscall 层虚拟导出，不占用 RAMDISK 节点，也不能通过写入类 syscall 修改。
@@ -1090,7 +1133,7 @@ typedef struct cleonos_wm_snapshot {
 ## 7. Wine 兼容说明
 
 - `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..125`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`DRIVER_*`）。
-- `126..129`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
+- `126..131`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`、`VM_ALLOC`、`VM_FREE`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。

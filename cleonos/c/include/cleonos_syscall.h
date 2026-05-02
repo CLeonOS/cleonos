@@ -305,6 +305,13 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_TIME_MS 127ULL
 #define CLEONOS_SYSCALL_SLEEP_MS 128ULL
 #define CLEONOS_SYSCALL_NET_TCP_LAST_ERROR 129ULL
+#define CLEONOS_SYSCALL_VM_ALLOC 130ULL
+#define CLEONOS_SYSCALL_VM_FREE 131ULL
+
+#define CLEONOS_VM_FLAG_READ 0x1ULL
+#define CLEONOS_VM_FLAG_WRITE 0x2ULL
+#define CLEONOS_VM_FLAG_EXEC 0x4ULL
+#define CLEONOS_VM_FLAG_USER 0x8ULL
 
 u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 u64 cleonos_sys_log_write(const char *message, u64 length);
@@ -432,6 +439,8 @@ u64 cleonos_sys_wm_id_at(u64 index, u64 *out_window_id);
 u64 cleonos_sys_wm_snapshot(u64 window_id, cleonos_wm_snapshot *out_snapshot, u64 out_size);
 u64 cleonos_sys_pty_open(void);
 void *cleonos_sys_user_heap_alloc(u64 size);
+void *cleonos_sys_vm_alloc(u64 size, u64 flags);
+u64 cleonos_sys_vm_free(void *ptr, u64 size);
 u64 cleonos_sys_driver_count(void);
 u64 cleonos_sys_driver_info(u64 index, cleonos_driver_info *out_info, u64 out_size);
 u64 cleonos_sys_driver_load(const char *path);
