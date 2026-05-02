@@ -479,6 +479,29 @@ static void ush_uwm_render_taskmgr_launcher(ush_uwm_window *win) {
     ush_uwm_draw_text(win, 48 + card_w, USH_UWM_TITLE_H + 142, "END TASK", 1, UWM_COLOR_TEXT);
 }
 
+static void ush_uwm_render_pkg_launcher(ush_uwm_window *win) {
+    int card_w;
+
+    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H, win->w, 42, 0x00F7F7F7U);
+    ush_uwm_fill_rect(win, 0, USH_UWM_TITLE_H + 41, win->w, 1, UWM_COLOR_BORDER);
+    ush_uwm_fill_rect(win, 14, USH_UWM_TITLE_H + 10, win->w - 28, 22, UWM_COLOR_WHITE);
+    ush_uwm_stroke_rect(win, 14, USH_UWM_TITLE_H + 10, win->w - 28, 22, UWM_COLOR_BORDER);
+    ush_uwm_draw_text_limit(win, 24, USH_UWM_TITLE_H + 17, "/SHELL/UWM/PKG_GUI.ELF", 1, UWM_COLOR_MUTED, win->w - 24);
+
+    ush_uwm_draw_text(win, 22, USH_UWM_TITLE_H + 66, "PACKAGE MANAGER", 2, UWM_COLOR_TEXT);
+    ush_uwm_draw_text(win, 24, USH_UWM_TITLE_H + 94, "REMOTE LIST SEARCH INSTALL REMOVE", 1, UWM_COLOR_MUTED);
+    card_w = (win->w - 58) / 2;
+    if (card_w < 80) {
+        card_w = 80;
+    }
+    ush_uwm_fill_rect(win, 22, USH_UWM_TITLE_H + 122, card_w, 54, 0x00EAF7EAU);
+    ush_uwm_stroke_rect(win, 22, USH_UWM_TITLE_H + 122, card_w, 54, 0x00B7E0B7U);
+    ush_uwm_draw_text(win, 34, USH_UWM_TITLE_H + 142, "INSTALL", 1, UWM_COLOR_TEXT);
+    ush_uwm_fill_rect(win, 36 + card_w, USH_UWM_TITLE_H + 122, card_w, 54, 0x00FFF4CEU);
+    ush_uwm_stroke_rect(win, 36 + card_w, USH_UWM_TITLE_H + 122, card_w, 54, 0x00E7D48AU);
+    ush_uwm_draw_text(win, 48 + card_w, USH_UWM_TITLE_H + 142, "UPDATE", 1, UWM_COLOR_TEXT);
+}
+
 static void ush_uwm_render_app_window(ush_uwm_session *sess, int index) {
     ush_uwm_window *win;
     int active;
@@ -507,8 +530,10 @@ static void ush_uwm_render_app_window(ush_uwm_session *sess, int index) {
         ush_uwm_render_files(win);
     } else if (index == 1) {
         ush_uwm_render_terminal_launcher(win);
-    } else {
+    } else if (index == USH_UWM_TASKMGR_INDEX) {
         ush_uwm_render_taskmgr_launcher(win);
+    } else {
+        ush_uwm_render_pkg_launcher(win);
     }
 
     if (win->maximized == 0) {
@@ -615,7 +640,7 @@ static void ush_uwm_render_taskbar(ush_uwm_session *sess) {
 static void ush_uwm_render_start(ush_uwm_session *sess) {
     ush_uwm_window *start;
     int i;
-    const char *labels[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER"};
+    const char *labels[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER", "PACKAGE MANAGER"};
 
     if (sess == (ush_uwm_session *)0) {
         return;

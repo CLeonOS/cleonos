@@ -3,6 +3,7 @@
 #define USH_UWM_FILE_EXPLORER_PATH "/shell/uwm/file_explorer.elf"
 #define USH_UWM_TASKMGR_PATH "/shell/uwm/taskmgr.elf"
 #define USH_UWM_TERMINAL_PATH "/shell/uwm/terminal.elf"
+#define USH_UWM_PKG_GUI_PATH "/shell/uwm/pkg_gui.elf"
 
 static const char *ush_uwm_app_path(int index) {
     if (index == 0) {
@@ -13,6 +14,9 @@ static const char *ush_uwm_app_path(int index) {
     }
     if (index == USH_UWM_TASKMGR_INDEX) {
         return USH_UWM_TASKMGR_PATH;
+    }
+    if (index == USH_UWM_PKG_GUI_INDEX) {
+        return USH_UWM_PKG_GUI_PATH;
     }
 
     return (const char *)0;
@@ -219,7 +223,7 @@ static void ush_uwm_handle_key_event(ush_uwm_session *sess, u64 key, int *runnin
         return;
     }
 
-    if (key == (u64)'1' || key == (u64)'2' || key == (u64)'3') {
+    if (key == (u64)'1' || key == (u64)'2' || key == (u64)'3' || key == (u64)'4') {
         ush_uwm_launch_or_restore_app(sess, (int)(key - (u64)'1'));
         return;
     }

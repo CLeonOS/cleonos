@@ -29,6 +29,8 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 内核分发位置：
 
 - `clks/kernel/runtime/syscall.c`
+- 实际实现已经按分类拆分到 `clks/kernel/runtime/syscall/**/*.inc`
+- `clks/kernel/runtime/syscall.c` 现在是聚合入口，包含分类实现和 dispatch
 
 ## 2. 全局返回规则
 
@@ -61,7 +63,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 
 ## 3. 当前实现中的长度/路径限制
 
-以下限制由内核 `clks/kernel/runtime/syscall.c` 当前实现决定：
+以下限制由内核 `clks/kernel/runtime/syscall/**/*.inc` 当前实现决定：
 
 - 日志写入 `LOG_WRITE`：最大拷贝 `191` 字节。
 - TTY 文本写入 `TTY_WRITE`：最大拷贝 `2048` 字节。
@@ -92,7 +94,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~115）
+## 4. Syscall 列表（0~129）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -239,7 +241,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg0`: `const char *text`
 - `arg1`: `u64 length`
 - 返回：实际写入长度
-- 说明：长度会被截断到 512。
+- 说明：长度会被截断到 2048。
 
 ### 25 `CLEONOS_SYSCALL_TTY_WRITE_CHAR`
 
@@ -991,6 +993,40 @@ typedef struct cleonos_wm_snapshot {
 - 返回：本次从 `/driver` 新加载的驱动数量。
 - 说明：重新扫描 `/driver/*.elf`，已登记的驱动会被跳过。
 
+### 126 `CLEONOS_SYSCALL_TIMER_HZ`
+
+- 参数：无
+- 返回：系统 timer 每秒 tick 数；失败或未初始化时返回 `0`。
+- 说明：用户态封装为 `cleonos_sys_timer_hz()`。配合 `TIMER_TICKS` 可把 tick 转成秒/毫秒。
+
+### 127 `CLEONOS_SYSCALL_TIME_MS`
+
+- 参数：无
+- 返回：自系统启动以来的毫秒数。
+- 说明：内核按 `timer_ticks * 1000 / timer_hz` 计算；若 `timer_hz=0` 则返回 `0`。
+
+### 128 `CLEONOS_SYSCALL_SLEEP_MS`
+
+- 参数：
+- `arg0`: `u64 ms`
+- 返回：实际换算并休眠的 tick 数。
+- 说明：用户态封装为 `cleonos_sys_sleep_ms()`；底层仍走调度器 sleep/yield 机制，不是忙等。
+
+### 129 `CLEONOS_SYSCALL_NET_TCP_LAST_ERROR`
+
+- 参数：无
+- 返回：最近一次 TCP connect 失败原因码。
+- 说明：用户态封装为 `cleonos_sys_net_tcp_last_error()`，主要用于 `wget/pkg/browser` 这类网络工具打印更具体的错误。
+- 当前错误码约定：
+- `0` = 无错误
+- `1` = 网络不可用
+- `2` = 地址或端口非法
+- `3` = ARP/网关解析失败
+- `4` = SYN 发送失败
+- `5` = 连接被 reset/refused
+- `6` = SYN-ACK 超时
+- `7` = 收到旧连接的 stale ACK
+
 ## 4.1 `/dev` 设备文件
 
 - `/dev/fb0`：`FD_READ` 返回 framebuffer 信息；`FD_WRITE` 支持 `clear RRGGBB` 或写入整屏 RGBA buffer。
@@ -1011,6 +1047,7 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_fs_read()`
 - `cleonos_sys_fs_write()` / `cleonos_sys_fs_append()` / `cleonos_sys_fs_remove()`
 - `cleonos_sys_log_journal_count()` / `cleonos_sys_log_journal_read()`
+- `cleonos_sys_timer_ticks()` / `cleonos_sys_timer_hz()` / `cleonos_sys_time_ms()`
 - `cleonos_sys_exec_path()`
 - `cleonos_sys_exec_pathv()`
 - `cleonos_sys_tty_write()`
@@ -1020,7 +1057,7 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_user_heap_alloc()`
 - `cleonos_sys_driver_count()` / `cleonos_sys_driver_info()` / `cleonos_sys_driver_load()` / `cleonos_sys_driver_unload()` / `cleonos_sys_driver_reload()`
 - `cleonos_sys_spawn_pathv()`
-- `cleonos_sys_exit()` / `cleonos_sys_sleep_ticks()` / `cleonos_sys_yield()` / `cleonos_sys_shutdown()` / `cleonos_sys_restart()`
+- `cleonos_sys_exit()` / `cleonos_sys_sleep_ticks()` / `cleonos_sys_sleep_ms()` / `cleonos_sys_yield()` / `cleonos_sys_shutdown()` / `cleonos_sys_restart()`
 - `cleonos_sys_audio_available()` / `cleonos_sys_audio_play_tone()` / `cleonos_sys_audio_stop()`
 - `cleonos_sys_proc_argc()` / `cleonos_sys_proc_argv()` / `cleonos_sys_proc_envc()` / `cleonos_sys_proc_env()`
 - `cleonos_sys_proc_last_signal()` / `cleonos_sys_proc_fault_vector()` / `cleonos_sys_proc_fault_error()` / `cleonos_sys_proc_fault_rip()`
@@ -1037,10 +1074,10 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
-- `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()`
+- `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
 - `cleonos_sys_mouse_state()`
 - `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
-- `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()`
+- `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()` / `cleonos_sys_wm_set_flags()` / `cleonos_sys_wm_resize()`
 - `cleonos_sys_pty_open()`
 
 ## 6. 开发注意事项
@@ -1052,7 +1089,8 @@ typedef struct cleonos_wm_snapshot {
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..116`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..125`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`DRIVER_*`）。
+- `126..129`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -1073,6 +1111,8 @@ typedef struct cleonos_wm_snapshot {
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
 - `WM_*`（`108..115`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
 - `PTY_OPEN`（`116`）在 Wine 中创建内存缓冲 FD；写入端通过 `FD_WRITE` 追加，读取端通过 `FD_READ` 消费，用于桌面 Terminal 捕获子进程输出。
+- `USER_HEAP_ALLOC`（`120`）在 Wine 中分配 guest 用户态 heap 区域，用于模拟内核动态 heap 分配。
+- `DRIVER_*`（`121..125`）在 Wine 中为兼容实现，用于枚举/加载/卸载/重扫驱动条目；不执行真实内核态驱动。
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。

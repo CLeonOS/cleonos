@@ -2,7 +2,7 @@
 
 static void ush_uwm_usage(void) {
     ush_writeln("usage: uwm");
-    ush_writeln("keys: q quit, tab focus, 1/2/3 open apps, wasd/arrow move");
+    ush_writeln("keys: q quit, tab focus, 1/2/3/4 open apps, wasd/arrow move");
     ush_writeln("keys: m minimize, x close, t pin top, +/- resize");
     ush_writeln("mouse: drag titlebar, resize bottom-right, use taskbar/start");
 }
@@ -133,10 +133,10 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
     int start_h;
     int app_gap;
     int i;
-    const char *titles[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER"};
+    const char *titles[USH_UWM_APP_COUNT] = {"FILE EXPLORER", "TERMINAL", "TASK MANAGER", "PACKAGE MANAGER"};
     const char *subtitles[USH_UWM_APP_COUNT] = {"LOCAL DISK AND SYSTEM FILES", "DESKTOP TERMINAL APP",
-                                                "PROCESS MONITOR AND END TASK"};
-    const ush_uwm_u32 accents[USH_UWM_APP_COUNT] = {0x000078D7U, 0x0000A300U, 0x000078D7U};
+                                                "PROCESS MONITOR AND END TASK", "INSTALL AND UPDATE APPS"};
+    const ush_uwm_u32 accents[USH_UWM_APP_COUNT] = {0x000078D7U, 0x0000A300U, 0x000078D7U, 0x00006B3AU};
 
     if (sess == (ush_uwm_session *)0) {
         return 0;
