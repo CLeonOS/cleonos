@@ -10,9 +10,16 @@ extern char *ush_browser_html_buf;
 extern char *ush_browser_text_buf;
 extern char ush_browser_title[USH_BROWSER_TITLE_MAX];
 extern ush_browser_link ush_browser_links[USH_BROWSER_LINK_MAX];
+extern ush_browser_form ush_browser_forms[USH_BROWSER_FORM_MAX];
+extern ush_browser_form_field ush_browser_form_fields[USH_BROWSER_FORM_FIELD_MAX];
+extern ush_browser_cookie ush_browser_cookies[USH_BROWSER_COOKIE_MAX];
+extern char ush_browser_bearer_token[USH_BROWSER_TOKEN_MAX];
 extern u64 ush_browser_text_len;
 extern int ush_browser_last_space;
 extern u64 ush_browser_link_count;
+extern u64 ush_browser_form_count;
+extern u64 ush_browser_form_field_count;
+extern u64 ush_browser_cookie_count;
 extern ush_browser_css_rule ush_browser_css_rules[USH_BROWSER_CSS_RULE_MAX];
 extern u64 ush_browser_css_rule_count;
 
@@ -21,6 +28,8 @@ void ush_browser_print_rendered(const char *source_desc);
 void ush_browser_print_source(const char *source_desc, const char *html, u64 html_size);
 int ush_browser_run_session(const ush_state *sh, const char *arg);
 int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap, u64 *out_size);
+int ush_browser_load_request(const ush_state *sh, const char *source, const char *method, const char *body,
+                             u64 body_len, char *out_html, u64 out_html_cap, u64 *out_size);
 int ush_browser_read_line(char *out_text, u64 out_size);
 int ush_browser_resolve_href(const char *base_source, const char *href, char *out_source, u64 out_size);
 
@@ -34,6 +43,17 @@ void ush_browser_text_append_raw_char(char ch);
 void ush_browser_text_append(const char *text);
 void ush_browser_text_append_raw(const char *text);
 void ush_browser_text_horizontal_rule(void);
+void ush_browser_forms_reset(void);
+int ush_browser_form_submit(const char *base_source, u64 form_number, char *out_source, u64 out_source_size,
+                            char *out_body, u64 out_body_size, u64 *out_body_len, int *out_post);
+int ush_browser_form_set_value(u64 field_number, const char *value);
+void ush_browser_print_forms(void);
+void ush_browser_cookie_clear_all(void);
+void ush_browser_cookie_set_token(const char *token);
+void ush_browser_cookie_clear_token(void);
+int ush_browser_cookie_build_header(const ush_browser_url *url, char *out_header, u64 out_size);
+void ush_browser_cookie_store_from_response(const ush_browser_url *url, const char *raw, u64 raw_len);
+void ush_browser_cookie_print_state(void);
 void ush_browser_style_reset(ush_browser_style *out_style);
 void ush_browser_style_delta_reset(ush_browser_style_delta *out_delta);
 int ush_browser_style_equal(const ush_browser_style *a, const ush_browser_style *b);

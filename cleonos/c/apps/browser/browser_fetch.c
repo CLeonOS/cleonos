@@ -6,7 +6,8 @@
 
 #include "../tls/cleonos_tls.h"
 
-int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_cap, u64 *out_size) {
+int ush_browser_fetch_http_request(const char *url_text, const char *method, const char *body, u64 body_len,
+                                   char *out_html, u64 out_html_cap, u64 *out_size) {
     ush_browser_url url;
     u64 dst_ipv4_be = 0ULL;
     cleonos_net_tcp_connect_req conn_req;
@@ -28,9 +29,19 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
     int header_parsed = 0;
     int status_code = 0;
     char redirect_location[USH_BROWSER_SOURCE_MAX];
+    char cookie_header[USH_BROWSER_COOKIE_HEADER_MAX];
+    char auth_header[USH_BROWSER_TOKEN_MAX + 32U];
+    const char *http_method = "GET";
 
     if (url_text == (const char *)0 || out_html == (char *)0 || out_size == (u64 *)0 || out_html_cap == 0ULL) {
         ush_browser_fetch_error_set("invalid fetch arguments");
+        return 0;
+    }
+    if (method != (const char *)0 && (method[0] == 'P' || method[0] == 'p')) {
+        http_method = "POST";
+    }
+    if (body_len > 0ULL && body == (const char *)0) {
+        ush_browser_fetch_error_set("invalid POST body");
         return 0;
     }
 
@@ -38,6 +49,8 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
     *out_size = 0ULL;
     out_html[0] = '\0';
     redirect_location[0] = '\0';
+    cookie_header[0] = '\0';
+    auth_header[0] = '\0';
 
     if (ush_browser_ensure_buffers() == 0) {
         ush_browser_fetch_error_set("browser buffer allocation failed");
@@ -53,6 +66,10 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
     if (ush_browser_parse_url(url_text, &url) == 0) {
         ush_browser_fetch_error_set("invalid URL");
         return 0;
+    }
+    (void)ush_browser_cookie_build_header(&url, cookie_header, (u64)sizeof(cookie_header));
+    if (ush_browser_bearer_token[0] != '\0') {
+        (void)snprintf(auth_header, sizeof(auth_header), "Authorization: Bearer %s\r\n", ush_browser_bearer_token);
     }
 
     if (ush_browser_parse_ipv4_be(url.host, &dst_ipv4_be) == 0) {
@@ -93,16 +110,43 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
         tcp_open = 1;
     }
 
-    if (!((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U))) {
-        request_len = snprintf(request, sizeof(request),
-                               "GET %s HTTP/1.1\r\nHost: %s:%u\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
-                               "text/html,*/*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
-                               url.path, url.host, (unsigned int)url.port);
+    if (http_method[0] == 'P') {
+        if (!((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U))) {
+            request_len = snprintf(request, sizeof(request),
+                                   "%s %s HTTP/1.1\r\nHost: %s:%u\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sContent-Type: "
+                                   "application/x-www-form-urlencoded\r\nContent-Length: %llu\r\nConnection: "
+                                   "close\r\n\r\n",
+                                   http_method, url.path, url.host, (unsigned int)url.port,
+                                   auth_header, (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
+                                   (cookie_header[0] != '\0') ? "\r\n" : "",
+                                   (unsigned long long)body_len);
+        } else {
+            request_len = snprintf(request, sizeof(request),
+                                   "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sContent-Type: "
+                                   "application/x-www-form-urlencoded\r\nContent-Length: %llu\r\nConnection: "
+                                   "close\r\n\r\n",
+                                   http_method, url.path, url.host, auth_header,
+                                   (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
+                                   (cookie_header[0] != '\0') ? "\r\n" : "", (unsigned long long)body_len);
+        }
     } else {
-        request_len = snprintf(request, sizeof(request),
-                               "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
-                               "text/html,*/*\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
-                               url.path, url.host);
+        if (!((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U))) {
+            request_len = snprintf(request, sizeof(request),
+                                   "%s %s HTTP/1.1\r\nHost: %s:%u\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sConnection: close\r\n\r\n",
+                                   http_method, url.path, url.host, (unsigned int)url.port, auth_header,
+                                   (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
+                                   (cookie_header[0] != '\0') ? "\r\n" : "");
+        } else {
+            request_len = snprintf(request, sizeof(request),
+                                   "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sConnection: close\r\n\r\n",
+                                   http_method, url.path, url.host, auth_header,
+                                   (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
+                                   (cookie_header[0] != '\0') ? "\r\n" : "");
+        }
     }
 
     if (request_len <= 0 || (u64)request_len >= (u64)sizeof(request)) {
@@ -115,6 +159,10 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
             ush_browser_fetch_error_set_tls("TLS send failed", tls_conn);
             goto cleanup;
         }
+        if (body_len > 0ULL && cleonos_tls_write_all(tls_conn, body, body_len) == 0) {
+            ush_browser_fetch_error_set_tls("TLS POST send failed", tls_conn);
+            goto cleanup;
+        }
     } else {
         send_req.payload_ptr = (u64)(usize)request;
         send_req.payload_len = (u64)request_len;
@@ -124,6 +172,16 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
         if (sent != (u64)request_len) {
             ush_browser_fetch_error_set("TCP send failed");
             goto cleanup;
+        }
+        if (body_len > 0ULL) {
+            send_req.payload_ptr = (u64)(usize)body;
+            send_req.payload_len = body_len;
+            send_req.poll_budget = USH_BROWSER_TCP_POLL_BUDGET;
+            sent = cleonos_sys_net_tcp_send(&send_req);
+            if (sent != body_len) {
+                ush_browser_fetch_error_set("TCP POST send failed");
+                goto cleanup;
+            }
         }
     }
 
@@ -242,6 +300,7 @@ int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_ca
             goto cleanup;
         }
     }
+    ush_browser_cookie_store_from_response(&url, ush_browser_http_raw_buf, raw_len);
 
     if (body_off > raw_len) {
         ush_browser_fetch_error_set("invalid HTTP body offset");
@@ -309,4 +368,8 @@ cleanup:
         out_html[0] = '\0';
     }
     return ok;
+}
+
+int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_cap, u64 *out_size) {
+    return ush_browser_fetch_http_request(url_text, "GET", (const char *)0, 0ULL, out_html, out_html_cap, out_size);
 }

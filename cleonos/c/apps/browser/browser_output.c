@@ -147,6 +147,8 @@ void ush_browser_print_rendered(const char *source_desc) {
                          (unsigned long long)(k + 1ULL), ush_browser_links[k].text, ush_browser_links[k].href);
         }
     }
+
+    ush_browser_print_forms();
 }
 
 static void ush_browser_print_source_line_prefix(u64 line_no) {

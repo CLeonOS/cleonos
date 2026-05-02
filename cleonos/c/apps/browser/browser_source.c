@@ -48,6 +48,11 @@ static int ush_browser_read_file(const ush_state *sh, const char *arg, char *out
 }
 
 int ush_browser_load_source(const ush_state *sh, const char *source, char *out_html, u64 out_html_cap, u64 *out_size) {
+    return ush_browser_load_request(sh, source, "GET", (const char *)0, 0ULL, out_html, out_html_cap, out_size);
+}
+
+int ush_browser_load_request(const ush_state *sh, const char *source, const char *method, const char *body,
+                             u64 body_len, char *out_html, u64 out_html_cap, u64 *out_size) {
     if (sh == (const ush_state *)0 || source == (const char *)0 || out_html == (char *)0 || out_size == (u64 *)0) {
         return 0;
     }
@@ -56,7 +61,11 @@ int ush_browser_load_source(const ush_state *sh, const char *source, char *out_h
         if (cleonos_sys_net_available() == 0ULL) {
             return 0;
         }
-        return ush_browser_fetch_http(source, out_html, out_html_cap, out_size);
+        return ush_browser_fetch_http_request(source, method, body, body_len, out_html, out_html_cap, out_size);
+    }
+
+    if (method != (const char *)0 && (method[0] == 'P' || method[0] == 'p')) {
+        return 0;
     }
 
     return ush_browser_read_file(sh, source, out_html, out_html_cap, out_size);

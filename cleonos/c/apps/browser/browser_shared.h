@@ -22,6 +22,19 @@
 #define USH_BROWSER_LINK_MAX 96U
 #define USH_BROWSER_LINK_TEXT_MAX 96U
 #define USH_BROWSER_LINK_HREF_MAX 192U
+#define USH_BROWSER_FORM_MAX 16U
+#define USH_BROWSER_FORM_FIELD_MAX 48U
+#define USH_BROWSER_FORM_NAME_MAX 48U
+#define USH_BROWSER_FORM_VALUE_MAX 128U
+#define USH_BROWSER_FORM_ACTION_MAX 192U
+#define USH_BROWSER_FORM_BODY_MAX 8192U
+#define USH_BROWSER_COOKIE_MAX 24U
+#define USH_BROWSER_COOKIE_NAME_MAX 48U
+#define USH_BROWSER_COOKIE_VALUE_MAX 128U
+#define USH_BROWSER_COOKIE_DOMAIN_MAX 128U
+#define USH_BROWSER_COOKIE_PATH_MAX 96U
+#define USH_BROWSER_COOKIE_HEADER_MAX 512U
+#define USH_BROWSER_TOKEN_MAX 192U
 #define USH_BROWSER_HISTORY_MAX 16U
 #define USH_BROWSER_INPUT_MAX 256U
 #define USH_BROWSER_SEG_MAX 32U
@@ -55,6 +68,31 @@ typedef struct ush_browser_link {
     char text[USH_BROWSER_LINK_TEXT_MAX];
     char href[USH_BROWSER_LINK_HREF_MAX];
 } ush_browser_link;
+
+typedef struct ush_browser_form_field {
+    u64 form_index;
+    char name[USH_BROWSER_FORM_NAME_MAX];
+    char value[USH_BROWSER_FORM_VALUE_MAX];
+    char type[16];
+    int successful;
+} ush_browser_form_field;
+
+typedef struct ush_browser_form {
+    char method[8];
+    char action[USH_BROWSER_FORM_ACTION_MAX];
+    char label[USH_BROWSER_LINK_TEXT_MAX];
+    u64 first_field;
+    u64 field_count;
+    int has_submit;
+} ush_browser_form;
+
+typedef struct ush_browser_cookie {
+    char name[USH_BROWSER_COOKIE_NAME_MAX];
+    char value[USH_BROWSER_COOKIE_VALUE_MAX];
+    char domain[USH_BROWSER_COOKIE_DOMAIN_MAX];
+    char path[USH_BROWSER_COOKIE_PATH_MAX];
+    int secure;
+} ush_browser_cookie;
 
 typedef struct ush_browser_style {
     int fg_set;
@@ -111,6 +149,8 @@ int ush_browser_is_http_url(const char *text);
 int ush_browser_is_https_url(const char *text);
 int ush_browser_parse_url(const char *url, ush_browser_url *out_url);
 int ush_browser_fetch_http(const char *url_text, char *out_html, u64 out_html_cap, u64 *out_size);
+int ush_browser_fetch_http_request(const char *url_text, const char *method, const char *body, u64 body_len,
+                                   char *out_html, u64 out_html_cap, u64 *out_size);
 const char *ush_browser_fetch_last_error(void);
 
 #endif

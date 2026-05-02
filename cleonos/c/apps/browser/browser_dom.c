@@ -31,6 +31,18 @@ typedef struct ush_browser_table_model {
 static ush_browser_table_model ush_browser_table_scratch;
 
 static void ush_browser_collect_anchor_link(GumboNode *node);
+static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style *parent_style, u64 current_form);
+static void ush_browser_collect_plain_text(GumboNode *node, char *out, u64 out_cap, u64 *io_len);
+static void ush_browser_trim_ascii_text(char *text);
+
+static void ush_browser_append_u64(u64 value) {
+    char buf[32];
+
+    if (snprintf(buf, sizeof(buf), "%llu", (unsigned long long)value) <= 0) {
+        return;
+    }
+    ush_browser_text_append(buf);
+}
 
 static int ush_browser_is_skip_tag(GumboTag tag) {
     switch (tag) {
@@ -159,6 +171,26 @@ static const char *ush_browser_attr_value(GumboNode *node, const char *name) {
     return attr->value;
 }
 
+static void ush_browser_copy_lower_ascii(char *out, u64 out_size, const char *value, const char *fallback) {
+    u64 i = 0ULL;
+    const char *src = (value != (const char *)0 && value[0] != '\0') ? value : fallback;
+
+    if (out == (char *)0 || out_size == 0ULL) {
+        return;
+    }
+
+    out[0] = '\0';
+    if (src == (const char *)0) {
+        return;
+    }
+
+    while (src[i] != '\0' && i + 1ULL < out_size) {
+        out[i] = ush_browser_ascii_tolower(src[i]);
+        i++;
+    }
+    out[i] = '\0';
+}
+
 static int ush_browser_attr_present(GumboNode *node, const char *name) {
     if (node == (GumboNode *)0 || name == (const char *)0 || node->type != GUMBO_NODE_ELEMENT) {
         return 0;
@@ -196,6 +228,72 @@ static void ush_browser_append_attr_value(const char *value, const char *fallbac
     } else if (fallback != (const char *)0) {
         ush_browser_text_append(fallback);
     }
+}
+
+static u64 ush_browser_begin_form(GumboNode *node) {
+    ush_browser_form *form;
+    const char *method;
+    const char *action;
+    const char *label;
+    u64 form_index;
+
+    if (node == (GumboNode *)0 || node->type != GUMBO_NODE_ELEMENT ||
+        ush_browser_form_count >= (u64)USH_BROWSER_FORM_MAX) {
+        return (u64)-1;
+    }
+
+    form_index = ush_browser_form_count++;
+    form = &ush_browser_forms[form_index];
+    ush_zero(form, (u64)sizeof(*form));
+
+    method = ush_browser_attr_value(node, "method");
+    action = ush_browser_attr_value(node, "action");
+    label = ush_browser_attr_value(node, "name");
+    if (label == (const char *)0 || label[0] == '\0') {
+        label = ush_browser_attr_value(node, "id");
+    }
+
+    if (method != (const char *)0 && ush_browser_streq_icase(method, "post") != 0) {
+        ush_copy(form->method, (u64)sizeof(form->method), "post");
+    } else {
+        ush_copy(form->method, (u64)sizeof(form->method), "get");
+    }
+
+    if (action != (const char *)0 && action[0] != '\0') {
+        ush_copy(form->action, (u64)sizeof(form->action), action);
+    }
+    if (label != (const char *)0 && label[0] != '\0') {
+        ush_copy(form->label, (u64)sizeof(form->label), label);
+    } else {
+        ush_copy(form->label, (u64)sizeof(form->label), "form");
+    }
+    form->first_field = ush_browser_form_field_count;
+    return form_index;
+}
+
+static u64 ush_browser_add_form_field(u64 form_index, const char *name, const char *value, const char *type,
+                                      int successful) {
+    ush_browser_form_field *field;
+    ush_browser_form *form;
+    u64 field_index;
+
+    if (form_index >= ush_browser_form_count || name == (const char *)0 || name[0] == '\0' ||
+        ush_browser_form_field_count >= (u64)USH_BROWSER_FORM_FIELD_MAX) {
+        return 0ULL;
+    }
+
+    field_index = ush_browser_form_field_count++;
+    field = &ush_browser_form_fields[field_index];
+    form = &ush_browser_forms[form_index];
+    ush_zero(field, (u64)sizeof(*field));
+
+    field->form_index = form_index;
+    ush_copy(field->name, (u64)sizeof(field->name), name);
+    ush_copy(field->value, (u64)sizeof(field->value), (value != (const char *)0) ? value : "");
+    ush_browser_copy_lower_ascii(field->type, (u64)sizeof(field->type), type, "text");
+    field->successful = successful;
+    form->field_count++;
+    return field_index + 1ULL;
 }
 
 static void ush_browser_append_text_styled(const char *text, const ush_browser_style *style) {
@@ -379,22 +477,36 @@ static void ush_browser_append_heading_prefix(GumboTag tag) {
     }
 }
 
-static int ush_browser_render_input_tag(GumboNode *node) {
+static int ush_browser_render_input_tag(GumboNode *node, u64 current_form) {
     const char *type = ush_browser_attr_value(node, "type");
     const char *name = ush_browser_attr_value(node, "name");
     const char *value = ush_browser_attr_value(node, "value");
     const char *placeholder = ush_browser_attr_value(node, "placeholder");
+    u64 field_number = 0ULL;
 
     if (type == (const char *)0 || type[0] == '\0') {
         type = "text";
     }
 
     if (ush_browser_streq_icase(type, "hidden") != 0) {
+        if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
+            (void)ush_browser_add_form_field(current_form, name, value, type, 1);
+        }
         return 1;
     }
 
     if (ush_browser_streq_icase(type, "checkbox") != 0 || ush_browser_streq_icase(type, "radio") != 0) {
+        int checked = ush_browser_attr_present(node, "checked");
+        if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
+            field_number = ush_browser_add_form_field(current_form, name,
+                                                      (value != (const char *)0 && value[0] != '\0') ? value : "on",
+                                                      type, checked);
+        }
         ush_browser_text_append((ush_browser_attr_present(node, "checked") != 0) ? "[x]" : "[ ]");
+        if (field_number != 0ULL) {
+            ush_browser_text_append("#");
+            ush_browser_append_u64(field_number);
+        }
         if (value != (const char *)0 && value[0] != '\0') {
             ush_browser_text_append_char(' ');
             ush_browser_text_append_limited(value, 48ULL);
@@ -407,18 +519,40 @@ static int ush_browser_render_input_tag(GumboNode *node) {
 
     if (ush_browser_streq_icase(type, "button") != 0 || ush_browser_streq_icase(type, "submit") != 0 ||
         ush_browser_streq_icase(type, "reset") != 0) {
+        if (current_form != (u64)-1 && ush_browser_streq_icase(type, "submit") != 0) {
+            ush_browser_forms[current_form].has_submit = 1;
+        }
         ush_browser_text_append("[button: ");
         ush_browser_append_attr_value(value, type);
+        if (current_form != (u64)-1 && ush_browser_streq_icase(type, "submit") != 0) {
+            ush_browser_text_append(" -> submit ");
+            ush_browser_append_u64(current_form + 1ULL);
+        }
         ush_browser_text_append("]");
         return 1;
     }
 
     if (ush_browser_streq_icase(type, "password") != 0) {
-        ush_browser_text_append("[password]");
+        if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
+            field_number = ush_browser_add_form_field(current_form, name, value, type, 1);
+        }
+        ush_browser_text_append("[password");
+        if (field_number != 0ULL) {
+            ush_browser_text_append("#");
+            ush_browser_append_u64(field_number);
+        }
+        ush_browser_text_append("]");
         return 1;
     }
 
     ush_browser_text_append("[input");
+    if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
+        field_number = ush_browser_add_form_field(current_form, name, value, type, 1);
+        if (field_number != 0ULL) {
+            ush_browser_text_append("#");
+            ush_browser_append_u64(field_number);
+        }
+    }
     if (name != (const char *)0 && name[0] != '\0') {
         ush_browser_text_append_char(' ');
         ush_browser_text_append_limited(name, 48ULL);
@@ -430,6 +564,38 @@ static int ush_browser_render_input_tag(GumboNode *node) {
     } else if (placeholder != (const char *)0 && placeholder[0] != '\0') {
         ush_browser_text_append(" placeholder=\"");
         ush_browser_text_append_limited(placeholder, 64ULL);
+        ush_browser_text_append("\"");
+    }
+    ush_browser_text_append("]");
+    return 1;
+}
+
+static int ush_browser_render_textarea_tag(GumboNode *node, u64 current_form) {
+    const char *name = ush_browser_attr_value(node, "name");
+    char text[USH_BROWSER_FORM_VALUE_MAX];
+    u64 len = 0ULL;
+    u64 field_number = 0ULL;
+
+    ush_zero(text, (u64)sizeof(text));
+    ush_browser_collect_plain_text(node, text, (u64)sizeof(text), &len);
+    ush_browser_trim_ascii_text(text);
+
+    if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
+        field_number = ush_browser_add_form_field(current_form, name, text, "textarea", 1);
+    }
+
+    ush_browser_text_append("[textarea");
+    if (field_number != 0ULL) {
+        ush_browser_text_append("#");
+        ush_browser_append_u64(field_number);
+    }
+    if (name != (const char *)0 && name[0] != '\0') {
+        ush_browser_text_append_char(' ');
+        ush_browser_text_append_limited(name, 48ULL);
+    }
+    if (text[0] != '\0') {
+        ush_browser_text_append("=\"");
+        ush_browser_text_append_limited(text, 64ULL);
         ush_browser_text_append("\"");
     }
     ush_browser_text_append("]");
@@ -458,7 +624,7 @@ static int ush_browser_render_simple_placeholder(GumboNode *node, const char *ki
     return 1;
 }
 
-static int ush_browser_render_void_or_replaced_tag(GumboNode *node, GumboTag tag) {
+static int ush_browser_render_void_or_replaced_tag(GumboNode *node, GumboTag tag, u64 current_form) {
     const char *value;
 
     switch (tag) {
@@ -482,7 +648,7 @@ static int ush_browser_render_void_or_replaced_tag(GumboNode *node, GumboTag tag
     case GUMBO_TAG_MATH:
         return ush_browser_render_simple_placeholder(node, "math", "aria-label", "title");
     case GUMBO_TAG_INPUT:
-        return ush_browser_render_input_tag(node);
+        return ush_browser_render_input_tag(node, current_form);
     case GUMBO_TAG_PROGRESS:
         ush_browser_text_append("[progress");
         value = ush_browser_attr_value(node, "value");
@@ -513,7 +679,7 @@ static int ush_browser_render_void_or_replaced_tag(GumboNode *node, GumboTag tag
     }
 }
 
-static void ush_browser_emit_tag_prefix(GumboNode *node, GumboTag tag) {
+static void ush_browser_emit_tag_prefix(GumboNode *node, GumboTag tag, u64 current_form) {
     const char *title;
     const char *value;
 
@@ -575,6 +741,12 @@ static void ush_browser_emit_tag_prefix(GumboNode *node, GumboTag tag) {
         break;
     case GUMBO_TAG_BUTTON:
         ush_browser_text_append("[button: ");
+        if (current_form != (u64)-1) {
+            const char *type = ush_browser_attr_value(node, "type");
+            if (type == (const char *)0 || type[0] == '\0' || ush_browser_streq_icase(type, "submit") != 0) {
+                ush_browser_forms[current_form].has_submit = 1;
+            }
+        }
         break;
     case GUMBO_TAG_SELECT:
         ush_browser_text_append("[select: ");
@@ -601,7 +773,7 @@ static void ush_browser_emit_tag_prefix(GumboNode *node, GumboTag tag) {
     }
 }
 
-static void ush_browser_emit_tag_suffix(GumboNode *node, GumboTag tag) {
+static void ush_browser_emit_tag_suffix(GumboNode *node, GumboTag tag, u64 current_form) {
     const char *title;
 
     switch (tag) {
@@ -627,6 +799,15 @@ static void ush_browser_emit_tag_suffix(GumboNode *node, GumboTag tag) {
         }
         break;
     case GUMBO_TAG_BUTTON:
+        if (current_form != (u64)-1) {
+            const char *type = ush_browser_attr_value(node, "type");
+            if (type == (const char *)0 || type[0] == '\0' || ush_browser_streq_icase(type, "submit") != 0) {
+                ush_browser_text_append(" -> submit ");
+                ush_browser_append_u64(current_form + 1ULL);
+            }
+        }
+        ush_browser_text_append("]");
+        break;
     case GUMBO_TAG_SELECT:
     case GUMBO_TAG_TEXTAREA:
     case GUMBO_TAG_OUTPUT:
@@ -1051,7 +1232,7 @@ static int ush_browser_find_title_node(GumboNode *node, char *out, u64 out_cap) 
     return 0;
 }
 
-static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style *parent_style) {
+static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style *parent_style, u64 current_form) {
     if (node == (GumboNode *)0 || parent_style == (const ush_browser_style *)0) {
         return;
     }
@@ -1074,6 +1255,7 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
         ush_browser_style_delta inline_delta;
         int is_block = ush_browser_is_block_tag(tag);
         int style_changed;
+        u64 child_form = current_form;
         u64 i;
 
         if (ush_browser_is_skip_tag(tag) != 0) {
@@ -1099,7 +1281,28 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
             return;
         }
 
-        if (ush_browser_render_void_or_replaced_tag(node, tag) != 0) {
+        if (tag == GUMBO_TAG_FORM) {
+            child_form = ush_browser_begin_form(node);
+            if (child_form != (u64)-1) {
+                ush_browser_text_append("[form ");
+                ush_browser_append_u64(child_form + 1ULL);
+                ush_browser_text_append(" ");
+                ush_browser_text_append(ush_browser_forms[child_form].method);
+                if (ush_browser_forms[child_form].action[0] != '\0') {
+                    ush_browser_text_append(" ");
+                    ush_browser_text_append_limited(ush_browser_forms[child_form].action, 72ULL);
+                }
+                ush_browser_text_append("]");
+                ush_browser_text_newline();
+            }
+        }
+
+        if (ush_browser_render_void_or_replaced_tag(node, tag, child_form) != 0) {
+            return;
+        }
+
+        if (tag == GUMBO_TAG_TEXTAREA) {
+            (void)ush_browser_render_textarea_tag(node, child_form);
             return;
         }
 
@@ -1127,13 +1330,13 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
             ush_browser_text_emit_style(&style);
         }
 
-        ush_browser_emit_tag_prefix(node, tag);
+        ush_browser_emit_tag_prefix(node, tag, child_form);
 
         for (i = 0ULL; i < (u64)children->length; i++) {
-            ush_browser_walk_dom_styled((GumboNode *)children->data[i], &style);
+            ush_browser_walk_dom_styled((GumboNode *)children->data[i], &style, child_form);
         }
 
-        ush_browser_emit_tag_suffix(node, tag);
+        ush_browser_emit_tag_suffix(node, tag, child_form);
 
         if (style_changed != 0) {
             ush_browser_text_emit_style(parent_style);
@@ -1154,7 +1357,7 @@ static void ush_browser_walk_dom_styled(GumboNode *node, const ush_browser_style
         }
 
         for (i = 0ULL; i < (u64)children->length; i++) {
-            ush_browser_walk_dom_styled((GumboNode *)children->data[i], parent_style);
+            ush_browser_walk_dom_styled((GumboNode *)children->data[i], parent_style, current_form);
         }
         return;
     }
@@ -1217,6 +1420,7 @@ static int ush_browser_render_html_fallback(const char *html, u64 html_size) {
     }
 
     ush_browser_link_count = 0ULL;
+    ush_browser_forms_reset();
     ush_browser_css_rule_count = 0ULL;
     ush_browser_text_reset();
     ush_zero(ush_browser_title, (u64)sizeof(ush_browser_title));
@@ -1295,6 +1499,7 @@ int ush_browser_render_html(const char *html, u64 html_size) {
     }
 
     ush_browser_link_count = 0ULL;
+    ush_browser_forms_reset();
     ush_browser_css_rule_count = 0ULL;
     ush_browser_text_reset();
     ush_zero(ush_browser_title, (u64)sizeof(ush_browser_title));
@@ -1302,7 +1507,7 @@ int ush_browser_render_html(const char *html, u64 html_size) {
 
     (void)ush_browser_find_title_node(output->root, ush_browser_title, (u64)sizeof(ush_browser_title));
     ush_browser_css_scan_style_nodes(output->root);
-    ush_browser_walk_dom_styled(output->root, &root_style);
+    ush_browser_walk_dom_styled(output->root, &root_style, (u64)-1);
     ush_browser_text_trim_trailing_spaces();
 
     gumbo_destroy_output(&options, output);
