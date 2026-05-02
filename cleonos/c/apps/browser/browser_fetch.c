@@ -117,19 +117,18 @@ int ush_browser_fetch_http_request(const char *url_text, const char *method, con
                                    "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sContent-Type: "
                                    "application/x-www-form-urlencoded\r\nContent-Length: %llu\r\nConnection: "
                                    "close\r\n\r\n",
-                                   http_method, url.path, url.host, (unsigned int)url.port,
-                                   auth_header, (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
-                                   (cookie_header[0] != '\0') ? "\r\n" : "",
-                                   (unsigned long long)body_len);
-        } else {
-            request_len = snprintf(request, sizeof(request),
-                                   "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
-                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sContent-Type: "
-                                   "application/x-www-form-urlencoded\r\nContent-Length: %llu\r\nConnection: "
-                                   "close\r\n\r\n",
-                                   http_method, url.path, url.host, auth_header,
+                                   http_method, url.path, url.host, (unsigned int)url.port, auth_header,
                                    (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
                                    (cookie_header[0] != '\0') ? "\r\n" : "", (unsigned long long)body_len);
+        } else {
+            request_len =
+                snprintf(request, sizeof(request),
+                         "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                         "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sContent-Type: "
+                         "application/x-www-form-urlencoded\r\nContent-Length: %llu\r\nConnection: "
+                         "close\r\n\r\n",
+                         http_method, url.path, url.host, auth_header, (cookie_header[0] != '\0') ? "Cookie: " : "",
+                         cookie_header, (cookie_header[0] != '\0') ? "\r\n" : "", (unsigned long long)body_len);
         }
     } else {
         if (!((url.tls == 0 && url.port == 80U) || (url.tls != 0 && url.port == 443U))) {
@@ -140,12 +139,12 @@ int ush_browser_fetch_http_request(const char *url_text, const char *method, con
                                    (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
                                    (cookie_header[0] != '\0') ? "\r\n" : "");
         } else {
-            request_len = snprintf(request, sizeof(request),
-                                   "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
-                                   "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sConnection: close\r\n\r\n",
-                                   http_method, url.path, url.host, auth_header,
-                                   (cookie_header[0] != '\0') ? "Cookie: " : "", cookie_header,
-                                   (cookie_header[0] != '\0') ? "\r\n" : "");
+            request_len =
+                snprintf(request, sizeof(request),
+                         "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: cleonos-browser/1.0\r\nAccept: "
+                         "text/html,*/*\r\nAccept-Encoding: identity\r\n%s%s%s%sConnection: close\r\n\r\n",
+                         http_method, url.path, url.host, auth_header, (cookie_header[0] != '\0') ? "Cookie: " : "",
+                         cookie_header, (cookie_header[0] != '\0') ? "\r\n" : "");
         }
     }
 

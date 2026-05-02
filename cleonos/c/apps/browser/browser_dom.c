@@ -498,9 +498,8 @@ static int ush_browser_render_input_tag(GumboNode *node, u64 current_form) {
     if (ush_browser_streq_icase(type, "checkbox") != 0 || ush_browser_streq_icase(type, "radio") != 0) {
         int checked = ush_browser_attr_present(node, "checked");
         if (current_form != (u64)-1 && name != (const char *)0 && name[0] != '\0') {
-            field_number = ush_browser_add_form_field(current_form, name,
-                                                      (value != (const char *)0 && value[0] != '\0') ? value : "on",
-                                                      type, checked);
+            field_number = ush_browser_add_form_field(
+                current_form, name, (value != (const char *)0 && value[0] != '\0') ? value : "on", type, checked);
         }
         ush_browser_text_append((ush_browser_attr_present(node, "checked") != 0) ? "[x]" : "[ ]");
         if (field_number != 0ULL) {

@@ -203,8 +203,8 @@ void ush_browser_print_forms(void) {
         const char *action = (form->action[0] != '\0') ? form->action : "(current page)";
         const char *method = (form->method[0] != '\0') ? form->method : "get";
 
-        (void)printf("  form[%llu] method=%s action=%s fields=%llu\n", (unsigned long long)(i + 1ULL), method,
-                     action, (unsigned long long)form->field_count);
+        (void)printf("  form[%llu] method=%s action=%s fields=%llu\n", (unsigned long long)(i + 1ULL), method, action,
+                     (unsigned long long)form->field_count);
     }
 
     for (i = 0ULL; i < ush_browser_form_field_count; i++) {

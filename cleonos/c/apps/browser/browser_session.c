@@ -312,17 +312,17 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
             }
 
             if (ush_streq(input_line, "h") != 0 || ush_streq(input_line, "help") != 0) {
-            ush_writeln("[browser] commands:");
-            ush_writeln("  <number>      open link by index");
-            ush_writeln("  o <src>       open new URL/path");
-            ush_writeln("  forms         list forms and fields");
-            ush_writeln("  set <n> <v>   set form field value");
-            ush_writeln("  submit <n>    submit form by index");
-            ush_writeln("  cookies       list cookie/token state");
-            ush_writeln("  cookie clear  clear cookies");
-            ush_writeln("  token set <v> set Authorization Bearer token");
-            ush_writeln("  token clear   clear Bearer token");
-            ush_writeln("  v             toggle source/render view");
+                ush_writeln("[browser] commands:");
+                ush_writeln("  <number>      open link by index");
+                ush_writeln("  o <src>       open new URL/path");
+                ush_writeln("  forms         list forms and fields");
+                ush_writeln("  set <n> <v>   set form field value");
+                ush_writeln("  submit <n>    submit form by index");
+                ush_writeln("  cookies       list cookie/token state");
+                ush_writeln("  cookie clear  clear cookies");
+                ush_writeln("  token set <v> set Authorization Bearer token");
+                ush_writeln("  token clear   clear Bearer token");
+                ush_writeln("  v             toggle source/render view");
                 ush_writeln("  source        toggle source/render view");
                 ush_writeln("  render        switch back to rendered page");
                 ush_writeln("  b             back");
@@ -415,8 +415,7 @@ int ush_browser_run_session(const ush_state *sh, const char *arg) {
             }
 
             if ((input_line[0] == 's' && input_line[1] == 'u' && input_line[2] == 'b' && input_line[3] == 'm' &&
-                 input_line[4] == 'i' && input_line[5] == 't' &&
-                 (input_line[6] == '\0' || input_line[6] == ' ')) ||
+                 input_line[4] == 'i' && input_line[5] == 't' && (input_line[6] == '\0' || input_line[6] == ' ')) ||
                 (input_line[0] == 'p' && input_line[1] == 'o' && input_line[2] == 's' && input_line[3] == 't' &&
                  (input_line[4] == '\0' || input_line[4] == ' '))) {
                 const char *payload = (input_line[0] == 'p') ? (input_line + 4) : (input_line + 6);
