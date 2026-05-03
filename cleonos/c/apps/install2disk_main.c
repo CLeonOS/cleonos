@@ -686,6 +686,21 @@ static int install_mount_existing_disk(void) {
     return 1;
 }
 
+static int install_running_from_disk_boot(void) {
+    char mount_path[USH_PATH_MAX];
+
+    mount_path[0] = '\0';
+    if (cleonos_sys_disk_mounted() == 0ULL) {
+        return 0;
+    }
+
+    if (cleonos_sys_disk_mount_path(mount_path, (u64)sizeof(mount_path)) == 0ULL) {
+        return 0;
+    }
+
+    return (strcmp(mount_path, "/") == 0) ? 1 : 0;
+}
+
 static int install2disk_run(void) {
     u64 copied_files = 0ULL;
     u64 copied_bytes = 0ULL;
@@ -696,6 +711,12 @@ static int install2disk_run(void) {
 
     if (cleonos_sys_disk_present() == 0ULL) {
         (void)puts("install2disk: disk not present");
+        return 0;
+    }
+
+    if (install_running_from_disk_boot() != 0) {
+        (void)puts("install2disk: refused: current system is booted from disk");
+        (void)puts("install2disk: boot the ISO installer before updating or reinstalling this disk");
         return 0;
     }
 
