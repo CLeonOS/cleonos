@@ -15,7 +15,7 @@
 #define INSTALL_PROGRESS_BAR_WIDTH 28U
 #define INSTALL_PROGRESS_STEP_PERCENT 5ULL
 #define INSTALL_KERNEL_SOURCE "/system/install/clks_kernel.elf"
-#define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/boot/clks_kernel.elf"
+#define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/kernel.elf"
 #define INSTALL_LIMINE_CONF_SOURCE "/system/install/limine-harddisk.conf"
 #define INSTALL_LIMINE_SYS_SOURCE "/system/install/limine-bios.sys"
 #define INSTALL_LIMINE_HDD_SOURCE "/system/install/limine-bios-hdd.bin"
@@ -420,6 +420,8 @@ static int install_mount_existing_disk(void);
 static void install_print_usage(void) {
     (void)puts("usage:");
     (void)puts("  install2disk");
+    (void)puts("  install2disk update-kernel");
+    (void)puts("  install2disk update kernel");
     (void)puts("  install2disk verify");
     (void)puts("  install2disk repair");
     (void)puts("  install2disk repair manifest");
@@ -427,7 +429,6 @@ static void install_print_usage(void) {
     (void)puts("  install2disk repair bootloader");
     (void)puts("  install2disk repair limine-conf");
     (void)puts("  install2disk repair limine-sys");
-    (void)puts("  install2disk repair kernel");
     (void)puts("  install2disk repair shell <app|app.elf>");
     (void)puts("  install2disk repair uwm <app|app.elf>");
     (void)puts("  install2disk repair driver <app|app.elf>");
@@ -749,6 +750,93 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
         return 0;
     }
 
+    return 1;
+}
+
+static int install_overwrite_file_whole(const char *src, const char *dst, u64 *copied_files, u64 *copied_bytes,
+                                        install_progress *progress) {
+    char *data;
+    u64 size;
+    u64 dst_type;
+    u64 fd;
+    u64 off = 0ULL;
+    u64 wrote;
+
+    size = cleonos_sys_fs_stat_size(src);
+    if (size == (u64)-1) {
+        (void)printf("install2disk: stat failed: %s\n", src);
+        return 0;
+    }
+
+    dst_type = cleonos_sys_fs_stat_type(dst);
+    if (dst_type == 2ULL) {
+        (void)printf("install2disk: target is directory: %s\n", dst);
+        return 0;
+    }
+
+    if (size == 0ULL) {
+        wrote = cleonos_sys_fs_write(dst, "", 0ULL);
+        if (wrote != 0ULL || cleonos_sys_fs_stat_size(dst) != 0ULL) {
+            (void)printf("install2disk: overwrite failed: %s\n", dst);
+            return 0;
+        }
+
+        if (copied_files != (u64 *)0) {
+            *copied_files += 1ULL;
+        }
+        install_progress_finish_item(progress);
+        return 1;
+    }
+
+    data = (char *)malloc((size_t)size);
+    if (data == (char *)0) {
+        (void)printf("install2disk: overwrite buffer allocation failed: %s\n", src);
+        return 0;
+    }
+
+    fd = cleonos_sys_fd_open(src, CLEONOS_O_RDONLY, 0ULL);
+    if (fd == (u64)-1) {
+        free(data);
+        (void)printf("install2disk: open read failed: %s\n", src);
+        return 0;
+    }
+
+    while (off < size) {
+        u64 got = cleonos_sys_fd_read(fd, data + (size_t)off, size - off);
+        if (got == (u64)-1 || got == 0ULL) {
+            (void)cleonos_sys_fd_close(fd);
+            free(data);
+            (void)printf("install2disk: read failed: %s\n", src);
+            return 0;
+        }
+        off += got;
+    }
+    (void)cleonos_sys_fd_close(fd);
+
+    wrote = cleonos_sys_fs_write(dst, data, size);
+    free(data);
+    if (wrote != size) {
+        (void)printf("install2disk: overwrite failed: %s\n", dst);
+        (void)printf("install2disk: src=%s size=%llu wrote=%llu\n", src, (unsigned long long)size,
+                     (unsigned long long)wrote);
+        return 0;
+    }
+
+    if (cleonos_sys_fs_stat_size(dst) != size) {
+        (void)printf("install2disk: verify failed: %s\n", dst);
+        (void)printf("install2disk: expected=%llu actual=%llu\n", (unsigned long long)size,
+                     (unsigned long long)cleonos_sys_fs_stat_size(dst));
+        return 0;
+    }
+
+    if (copied_bytes != (u64 *)0) {
+        *copied_bytes += size;
+    }
+    if (copied_files != (u64 *)0) {
+        *copied_files += 1ULL;
+    }
+    install_progress_add_done_bytes(progress, size);
+    install_progress_finish_item(progress);
     return 1;
 }
 
@@ -1352,7 +1440,7 @@ static int install_verify_manifest(install_verify_result *result) {
 }
 
 static int install_verify_run(void) {
-    static const char *required_files[] = {"/boot/clks_kernel.elf",
+    static const char *required_files[] = {"/kernel.elf",
                                            "/boot/limine/limine-bios.sys",
                                            "/boot/limine-bios.sys",
                                            "/limine/limine-bios.sys",
@@ -1576,25 +1664,26 @@ static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, inst
         return 0;
     }
 
-    if (install_copy_file(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, copied_files, copied_bytes, progress) == 0) {
+    if (install_overwrite_file_whole(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, copied_files, copied_bytes,
+                                     progress) == 0) {
         return 0;
     }
 
-    if (install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
+    if (install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
                           copied_bytes, progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
                           progress) == 0) {
         return 0;
     }
@@ -1706,7 +1795,7 @@ static int install_repair_copy_path(const char *src_path, u64 *copied_files, u64
     install_progress_plan_file(&progress, src_path, 1ULL);
     install_progress_print(&progress, 1);
 
-    if (install_copy_file(src_path, dst_path, copied_files, copied_bytes, &progress) == 0) {
+    if (install_overwrite_file_whole(src_path, dst_path, copied_files, copied_bytes, &progress) == 0) {
         return 0;
     }
 
@@ -1729,13 +1818,13 @@ static int install_repair_limine_conf(u64 *copied_files, u64 *copied_bytes) {
         return 0;
     }
 
-    if (install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
+    if (install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
                           &progress) == 0) {
         return 0;
     }
@@ -1768,13 +1857,13 @@ static int install_repair_limine_sys(u64 *copied_files, u64 *copied_bytes) {
         return 0;
     }
 
-    if (install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
+    if (install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
                           copied_bytes, &progress) == 0 ||
-        install_copy_file(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files, copied_bytes,
+        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files, copied_bytes,
                           &progress) == 0) {
         return 0;
     }
@@ -1832,6 +1921,12 @@ static int install_repair_component(const char *kind, const char *name) {
         return 0;
     }
 
+    if (strcmp(kind, "kernel") == 0) {
+        (void)puts("install2disk: kernel update is not a repair target");
+        (void)puts("install2disk: use install2disk update-kernel");
+        return 0;
+    }
+
     install_stage("repair component");
 
     if (install_mount_existing_disk() == 0) {
@@ -1865,30 +1960,6 @@ static int install_repair_component(const char *kind, const char *name) {
         if (install_repair_limine_full(&copied_files, &copied_bytes) == 0) {
             return 0;
         }
-        return install_repair_manifest();
-    }
-
-    if (strcmp(kind, "kernel") == 0) {
-        install_progress progress;
-
-        memset(&progress, 0, sizeof(progress));
-        progress.label = "repair kernel";
-        install_progress_plan_file(&progress, INSTALL_KERNEL_SOURCE, 1ULL);
-        install_progress_print(&progress, 1);
-
-        if (install_mkdir(INSTALL_MOUNT_PATH "/boot") == 0) {
-            return 0;
-        }
-
-        if (install_copy_file(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, &copied_files, &copied_bytes,
-                              &progress) == 0) {
-            return 0;
-        }
-
-        progress.done_items = progress.total_items;
-        progress.done_bytes = progress.total_bytes;
-        install_progress_print(&progress, 1);
-        (void)puts("install2disk: kernel repaired");
         return install_repair_manifest();
     }
 
@@ -1967,14 +2038,13 @@ static int install_repair_interactive(void) {
     (void)puts("  [m] install manifest");
     (void)puts("  [c] Limine config files");
     (void)puts("  [s] Limine sys file");
-    (void)puts("  [k] kernel ELF");
     (void)puts("  [a] /shell app ELF");
     (void)puts("  [u] /shell/uwm app ELF");
     (void)puts("  [d] /driver ELF");
     (void)puts("  [y] /system ELF");
     (void)puts("  [p] absolute path");
-    choice = install_prompt_choice("install2disk: choose repair target [l/b/m/c/s/k/a/u/d/y/p, q cancel]: ",
-                                   "lbmcskaudypq", 'q');
+    choice = install_prompt_choice("install2disk: choose repair target [l/b/m/c/s/a/u/d/y/p, q cancel]: ",
+                                   "lbmcsaudypq", 'q');
 
     if (choice == 'q') {
         (void)puts("install2disk: cancelled");
@@ -1995,9 +2065,6 @@ static int install_repair_interactive(void) {
     }
     if (choice == 's') {
         return install_repair_component("limine-sys", (const char *)0);
-    }
-    if (choice == 'k') {
-        return install_repair_component("kernel", (const char *)0);
     }
 
     if (choice == 'p') {
@@ -2046,6 +2113,63 @@ static int install_running_from_disk_boot(void) {
     return (strcmp(mount_path, "/") == 0) ? 1 : 0;
 }
 
+static int install_update_kernel(void) {
+    u64 copied_files = 0ULL;
+    u64 copied_bytes = 0ULL;
+    install_progress progress;
+
+    install_stage("update kernel");
+
+    if (cleonos_sys_disk_present() == 0ULL) {
+        (void)puts("install2disk: disk not present");
+        return 0;
+    }
+
+    if (install_running_from_disk_boot() != 0) {
+        (void)puts("install2disk: refused: current system is booted from disk");
+        (void)puts("install2disk: boot the ISO installer before updating the disk kernel");
+        return 0;
+    }
+
+    if (install_mount_existing_disk() == 0) {
+        (void)puts("install2disk: mount existing disk failed");
+        return 0;
+    }
+
+    memset(&progress, 0, sizeof(progress));
+    progress.label = "update kernel";
+    install_progress_plan_file(&progress, INSTALL_KERNEL_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_LIMINE_CONF_SOURCE, 4ULL);
+    install_progress_print(&progress, 1);
+
+    if (install_overwrite_file_whole(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, &copied_files, &copied_bytes,
+                                     &progress) == 0) {
+        return 0;
+    }
+
+    if (install_prepare_limine_dirs() == 0 ||
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", &copied_files,
+                          &copied_bytes, &progress) == 0 ||
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", &copied_files,
+                          &copied_bytes, &progress) == 0 ||
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", &copied_files,
+                          &copied_bytes, &progress) == 0 ||
+        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", &copied_files, &copied_bytes,
+                          &progress) == 0) {
+        return 0;
+    }
+
+    progress.done_items = progress.total_items;
+    progress.done_bytes = progress.total_bytes;
+    install_progress_print(&progress, 1);
+
+    (void)printf("install2disk: kernel updated: %llu files, %llu bytes\n",
+                 (unsigned long long)copied_files, (unsigned long long)copied_bytes);
+    (void)puts("install2disk: install manifest not regenerated for kernel-only update");
+    (void)puts("install2disk: done. Reboot or use make run-hardboot.");
+    return 1;
+}
+
 static int install2disk_run(void) {
     u64 copied_files = 0ULL;
     u64 copied_bytes = 0ULL;
@@ -2069,11 +2193,16 @@ static int install2disk_run(void) {
         int choice;
 
         choice = install_prompt_choice(
-            "install2disk: choose [r]epair component, [f]ormat full install, [c]ancel (default: r): ", "rfc", 'r');
+            "install2disk: choose [u]pdate kernel, [r]epair component, [f]ormat full install, [c]ancel (default: u): ",
+            "urfc", 'u');
 
         if (choice == 'c') {
             (void)puts("install2disk: cancelled");
             return 0;
+        }
+
+        if (choice == 'u') {
+            return install_update_kernel();
         }
 
         if (choice == 'r') {
@@ -2142,6 +2271,12 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)envp;
 
     if (argc > 1 && argv != (char **)0 && argv[1] != (char *)0) {
+        if (strcmp(argv[1], "update-kernel") == 0 || strcmp(argv[1], "kernel") == 0 ||
+            (strcmp(argv[1], "update") == 0 && argc > 2 && argv[2] != (char *)0 &&
+             strcmp(argv[2], "kernel") == 0)) {
+            return (install_update_kernel() != 0) ? 0 : 1;
+        }
+
         if (strcmp(argv[1], "repair") == 0) {
             const char *kind = (argc > 2 && argv[2] != (char *)0) ? argv[2] : (const char *)0;
             const char *name = (argc > 3 && argv[3] != (char *)0) ? argv[3] : (const char *)0;
