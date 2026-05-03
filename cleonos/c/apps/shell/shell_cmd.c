@@ -129,6 +129,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  fastfetch [--plain]");
+    ush_writeln("  whoami / passwd [user] / logout");
+    ush_writeln("  users / useradd [-a|--admin] <name> / userdel <name> / usermod <admin|user> <name>");
     ush_writeln("  pkg install/list/remove/repo/info");
     ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");
     ush_writeln("  memstat / fsstat / taskstat / userstat / shstat / stats");
@@ -1464,7 +1466,7 @@ static int ush_cmd_cd(ush_state *sh, const char *arg) {
 static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     char target[USH_PATH_MAX];
     char argv_line[USH_ARG_MAX];
-    char env_line[USH_PATH_MAX + 32ULL];
+    char env_line[USH_PATH_MAX + USH_PATH_MAX + CLEONOS_USER_NAME_MAX + 64ULL];
     const char *rest = "";
     char path[USH_PATH_MAX];
     u64 status;
@@ -1497,6 +1499,13 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     env_line[0] = '\0';
     ush_copy(env_line, (u64)sizeof(env_line), "PWD=");
     ush_copy(env_line + 4, (u64)(sizeof(env_line) - 4ULL), sh->cwd);
+    (void)strcat(env_line, ";USER=");
+    (void)strncat(env_line, sh->username, sizeof(env_line) - strlen(env_line) - 1U);
+    (void)strcat(env_line, ";HOME=");
+    (void)strncat(env_line, sh->home, sizeof(env_line) - strlen(env_line) - 1U);
+    (void)strcat(env_line, ";ROLE=");
+    (void)strncat(env_line, (sh->user_role == CLEONOS_USER_ROLE_ADMIN) ? "admin" : "user",
+                  sizeof(env_line) - strlen(env_line) - 1U);
 
     status = cleonos_sys_exec_pathv(path, argv_line, env_line);
 
@@ -1531,7 +1540,7 @@ static int ush_cmd_pid(void) {
 static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     char target[USH_PATH_MAX];
     char argv_line[USH_ARG_MAX];
-    char env_line[USH_PATH_MAX + 32ULL];
+    char env_line[USH_PATH_MAX + USH_PATH_MAX + CLEONOS_USER_NAME_MAX + 64ULL];
     const char *rest = "";
     char path[USH_PATH_MAX];
     u64 pid;
@@ -1564,6 +1573,13 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     env_line[0] = '\0';
     ush_copy(env_line, (u64)sizeof(env_line), "PWD=");
     ush_copy(env_line + 4, (u64)(sizeof(env_line) - 4ULL), sh->cwd);
+    (void)strcat(env_line, ";USER=");
+    (void)strncat(env_line, sh->username, sizeof(env_line) - strlen(env_line) - 1U);
+    (void)strcat(env_line, ";HOME=");
+    (void)strncat(env_line, sh->home, sizeof(env_line) - strlen(env_line) - 1U);
+    (void)strcat(env_line, ";ROLE=");
+    (void)strncat(env_line, (sh->user_role == CLEONOS_USER_ROLE_ADMIN) ? "admin" : "user",
+                  sizeof(env_line) - strlen(env_line) - 1U);
 
     pid = cleonos_sys_spawn_pathv(path, argv_line, env_line);
 
@@ -2377,6 +2393,269 @@ static int ush_cmd_not_supported(const char *name, const char *why) {
     return 0;
 }
 
+static int ush_require_login(const ush_state *sh, const char *cmd) {
+    if (sh == (const ush_state *)0 || sh->disk_login_required == 0 || sh->logged_in != 0) {
+        return 1;
+    }
+
+    ush_write(cmd);
+    ush_writeln(": not logged in");
+    return 0;
+}
+
+static int ush_require_disk_accounts(const ush_state *sh, const char *cmd) {
+    if (sh == (const ush_state *)0 || sh->disk_login_required == 0) {
+        ush_write(cmd);
+        ush_writeln(": multi-user accounts are only enabled in disk boot mode");
+        return 0;
+    }
+
+    return ush_require_login(sh, cmd);
+}
+
+static int ush_require_admin(const ush_state *sh, const char *cmd) {
+    if (ush_require_disk_accounts(sh, cmd) == 0) {
+        return 0;
+    }
+
+    if (sh == (const ush_state *)0 || sh->user_role != CLEONOS_USER_ROLE_ADMIN) {
+        ush_write(cmd);
+        ush_writeln(": admin privileges required");
+        return 0;
+    }
+
+    return 1;
+}
+
+static int ush_cmd_whoami(const ush_state *sh) {
+    if (sh == (const ush_state *)0 || sh->username[0] == '\0') {
+        ush_writeln("user");
+        return 1;
+    }
+
+    ush_writeln(sh->username);
+    return 1;
+}
+
+static void ush_user_list_emit(const cleonos_user_record *record, void *ctx) {
+    (void)ctx;
+    if (record == (const cleonos_user_record *)0) {
+        return;
+    }
+
+    ush_write(record->name);
+    ush_write("  ");
+    ush_write((record->role == CLEONOS_USER_ROLE_ADMIN) ? "admin" : "user");
+    ush_write("  ");
+    ush_writeln(record->home);
+}
+
+static int ush_cmd_users(const ush_state *sh) {
+    if (ush_require_admin(sh, "users") == 0) {
+        return 0;
+    }
+
+    if (cleonos_user_list(ush_user_list_emit, (void *)0) <= 0) {
+        ush_writeln("users: no users or users.db unreadable");
+        return 0;
+    }
+
+    return 1;
+}
+
+static int ush_cmd_passwd(ush_state *sh, const char *arg) {
+    char target[CLEONOS_USER_NAME_MAX];
+    char old_password[96];
+    char new_password[96];
+    char confirm[96];
+
+    if (sh == (ush_state *)0 || ush_require_disk_accounts(sh, "passwd") == 0) {
+        return 0;
+    }
+
+    target[0] = '\0';
+    if (arg != (const char *)0 && arg[0] != '\0') {
+        if (sh->user_role != CLEONOS_USER_ROLE_ADMIN) {
+            ush_writeln("passwd: only admin can change another user's password");
+            return 0;
+        }
+
+        ush_copy(target, (u64)sizeof(target), arg);
+        ush_trim_line(target);
+    } else {
+        ush_copy(target, (u64)sizeof(target), sh->username);
+    }
+
+    if (cleonos_user_name_valid(target) == 0) {
+        ush_writeln("passwd: invalid username");
+        return 0;
+    }
+
+    old_password[0] = '\0';
+    if (sh->user_role != CLEONOS_USER_ROLE_ADMIN || ush_streq(target, sh->username) != 0) {
+        ush_read_secret_line("current password: ", old_password, (u64)sizeof(old_password));
+    }
+
+    ush_read_secret_line("new password: ", new_password, (u64)sizeof(new_password));
+    ush_read_secret_line("confirm new password: ", confirm, (u64)sizeof(confirm));
+
+    if (new_password[0] == '\0') {
+        ush_writeln("passwd: empty password rejected");
+        return 0;
+    }
+
+    if (ush_streq(new_password, confirm) == 0) {
+        ush_writeln("passwd: passwords do not match");
+        return 0;
+    }
+
+    if (cleonos_sys_user_passwd(target, old_password, new_password) == 0ULL) {
+        ush_writeln("passwd: failed");
+        return 0;
+    }
+
+    ush_writeln("passwd: password updated");
+    return 1;
+}
+
+static int ush_cmd_useradd(const ush_state *sh, const char *arg) {
+    char opt[CLEONOS_USER_NAME_MAX];
+    char name[CLEONOS_USER_NAME_MAX];
+    const char *rest = "";
+    u64 role = CLEONOS_USER_ROLE_USER;
+    char password[96];
+    char confirm[96];
+
+    if (ush_require_admin(sh, "useradd") == 0) {
+        return 0;
+    }
+
+    if (arg == (const char *)0 || arg[0] == '\0') {
+        ush_writeln("useradd: usage useradd [-a|--admin] <name>");
+        return 0;
+    }
+
+    if (ush_split_first_and_rest(arg, opt, (u64)sizeof(opt), &rest) == 0) {
+        ush_writeln("useradd: usage useradd [-a|--admin] <name>");
+        return 0;
+    }
+
+    if (ush_streq(opt, "-a") != 0 || ush_streq(opt, "--admin") != 0) {
+        role = CLEONOS_USER_ROLE_ADMIN;
+        if (ush_split_first_and_rest(rest, name, (u64)sizeof(name), &rest) == 0) {
+            ush_writeln("useradd: username required");
+            return 0;
+        }
+    } else {
+        ush_copy(name, (u64)sizeof(name), opt);
+    }
+
+    if (rest != (const char *)0 && rest[0] != '\0') {
+        ush_writeln("useradd: too many arguments");
+        return 0;
+    }
+
+    if (cleonos_user_name_valid(name) == 0) {
+        ush_writeln("useradd: invalid username");
+        return 0;
+    }
+
+    ush_read_secret_line("new user password: ", password, (u64)sizeof(password));
+    ush_read_secret_line("confirm password: ", confirm, (u64)sizeof(confirm));
+
+    if (password[0] == '\0') {
+        ush_writeln("useradd: empty password rejected");
+        return 0;
+    }
+
+    if (ush_streq(password, confirm) == 0) {
+        ush_writeln("useradd: passwords do not match");
+        return 0;
+    }
+
+    if (cleonos_user_create(name, password, role, 0) == 0) {
+        ush_writeln("useradd: failed");
+        return 0;
+    }
+
+    ush_writeln("useradd: user created");
+    return 1;
+}
+
+static int ush_cmd_userdel(const ush_state *sh, const char *arg) {
+    char name[CLEONOS_USER_NAME_MAX];
+
+    if (ush_require_admin(sh, "userdel") == 0) {
+        return 0;
+    }
+
+    if (arg == (const char *)0 || arg[0] == '\0') {
+        ush_writeln("userdel: usage userdel <name>");
+        return 0;
+    }
+
+    ush_copy(name, (u64)sizeof(name), arg);
+    ush_trim_line(name);
+
+    if (cleonos_user_remove(name) == 0) {
+        ush_writeln("userdel: failed");
+        return 0;
+    }
+
+    ush_writeln("userdel: user removed");
+    return 1;
+}
+
+static int ush_cmd_usermod(const ush_state *sh, const char *arg) {
+    char mode[32];
+    char name[CLEONOS_USER_NAME_MAX];
+    const char *rest = "";
+    u64 role;
+
+    if (ush_require_admin(sh, "usermod") == 0) {
+        return 0;
+    }
+
+    if (ush_split_first_and_rest(arg, mode, (u64)sizeof(mode), &rest) == 0 ||
+        ush_split_first_and_rest(rest, name, (u64)sizeof(name), &rest) == 0 || (rest != (const char *)0 && rest[0] != '\0')) {
+        ush_writeln("usermod: usage usermod <admin|user> <name>");
+        return 0;
+    }
+
+    if (ush_streq(mode, "admin") != 0) {
+        role = CLEONOS_USER_ROLE_ADMIN;
+    } else if (ush_streq(mode, "user") != 0) {
+        role = CLEONOS_USER_ROLE_USER;
+    } else {
+        ush_writeln("usermod: role must be admin or user");
+        return 0;
+    }
+
+    if (cleonos_user_set_role(name, role) == 0) {
+        ush_writeln("usermod: failed");
+        return 0;
+    }
+
+    ush_writeln("usermod: role updated");
+    return 1;
+}
+
+static int ush_cmd_logout(ush_state *sh) {
+    if (sh == (ush_state *)0) {
+        return 0;
+    }
+
+    if (sh->disk_login_required == 0) {
+        ush_writeln("logout: login is disabled in ISO temporary mode");
+        return 0;
+    }
+
+    (void)cleonos_user_session_clear();
+    sh->logged_in = 0;
+    ush_writeln("logout: logged out");
+    return ush_login_if_needed(sh);
+}
+
 static volatile int ush_builtin_fallback_enabled = 0;
 
 static int ush_builtin_fallback_is_enabled(void) {
@@ -2422,6 +2701,62 @@ static int ush_execute_single_command(ush_state *sh, const char *cmd, const char
      */
     if (ush_streq(cmd, "cd") != 0) {
         success = ush_cmd_cd(sh, arg);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "whoami") != 0) {
+        success = ush_cmd_whoami(sh);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "passwd") != 0) {
+        success = ush_cmd_passwd(sh, arg);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "logout") != 0) {
+        success = ush_cmd_logout(sh);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "users") != 0) {
+        success = ush_cmd_users(sh);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "useradd") != 0) {
+        success = ush_cmd_useradd(sh, arg);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "userdel") != 0) {
+        success = ush_cmd_userdel(sh, arg);
+        if (out_success != (int *)0) {
+            *out_success = success;
+        }
+        return 1;
+    }
+
+    if (ush_streq(cmd, "usermod") != 0) {
+        success = ush_cmd_usermod(sh, arg);
         if (out_success != (int *)0) {
             *out_success = success;
         }

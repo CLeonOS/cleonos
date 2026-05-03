@@ -1,4 +1,5 @@
 #include "cmd_runtime.h"
+#include "user/cleonos_user.h"
 #include <cleonos_version.h>
 static u64 ush_fastfetch_u64_to_dec(char *out, u64 out_size, u64 value) {
     char rev[32];
@@ -119,6 +120,7 @@ static int ush_cmd_fastfetch(const char *arg) {
     u64 disk_mounted;
     char kernel_version[32];
     char disk_mount[USH_PATH_MAX];
+    cleonos_user_record current_user;
     const char *boot_mode = "ISO temporary";
 
     if (arg != (const char *)0 && arg[0] != '\0') {
@@ -154,6 +156,13 @@ static int ush_cmd_fastfetch(const char *arg) {
     ush_fastfetch_print_text(plain, "OS", "CLeonOS x86_64");
     ush_fastfetch_print_text(plain, "Shell", "User Shell (/shell/shell.elf)");
     ush_fastfetch_print_text(plain, "BootMode", boot_mode);
+    if (cleonos_user_session_read(&current_user) != 0) {
+        ush_fastfetch_print_text(plain, "User", current_user.name);
+        ush_fastfetch_print_text(plain, "UserRole",
+                                 (current_user.role == CLEONOS_USER_ROLE_ADMIN) ? "admin" : "user");
+    } else {
+        ush_fastfetch_print_text(plain, "User", (disk_mounted != 0ULL) ? "not logged in" : "temporary");
+    }
     if (disk_mount[0] != '\0') {
         ush_fastfetch_print_text(plain, "DiskMount", disk_mount);
     } else {

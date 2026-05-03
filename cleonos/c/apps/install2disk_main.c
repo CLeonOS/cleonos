@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "user/cleonos_user.h"
+
 #define INSTALL_MOUNT_PATH "/temp/disk"
 #define INSTALL_SECTOR_SIZE 512ULL
 #define INSTALL_STAGE2_LBA 1ULL
@@ -14,6 +16,9 @@
 #define INSTALL_PROGRESS_STEP_PERCENT 5ULL
 #define INSTALL_KERNEL_SOURCE "/system/install/clks_kernel.elf"
 #define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/boot/clks_kernel.elf"
+#define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/users.db"
+#define INSTALL_HOME_TARGET INSTALL_MOUNT_PATH "/home"
+#define INSTALL_ROOT_HOME_TARGET INSTALL_MOUNT_PATH "/home/root"
 
 typedef struct install_progress {
     const char *label;
@@ -655,6 +660,86 @@ static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, inst
     return 1;
 }
 
+static void install_read_secret_line(const char *prompt, char *out, u64 out_size) {
+    u64 len = 0ULL;
+
+    if (out == (char *)0 || out_size == 0ULL) {
+        return;
+    }
+
+    out[0] = '\0';
+    if (prompt != (const char *)0) {
+        (void)printf("%s", prompt);
+    }
+
+    for (;;) {
+        int ch = getchar();
+
+        if (ch == EOF || ch == '\n') {
+            putchar('\n');
+            out[len] = '\0';
+            return;
+        }
+
+        if (ch == '\r') {
+            continue;
+        }
+
+        if (ch == '\b' || ch == 0x7F) {
+            if (len > 0ULL) {
+                len--;
+                out[len] = '\0';
+            }
+            continue;
+        }
+
+        if (len + 1ULL < out_size) {
+            out[len++] = (char)ch;
+        }
+    }
+}
+
+static int install_setup_root_account(void) {
+    char password[96];
+    char confirm[96];
+    char hash[CLEONOS_USER_HASH_HEX_LEN + 1U];
+    char record[CLEONOS_USER_RECORD_MAX];
+
+    install_stage("setup root account");
+
+    if (install_mkdir(INSTALL_HOME_TARGET) == 0 || install_mkdir(INSTALL_ROOT_HOME_TARGET) == 0) {
+        return 0;
+    }
+
+    for (;;) {
+        install_read_secret_line("install2disk: set root password: ", password, (u64)sizeof(password));
+        install_read_secret_line("install2disk: confirm root password: ", confirm, (u64)sizeof(confirm));
+
+        if (password[0] == '\0') {
+            (void)puts("install2disk: root password cannot be empty");
+            continue;
+        }
+
+        if (strcmp(password, confirm) != 0) {
+            (void)puts("install2disk: passwords do not match");
+            continue;
+        }
+
+        break;
+    }
+
+    cleonos_user_hash_password(password, hash);
+    (void)snprintf(record, (unsigned long)sizeof(record), "root:admin:%s:/home/root:0\n", hash);
+
+    if (cleonos_sys_fs_write(INSTALL_USER_DB_TARGET, record, (u64)strlen(record)) == 0ULL) {
+        (void)puts("install2disk: failed to create root account database");
+        return 0;
+    }
+
+    (void)puts("install2disk: root account created");
+    return 1;
+}
+
 static int install_update_kernel_only(void) {
     u64 copied_files = 0ULL;
     u64 copied_bytes = 0ULL;
@@ -670,6 +755,12 @@ static int install_update_kernel_only(void) {
     }
 
     (void)printf("install2disk: kernel updated: %llu bytes\n", (unsigned long long)copied_bytes);
+    if (install_file_exists(INSTALL_USER_DB_TARGET) == 0) {
+        (void)puts("install2disk: users.db missing, initializing root account");
+        if (install_setup_root_account() == 0) {
+            return 0;
+        }
+    }
     (void)puts("install2disk: done. Reboot or use make run-hardboot.");
     return 1;
 }
@@ -771,6 +862,10 @@ static int install2disk_run(void) {
 
     install_stage("install kernel and Limine files");
     if (install_prepare_boot_files(&copied_files, &copied_bytes, (install_progress *)0) == 0) {
+        return 0;
+    }
+
+    if (install_setup_root_account() == 0) {
         return 0;
     }
 

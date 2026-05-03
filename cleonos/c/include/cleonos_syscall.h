@@ -8,6 +8,10 @@ typedef unsigned long long usize;
 #define CLEONOS_PROC_PATH_MAX 192ULL
 #define CLEONOS_DRIVER_NAME_MAX 32ULL
 #define CLEONOS_DRIVER_PATH_MAX 192ULL
+#define CLEONOS_USER_NAME_MAX 32ULL
+#define CLEONOS_USER_HOME_MAX 96ULL
+#define CLEONOS_USER_ROLE_USER 0ULL
+#define CLEONOS_USER_ROLE_ADMIN 1ULL
 
 #define CLEONOS_PROC_STATE_UNUSED 0ULL
 #define CLEONOS_PROC_STATE_PENDING 1ULL
@@ -42,6 +46,8 @@ typedef struct cleonos_proc_snapshot {
     u64 last_fault_vector;
     u64 last_fault_error;
     u64 last_fault_rip;
+    u64 uid;
+    u64 role;
     char path[CLEONOS_PROC_PATH_MAX];
 } cleonos_proc_snapshot;
 
@@ -72,6 +78,33 @@ typedef struct cleonos_driver_info {
     u64 load_id;
     u64 owner_pid;
 } cleonos_driver_info;
+
+typedef struct cleonos_user_info {
+    u64 uid;
+    u64 role;
+    u64 logged_in;
+    u64 disk_login_required;
+    char name[CLEONOS_USER_NAME_MAX];
+    char home[CLEONOS_USER_HOME_MAX];
+} cleonos_user_info;
+
+typedef struct cleonos_user_login_req {
+    u64 name_ptr;
+    u64 password_ptr;
+    u64 out_info_ptr;
+} cleonos_user_login_req;
+
+typedef struct cleonos_user_add_req {
+    u64 name_ptr;
+    u64 password_ptr;
+    u64 role;
+} cleonos_user_add_req;
+
+typedef struct cleonos_user_passwd_req {
+    u64 name_ptr;
+    u64 old_password_ptr;
+    u64 new_password_ptr;
+} cleonos_user_passwd_req;
 
 #define CLEONOS_WM_EVENT_FOCUS_GAINED 1ULL
 #define CLEONOS_WM_EVENT_FOCUS_LOST 2ULL
@@ -307,6 +340,16 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_NET_TCP_LAST_ERROR 129ULL
 #define CLEONOS_SYSCALL_VM_ALLOC 130ULL
 #define CLEONOS_SYSCALL_VM_FREE 131ULL
+#define CLEONOS_SYSCALL_USER_CURRENT 132ULL
+#define CLEONOS_SYSCALL_USER_LOGIN 133ULL
+#define CLEONOS_SYSCALL_USER_LOGOUT 134ULL
+#define CLEONOS_SYSCALL_USER_COUNT 135ULL
+#define CLEONOS_SYSCALL_USER_AT 136ULL
+#define CLEONOS_SYSCALL_USER_ADD 137ULL
+#define CLEONOS_SYSCALL_USER_PASSWD 138ULL
+#define CLEONOS_SYSCALL_USER_SET_ROLE 139ULL
+#define CLEONOS_SYSCALL_USER_REMOVE 140ULL
+#define CLEONOS_SYSCALL_USER_IS_ADMIN 141ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -441,6 +484,16 @@ u64 cleonos_sys_pty_open(void);
 void *cleonos_sys_user_heap_alloc(u64 size);
 void *cleonos_sys_vm_alloc(u64 size, u64 flags);
 u64 cleonos_sys_vm_free(void *ptr, u64 size);
+u64 cleonos_sys_user_current(cleonos_user_info *out_info);
+u64 cleonos_sys_user_login(const char *name, const char *password, cleonos_user_info *out_info);
+u64 cleonos_sys_user_logout(void);
+u64 cleonos_sys_user_count(void);
+u64 cleonos_sys_user_at(u64 index, cleonos_user_info *out_info);
+u64 cleonos_sys_user_add(const char *name, const char *password, u64 role);
+u64 cleonos_sys_user_passwd(const char *name, const char *old_password, const char *new_password);
+u64 cleonos_sys_user_set_role(const char *name, u64 role);
+u64 cleonos_sys_user_remove(const char *name);
+u64 cleonos_sys_user_is_admin(void);
 u64 cleonos_sys_driver_count(void);
 u64 cleonos_sys_driver_info(u64 index, cleonos_driver_info *out_info, u64 out_size);
 u64 cleonos_sys_driver_load(const char *path);

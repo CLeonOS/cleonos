@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "user/cleonos_user.h"
+
 typedef long long i64;
 
 #define USH_CMD_MAX 32ULL
@@ -45,6 +47,11 @@ typedef struct ush_state {
     u64 rendered_len;
 
     char cwd[USH_PATH_MAX];
+    char username[CLEONOS_USER_NAME_MAX];
+    char home[USH_PATH_MAX];
+    u64 user_role;
+    int disk_login_required;
+    int logged_in;
 
     char history[USH_HISTORY_MAX][USH_LINE_MAX];
     u64 history_count;
@@ -95,8 +102,11 @@ int ush_output_capture_truncated(void);
 void ush_output_fd_begin(u64 fd, int mirror_to_tty);
 void ush_output_fd_end(void);
 void ush_prompt(const ush_state *sh);
+void ush_read_plain_line(const char *prompt, char *out_line, u64 out_size);
+void ush_read_secret_line(const char *prompt, char *out_line, u64 out_size);
 void ush_write_hex_u64(u64 value);
 void ush_print_kv_hex(const char *label, u64 value);
+int ush_login_if_needed(ush_state *sh);
 
 int ush_resolve_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);
 int ush_resolve_exec_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);

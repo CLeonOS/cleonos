@@ -269,14 +269,15 @@ static void ush_render_buf_append_text(char *out, u64 out_size, u64 *io_len, con
 }
 
 static void ush_render_buf_append_prompt(const ush_state *sh, char *out, u64 out_size, u64 *io_len) {
-    ush_render_buf_append_text(out, out_size, io_len, "\x1B[96mcleonos\x1B[0m(\x1B[92muser\x1B[0m");
+    ush_render_buf_append_text(out, out_size, io_len, "\x1B[96mcleonos\x1B[0m(\x1B[92m");
 
     if (sh == (const ush_state *)0) {
-        ush_render_buf_append_text(out, out_size, io_len, ")> ");
+        ush_render_buf_append_text(out, out_size, io_len, "user\x1B[0m)> ");
         return;
     }
 
-    ush_render_buf_append_text(out, out_size, io_len, ":\x1B[93m");
+    ush_render_buf_append_text(out, out_size, io_len, (sh->username[0] != '\0') ? sh->username : "user");
+    ush_render_buf_append_text(out, out_size, io_len, "\x1B[0m:\x1B[93m");
     ush_render_buf_append_text(out, out_size, io_len, sh->cwd);
     ush_render_buf_append_text(out, out_size, io_len, "\x1B[0m)> ");
 }
@@ -480,6 +481,86 @@ static char ush_read_char_blocking(void) {
         }
 
         __asm__ volatile("pause");
+    }
+}
+
+void ush_read_plain_line(const char *prompt, char *out_line, u64 out_size) {
+    u64 len = 0ULL;
+
+    if (out_line == (char *)0 || out_size == 0ULL) {
+        return;
+    }
+
+    out_line[0] = '\0';
+    if (prompt != (const char *)0) {
+        ush_write(prompt);
+    }
+
+    for (;;) {
+        char ch = ush_read_char_blocking();
+
+        if (ch == '\r') {
+            continue;
+        }
+
+        if (ch == '\n') {
+            ush_write_char('\n');
+            out_line[len] = '\0';
+            return;
+        }
+
+        if (ch == '\b' || ch == 0x7F || ch == USH_KEY_DELETE) {
+            if (len > 0ULL) {
+                len--;
+                out_line[len] = '\0';
+                ush_write("\b \b");
+            }
+            continue;
+        }
+
+        if (ush_is_printable(ch) != 0 && len + 1ULL < out_size) {
+            out_line[len++] = ch;
+            ush_write_char(ch);
+        }
+    }
+}
+
+void ush_read_secret_line(const char *prompt, char *out_line, u64 out_size) {
+    u64 len = 0ULL;
+
+    if (out_line == (char *)0 || out_size == 0ULL) {
+        return;
+    }
+
+    out_line[0] = '\0';
+    if (prompt != (const char *)0) {
+        ush_write(prompt);
+    }
+
+    for (;;) {
+        char ch = ush_read_char_blocking();
+
+        if (ch == '\r') {
+            continue;
+        }
+
+        if (ch == '\n') {
+            ush_write_char('\n');
+            out_line[len] = '\0';
+            return;
+        }
+
+        if (ch == '\b' || ch == 0x7F || ch == USH_KEY_DELETE) {
+            if (len > 0ULL) {
+                len--;
+                out_line[len] = '\0';
+            }
+            continue;
+        }
+
+        if (ush_is_printable(ch) != 0 && len + 1ULL < out_size) {
+            out_line[len++] = ch;
+        }
     }
 }
 

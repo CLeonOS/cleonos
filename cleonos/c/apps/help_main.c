@@ -19,6 +19,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  fastfetch [--plain]");
+    ush_writeln("  whoami / passwd [user] / logout");
+    ush_writeln("  users / useradd [-a|--admin] <name> / userdel <name> / usermod <admin|user> <name>");
     ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");
     ush_writeln("  memstat / fsstat / taskstat / userstat / shstat / stats");
     ush_writeln("  tty [index]");

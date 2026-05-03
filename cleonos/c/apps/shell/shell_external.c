@@ -141,7 +141,7 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
                                    u64 stderr_fd, int *out_success) {
     const char *canonical;
     char path[USH_PATH_MAX];
-    char env_line[USH_PATH_MAX + USH_CMD_MAX + 96ULL];
+    char env_line[(USH_PATH_MAX * 2ULL) + USH_CMD_MAX + CLEONOS_USER_NAME_MAX + 128ULL];
     u64 status;
     ush_cmd_ret ret;
 
@@ -179,6 +179,13 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
     ush_append_text(env_line, (u64)sizeof(env_line), sh->cwd);
     ush_append_text(env_line, (u64)sizeof(env_line), ";CMD=");
     ush_append_text(env_line, (u64)sizeof(env_line), canonical);
+    ush_append_text(env_line, (u64)sizeof(env_line), ";USER=");
+    ush_append_text(env_line, (u64)sizeof(env_line), sh->username);
+    ush_append_text(env_line, (u64)sizeof(env_line), ";HOME=");
+    ush_append_text(env_line, (u64)sizeof(env_line), sh->home);
+    ush_append_text(env_line, (u64)sizeof(env_line), ";ROLE=");
+    ush_append_text(env_line, (u64)sizeof(env_line),
+                    (sh->user_role == CLEONOS_USER_ROLE_ADMIN) ? "admin" : "user");
 
     if (stdin_fd != CLEONOS_FD_INHERIT) {
         ush_append_text(env_line, (u64)sizeof(env_line), ";USH_STDIN_MODE=PIPE");

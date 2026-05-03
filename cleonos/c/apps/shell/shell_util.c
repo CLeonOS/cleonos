@@ -8,6 +8,9 @@ void ush_init_state(ush_state *sh) {
     (void)memset(sh, 0, sizeof(*sh));
 
     ush_copy(sh->cwd, (u64)sizeof(sh->cwd), "/");
+    ush_copy(sh->username, (u64)sizeof(sh->username), "user");
+    ush_copy(sh->home, (u64)sizeof(sh->home), "/");
+    sh->user_role = CLEONOS_USER_ROLE_USER;
     sh->history_nav = -1;
 }
 
@@ -313,7 +316,9 @@ void ush_prompt(const ush_state *sh) {
         return;
     }
 
-    ush_write("\x1B[96mcleonos\x1B[0m(\x1B[92muser\x1B[0m:");
+    ush_write("\x1B[96mcleonos\x1B[0m(\x1B[92m");
+    ush_write((sh->username[0] != '\0') ? sh->username : "user");
+    ush_write("\x1B[0m:");
     ush_write("\x1B[93m");
     ush_write(sh->cwd);
     ush_write("\x1B[0m)> ");
