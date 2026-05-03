@@ -142,6 +142,77 @@
       ]
     },
     {
+      "key": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "title": "Kernel User System",
+      "title_zh": "内核用户系统",
+      "description": "Enable kernel-managed users, login state, account database and per-user home directories.",
+      "description_zh": "启用内核管理的用户、登录状态、账户数据库和用户主目录。",
+      "type": "bool",
+      "default": true,
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USER_DISK_LOGIN",
+      "title": "Require Login On Disk Boot",
+      "title_zh": "磁盘启动要求登录",
+      "description": "Require a user login when CLeonOS boots from an installed disk system.",
+      "description_zh": "当 CLeonOS 从已安装磁盘系统启动时要求用户登录。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USER_READ_POLICY",
+      "title": "User Read Access Policy",
+      "title_zh": "用户读取权限策略",
+      "description": "Block ordinary users from reading the account database and other users' home directories.",
+      "description_zh": "阻止普通用户读取账户数据库和其他用户的主目录。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USER_WRITE_POLICY",
+      "title": "User Write Access Policy",
+      "title_zh": "用户写入权限策略",
+      "description": "Restrict ordinary users to safe writable paths such as their home directory and /temp.",
+      "description_zh": "限制普通用户只能写入自己的主目录和 /temp 等安全路径。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USER_PRIVILEGE_POLICY",
+      "title": "User Privileged Operation Policy",
+      "title_zh": "用户特权操作策略",
+      "description": "Require an administrator account for disk, driver, shutdown and cross-process control operations.",
+      "description_zh": "磁盘、驱动、关机和跨进程控制操作需要管理员账户。",
+      "type": "bool",
+      "default": true,
+      "depends_on": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
+      "key": "CLEONOS_CLKS_ENABLE_USER_BOOT_LOG",
+      "title": "User System Boot Logs",
+      "title_zh": "用户系统启动日志",
+      "description": "Print user-system login mode and account database status during boot.",
+      "description_zh": "启动时打印用户系统登录模式和账户数据库状态。",
+      "type": "tristate",
+      "default": "y",
+      "depends_on": "CLEONOS_CLKS_ENABLE_USER_SYSTEM",
+      "group": "User System",
+      "group_zh": "用户系统"
+    },
+    {
       "key": "CLEONOS_CLKS_ENABLE_HEAP_SELFTEST",
       "title": "Heap Selftest",
       "title_zh": "堆自检",
