@@ -34,8 +34,8 @@ USER_GUMBO_CFLAGS = -I{root}/cleonos/third-party/litehtml/src/gumbo/include,-I{r
 USER_DOOM_CFLAGS = -I{root}/cleonos/third-party/doomgeneric/doomgeneric,-I{root}/cleonos/c/apps/doom,-include,{root}/cleonos/c/apps/doom/doom_shim.h,-DNORMALUNIX,-D_DEFAULT_SOURCE
 USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
 USER_LDFLAGS = -nostdlib,-z,max-page-size=0x1000,--gc-sections
-DISK_IMAGE_MB = 64
-DISK_IMAGE_BYTES = 67108864
+DISK_IMAGE_MB = 128
+DISK_IMAGE_BYTES = 134217728
 menuconfig_args =
 menuconfig_preset =
 
@@ -177,9 +177,9 @@ app.mousedrv.include_runtime = false
 cache = true
 
 [target.ramdisk-root]
-deps = userapps, kernel-symbols
+deps = userapps, kernel-symbols, setup-limine
 type = group
-steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" "{root}/build/x86_64/ramdisk_root/driver" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/apps/driver/"*.elf "{root}/build/x86_64/ramdisk_root/driver/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
+steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/system/install" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" "{root}/build/x86_64/ramdisk_root/driver" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/clks_kernel.elf" "{root}/build/x86_64/ramdisk_root/system/install/clks_kernel.elf" | cp "{root}/limine/bin/limine-bios-hdd.bin" "{root}/build/x86_64/ramdisk_root/system/install/limine-bios-hdd.bin" | cp "{root}/limine/bin/limine-bios.sys" "{root}/build/x86_64/ramdisk_root/system/install/limine-bios.sys" | cp "{root}/configs/limine-harddisk.conf" "{root}/build/x86_64/ramdisk_root/system/install/limine-harddisk.conf" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/apps/driver/"*.elf "{root}/build/x86_64/ramdisk_root/driver/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
 cache = false
 
 [target.ramdisk]
@@ -206,6 +206,12 @@ cache = false
 deps = iso, disk-image
 type = command
 command = {QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "{root}/build/CLeonOS-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+cache = false
+always = true
+
+[target.run-hardboot]
+type = command
+command = if [ ! -f "{root}/build/x86_64/cleonos_disk.img" ]; then echo "run-hardboot: missing build/x86_64/cleonos_disk.img; run make run and execute install2disk first"; exit 1; fi; {QEMU_X86_64} -M pc -m 1024M -boot order=c -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
 cache = false
 always = true
 

@@ -13,7 +13,7 @@ QEMU_X86_64 ?= qemu-system-x86_64
 OPT_LEVEL ?=
 MENUCONFIG_ARGS ?=
 MENUCONFIG_PRESET ?=
-DISK_IMAGE_MB ?= 64
+DISK_IMAGE_MB ?= 128
 BDT_BUILD_DIR ?= build/bdt
 BDT_NAME := bdt
 JOBS ?= 1
@@ -37,7 +37,7 @@ endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
-.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run debug clean-drive-image clean clean-all help list scan graph
+.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all help list scan graph
 
 all: iso
 
@@ -47,7 +47,7 @@ $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > @mkdir -p $(BDT_BUILD_DIR)
 > $(HOST_CC) -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
-configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
+configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
 
 list: bdt
@@ -65,6 +65,7 @@ help: bdt
 > @echo "bdt entrypoints:"
 > @echo "  make iso"
 > @echo "  make run"
+> @echo "  make run-hardboot"
 > @echo "  make menuconfig"
 > @echo "  make scan"
 > @echo "  make graph"

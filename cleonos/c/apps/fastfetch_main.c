@@ -116,7 +116,10 @@ static int ush_cmd_fastfetch(const char *arg) {
     u64 tty_count;
     u64 exec_req;
     u64 exec_ok;
+    u64 disk_mounted;
     char kernel_version[32];
+    char disk_mount[USH_PATH_MAX];
+    const char *boot_mode = "ISO temporary";
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_streq(arg, "--plain") != 0) {
@@ -134,6 +137,13 @@ static int ush_cmd_fastfetch(const char *arg) {
     tty_count = cleonos_sys_tty_count();
     exec_req = cleonos_sys_exec_request_count();
     exec_ok = cleonos_sys_exec_success_count();
+    disk_mounted = cleonos_sys_disk_mounted();
+    disk_mount[0] = '\0';
+    if (disk_mounted != 0ULL && cleonos_sys_disk_mount_path(disk_mount, (u64)sizeof(disk_mount)) != 0ULL) {
+        if (ush_streq(disk_mount, "/") != 0) {
+            boot_mode = "Disk boot";
+        }
+    }
     if (cleonos_sys_kernel_version(kernel_version, (u64)sizeof(kernel_version)) == 0ULL) {
         ush_copy(kernel_version, (u64)sizeof(kernel_version), "unknown");
     }
@@ -143,6 +153,12 @@ static int ush_cmd_fastfetch(const char *arg) {
 
     ush_fastfetch_print_text(plain, "OS", "CLeonOS x86_64");
     ush_fastfetch_print_text(plain, "Shell", "User Shell (/shell/shell.elf)");
+    ush_fastfetch_print_text(plain, "BootMode", boot_mode);
+    if (disk_mount[0] != '\0') {
+        ush_fastfetch_print_text(plain, "DiskMount", disk_mount);
+    } else {
+        ush_fastfetch_print_text(plain, "DiskMount", "none");
+    }
     ush_fastfetch_print_text(plain, "CLeonOSVersion", CLEONOS_VERSION_STRING);
     ush_fastfetch_print_text(plain, "CLKSVersion", kernel_version);
     ush_fastfetch_print_u64(plain, "PID", cleonos_sys_getpid());
