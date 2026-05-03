@@ -85,6 +85,8 @@ UserSafeController（USC）危险 syscall 确认：
 - USC 拦截到危险 syscall 时仍支持“仅本次 / 本会话 / 永久 / 拒绝”四种结果。
 - 如果内核窗口管理器已初始化且桌面 TTY 正在前台，确认请求会以置顶桌面弹窗显示；可点击按钮，也可按 `1/O`、`2/S`、`3/P`、`N/Esc/Enter` 选择。
 - 如果当前不在桌面环境、键盘被禁用，或弹窗创建失败，则回退到原 TTY/串口确认流程。
+- 当前默认高风险磁盘 syscall 包括 `DISK_FORMAT_FAT32`、`DISK_WRITE_SECTOR`、`DISK_FSCK_FAT32` 的 `FIX` 修复模式。
+- 用户管理类 syscall 还受内核用户系统权限限制：添加/删除用户、修改他人信息、角色变更通常需要管理员身份。
 
 `/proc` 虚拟目录（由 syscall 层动态导出）：
 
@@ -94,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~131）
+## 4. Syscall 列表（0~142）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -741,6 +743,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg1`: `const void *sector_data`（512 字节缓冲区）
 - 返回：成功 `1`，失败 `0`
 - 说明：按 LBA 写入单个扇区（512B）。该 syscall 在 USC 策略中默认视为高风险操作。
+- 相关：FAT32 文件系统检查/修复接口见 `CLEONOS_SYSCALL_DISK_FSCK_FAT32`（142）。
 
 ### 95 `CLEONOS_SYSCALL_NET_AVAILABLE`
 
@@ -1056,6 +1059,159 @@ typedef struct cleonos_wm_snapshot {
 - `size` 可传 `0`，也可传原始请求大小或页对齐后的映射大小。
 - 当前不支持释放映射中间的一段；需要释放整个 VM 区域。
 
+### 132 `CLEONOS_SYSCALL_USER_CURRENT`
+
+- 参数：
+- `arg0`: `cleonos_user_info *out_info`
+- 返回：成功 `1`，失败 `0`
+- 说明：读取当前进程的内核用户身份。磁盘登录未启用时默认返回 `root/admin` 且 `logged_in=1`。
+
+用户信息结构：
+
+```c
+typedef struct cleonos_user_info {
+    u64 uid;
+    u64 role;
+    u64 logged_in;
+    u64 disk_login_required;
+    char name[CLEONOS_USER_NAME_MAX];
+    char home[CLEONOS_USER_HOME_MAX];
+} cleonos_user_info;
+```
+
+角色值：
+
+- `CLEONOS_USER_ROLE_USER` = `0`
+- `CLEONOS_USER_ROLE_ADMIN` = `1`
+
+### 133 `CLEONOS_SYSCALL_USER_LOGIN`
+
+- 参数：
+- `arg0`: `cleonos_user_login_req *req`
+- 返回：登录成功 `1`，失败 `0`
+- 请求结构：
+
+```c
+typedef struct cleonos_user_login_req {
+    u64 name_ptr;      /* const char * */
+    u64 password_ptr;  /* const char * */
+    u64 out_info_ptr;  /* cleonos_user_info *, 可为 0 */
+} cleonos_user_login_req;
+```
+
+- 说明：验证 `/system/users.db` 中保存的 SHA-256 密码哈希，成功后把当前进程身份切换为目标用户。
+
+### 134 `CLEONOS_SYSCALL_USER_LOGOUT`
+
+- 参数：无
+- 返回：固定返回 `1`
+- 说明：磁盘登录启用时清除当前进程用户身份；磁盘登录未启用时会恢复为 `root/admin`。
+
+### 135 `CLEONOS_SYSCALL_USER_COUNT`
+
+- 参数：无
+- 返回：用户数量；非管理员或不可用时返回失败值。
+- 说明：需要管理员身份。用户数据来自 `/system/users.db`。
+
+### 136 `CLEONOS_SYSCALL_USER_AT`
+
+- 参数：
+- `arg0`: `u64 index`
+- `arg1`: `cleonos_user_info *out_info`
+- 返回：成功 `1`，失败 `0`
+- 说明：按索引读取用户信息，需要管理员身份。
+
+### 137 `CLEONOS_SYSCALL_USER_ADD`
+
+- 参数：
+- `arg0`: `cleonos_user_add_req *req`
+- 返回：成功 `1`，失败 `0`
+- 请求结构：
+
+```c
+typedef struct cleonos_user_add_req {
+    u64 name_ptr;      /* const char * */
+    u64 password_ptr;  /* const char * */
+    u64 role;          /* CLEONOS_USER_ROLE_* */
+} cleonos_user_add_req;
+```
+
+- 说明：创建用户，写入 `/system/users.db`，并创建 `/home/<name>`。需要管理员身份。
+
+### 138 `CLEONOS_SYSCALL_USER_PASSWD`
+
+- 参数：
+- `arg0`: `cleonos_user_passwd_req *req`
+- 返回：成功 `1`，失败 `0`
+- 请求结构：
+
+```c
+typedef struct cleonos_user_passwd_req {
+    u64 name_ptr;          /* const char * */
+    u64 old_password_ptr;  /* const char *, 管理员改他人密码时可为 0 */
+    u64 new_password_ptr;  /* const char * */
+} cleonos_user_passwd_req;
+```
+
+- 说明：
+- 普通用户只能修改自己的密码，且必须提供旧密码。
+- 管理员可以修改其他用户密码。
+- 新密码以 SHA-256 哈希形式保存到 `/system/users.db`。
+
+### 139 `CLEONOS_SYSCALL_USER_SET_ROLE`
+
+- 参数：
+- `arg0`: `const char *name`
+- `arg1`: `u64 role`
+- 返回：成功 `1`，失败 `0`
+- 说明：修改用户角色，需要管理员身份；不能修改 `root` 用户角色。
+
+### 140 `CLEONOS_SYSCALL_USER_REMOVE`
+
+- 参数：
+- `arg0`: `const char *name`
+- 返回：成功 `1`，失败 `0`
+- 说明：删除用户，需要管理员身份；不能删除 `root` 用户。
+
+### 141 `CLEONOS_SYSCALL_USER_IS_ADMIN`
+
+- 参数：无
+- 返回：当前进程是管理员返回 `1`，否则返回 `0`
+- 说明：磁盘登录未启用或用户系统关闭时，内核默认认为当前上下文有管理员权限。
+
+### 142 `CLEONOS_SYSCALL_DISK_FSCK_FAT32`
+
+- 参数：
+- `arg0`: `u64 flags`
+- `arg1`: `cleonos_disk_fsck_result *out_result`
+- 返回：成功 `1`，失败 `0`
+- flags：
+- `CLEONOS_DISK_FSCK_FLAG_FIX` = `0x1`，启用修复模式。
+- 结果结构：
+
+```c
+typedef struct cleonos_disk_fsck_result {
+    u64 status;           /* 0=clean, 1=issues-found */
+    u64 checked_clusters;
+    u64 free_clusters;
+    u64 used_clusters;
+    u64 bad_entries;
+    u64 loops;
+    u64 size_mismatches;
+    u64 orphan_clusters;
+    u64 fixed_entries;
+    u64 fixed_orphans;
+} cleonos_disk_fsck_result;
+```
+
+- 说明：
+- 检查当前 FAT32 磁盘的 FAT 链和目录树，包括坏 cluster 链、循环链、孤儿 cluster、文件大小和链长度不一致。
+- 不带 `FIX` 时只读检查，不修改磁盘。
+- 带 `FIX` 时会尝试截断坏链、循环链、过长链，释放孤儿 cluster，并修复 0 字节文件却占用 cluster 的目录项。
+- 链过短时只报告 `size_mismatches`，不会凭空补数据。
+- `FIX` 模式需要管理员权限，并会触发 USC 确认；该 syscall 在 USC 策略中默认视为高风险操作。
+- 用户态工具：`fsckfat32` 只检查，`fsckfat32 --fix` 检查并修复。
+
 用户态 mmap 兼容层：
 
 - 头文件：`#include <sys/mman.h>`
@@ -1114,7 +1270,7 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_kernel_version()`
 - `cleonos_sys_disk_present()` / `cleonos_sys_disk_size_bytes()` / `cleonos_sys_disk_sector_count()`
 - `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
-- `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()`
+- `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()` / `cleonos_sys_disk_fsck_fat32()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
@@ -1122,6 +1278,9 @@ typedef struct cleonos_wm_snapshot {
 - `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
 - `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()` / `cleonos_sys_wm_set_flags()` / `cleonos_sys_wm_resize()`
 - `cleonos_sys_pty_open()`
+- `cleonos_sys_user_current()` / `cleonos_sys_user_login()` / `cleonos_sys_user_logout()`
+- `cleonos_sys_user_count()` / `cleonos_sys_user_at()` / `cleonos_sys_user_add()`
+- `cleonos_sys_user_passwd()` / `cleonos_sys_user_set_role()` / `cleonos_sys_user_remove()` / `cleonos_sys_user_is_admin()`
 
 ## 6. 开发注意事项
 
@@ -1133,7 +1292,7 @@ typedef struct cleonos_wm_snapshot {
 ## 7. Wine 兼容说明
 
 - `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..125`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`DRIVER_*`）。
-- `126..131`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`、`VM_ALLOC`、`VM_FREE`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
+- `126..142`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`、`VM_ALLOC`、`VM_FREE`、`USER_*`、`DISK_FSCK_FAT32`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -1150,6 +1309,8 @@ typedef struct cleonos_wm_snapshot {
 - `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
 - `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理；挂载路径内的 `FS_MKDIR/WRITE/APPEND/REMOVE` 会走磁盘后端。
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
+- `DISK_FSCK_FAT32`（`142`）当前 Wine 尚未实现；Wine 下 `fsckfat32` 不能作为 FAT32 真实一致性检查依据。
+- `USER_*`（`132..141`）当前 Wine 尚未实现；Wine 下用户系统相关命令可能只能走应用层 fallback 或返回失败。
 - 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
 - `WM_*`（`108..115`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
