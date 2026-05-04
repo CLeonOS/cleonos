@@ -159,7 +159,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  rusttest / panic / elfloader (kernel shell only)");
     ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt");
     ush_writeln("redirection append:   cmd >> out.txt");
-    ush_writeln("edit keys: Left/Right, Home/End, Up/Down history");
+    ush_writeln("edit keys: Left/Right, Home/End, Up/Down history, Tab completion, Ctrl+R search");
     return 1;
 }
 

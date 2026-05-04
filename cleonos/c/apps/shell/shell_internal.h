@@ -34,6 +34,11 @@ typedef long long i64;
 #define USH_KEY_SHIFT_RIGHT ((char)0x14)
 #define USH_KEY_SHIFT_HOME ((char)0x15)
 #define USH_KEY_SHIFT_END ((char)0x16)
+#define USH_KEY_REVERSE_SEARCH ((char)0x17)
+
+#define USH_LINENOISE_COMPLETE_NONE 0
+#define USH_LINENOISE_COMPLETE_EDITED 1
+#define USH_LINENOISE_COMPLETE_LISTED 2
 
 #define USH_CMD_CTX_PATH "/temp/.ush_cmd_ctx.bin"
 #define USH_CMD_RET_PATH "/temp/.ush_cmd_ret.bin"
@@ -104,6 +109,12 @@ void ush_output_fd_end(void);
 void ush_prompt(const ush_state *sh);
 void ush_read_plain_line(const char *prompt, char *out_line, u64 out_size);
 void ush_read_secret_line(const char *prompt, char *out_line, u64 out_size);
+char ush_input_read_char_blocking(void);
+void ush_input_render_line(ush_state *sh);
+const char *ush_linenoise_hint(const ush_state *sh);
+u64 ush_linenoise_hint_visible_len(const char *hint);
+int ush_linenoise_complete(ush_state *sh);
+void ush_linenoise_reverse_search(ush_state *sh);
 void ush_write_hex_u64(u64 value);
 void ush_print_kv_hex(const char *label, u64 value);
 int ush_login_if_needed(ush_state *sh);

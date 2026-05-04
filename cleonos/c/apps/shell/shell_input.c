@@ -343,8 +343,10 @@ static void ush_render_emit(const char *buffer, u64 length) {
     }
 }
 
-static void ush_render_line(ush_state *sh) {
+void ush_input_render_line(ush_state *sh) {
     char render[USH_RENDER_BUF_MAX];
+    const char *hint;
+    u64 hint_visible_len;
     u64 out_len = 0ULL;
     u64 i;
 
@@ -355,8 +357,15 @@ static void ush_render_line(ush_state *sh) {
     ush_render_buf_append_char(render, (u64)sizeof(render), &out_len, '\r');
     ush_render_buf_append_prompt(sh, render, (u64)sizeof(render), &out_len);
     ush_render_buf_append_line_segment(sh, sh->line_len, render, (u64)sizeof(render), &out_len);
+    hint = ush_linenoise_hint(sh);
+    hint_visible_len = ush_linenoise_hint_visible_len(hint);
+    if (hint != (const char *)0 && hint[0] != '\0') {
+        ush_render_buf_append_text(render, (u64)sizeof(render), &out_len, "\x1B[90m");
+        ush_render_buf_append_text(render, (u64)sizeof(render), &out_len, hint);
+        ush_render_buf_append_text(render, (u64)sizeof(render), &out_len, "\x1B[0m");
+    }
 
-    for (i = sh->line_len; i < sh->rendered_len; i++) {
+    for (i = sh->line_len + hint_visible_len; i < sh->rendered_len; i++) {
         ush_render_buf_append_char(render, (u64)sizeof(render), &out_len, ' ');
     }
 
@@ -366,7 +375,7 @@ static void ush_render_line(ush_state *sh) {
 
     ush_render_emit(render, out_len);
 
-    sh->rendered_len = sh->line_len;
+    sh->rendered_len = sh->line_len + hint_visible_len;
 }
 
 static int ush_line_has_non_space(const char *line) {
@@ -438,7 +447,7 @@ static void ush_history_apply_current(ush_state *sh) {
         ush_input_selection_clear();
     }
 
-    ush_render_line(sh);
+    ush_input_render_line(sh);
 }
 
 static void ush_history_up(ush_state *sh) {
@@ -472,7 +481,7 @@ static void ush_history_down(ush_state *sh) {
     ush_history_apply_current(sh);
 }
 
-static char ush_read_char_blocking(void) {
+char ush_input_read_char_blocking(void) {
     char ch = '\0';
 
     for (;;) {
@@ -497,7 +506,7 @@ void ush_read_plain_line(const char *prompt, char *out_line, u64 out_size) {
     }
 
     for (;;) {
-        char ch = ush_read_char_blocking();
+        char ch = ush_input_read_char_blocking();
 
         if (ch == '\r') {
             continue;
@@ -538,7 +547,7 @@ void ush_read_secret_line(const char *prompt, char *out_line, u64 out_size) {
     }
 
     for (;;) {
-        char ch = ush_read_char_blocking();
+        char ch = ush_input_read_char_blocking();
 
         if (ch == '\r') {
             continue;
@@ -577,7 +586,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
     ush_prompt(sh);
 
     for (;;) {
-        char ch = ush_read_char_blocking();
+        char ch = ush_input_read_char_blocking();
 
         if (ch == '\r') {
             continue;
@@ -595,7 +604,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
         if (ch == USH_KEY_SELECT_ALL) {
             ush_input_selection_select_all(sh);
             sh->cursor = sh->line_len;
-            ush_render_line(sh);
+            ush_input_render_line(sh);
             continue;
         }
 
@@ -609,7 +618,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
                 ush_history_cancel_nav(sh);
                 (void)ush_input_delete_selection(sh);
                 ush_input_insert_text(sh, ush_input_clipboard, ush_input_clipboard_len);
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -625,7 +634,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             }
 
             ush_input_selection_update_from_anchor(sh);
-            ush_render_line(sh);
+            ush_input_render_line(sh);
             continue;
         }
 
@@ -640,7 +649,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             }
 
             ush_input_selection_update_from_anchor(sh);
-            ush_render_line(sh);
+            ush_input_render_line(sh);
             continue;
         }
 
@@ -652,7 +661,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
 
             sh->cursor = 0ULL;
             ush_input_selection_update_from_anchor(sh);
-            ush_render_line(sh);
+            ush_input_render_line(sh);
             continue;
         }
 
@@ -664,7 +673,12 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
 
             sh->cursor = sh->line_len;
             ush_input_selection_update_from_anchor(sh);
-            ush_render_line(sh);
+            ush_input_render_line(sh);
+            continue;
+        }
+
+        if (ch == USH_KEY_REVERSE_SEARCH) {
+            ush_linenoise_reverse_search(sh);
             continue;
         }
         if (ch == USH_KEY_UP) {
@@ -683,7 +697,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             ush_input_selection_clear();
             if (sh->cursor > 0ULL) {
                 sh->cursor--;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -692,7 +706,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             ush_input_selection_clear();
             if (sh->cursor < sh->line_len) {
                 sh->cursor++;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -701,7 +715,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             ush_input_selection_clear();
             if (sh->cursor != 0ULL) {
                 sh->cursor = 0ULL;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -710,7 +724,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             ush_input_selection_clear();
             if (sh->cursor != sh->line_len) {
                 sh->cursor = sh->line_len;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -718,7 +732,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
         if (ch == '\b' || ch == 127) {
             if (ush_input_delete_selection(sh) != 0) {
                 ush_history_cancel_nav(sh);
-                ush_render_line(sh);
+                ush_input_render_line(sh);
                 continue;
             }
 
@@ -734,7 +748,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
 
                 sh->line_len--;
                 sh->cursor--;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
@@ -742,7 +756,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
         if (ch == USH_KEY_DELETE) {
             if (ush_input_delete_selection(sh) != 0) {
                 ush_history_cancel_nav(sh);
-                ush_render_line(sh);
+                ush_input_render_line(sh);
                 continue;
             }
 
@@ -757,13 +771,17 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
                 }
 
                 sh->line_len--;
-                ush_render_line(sh);
+                ush_input_render_line(sh);
             }
             continue;
         }
 
         if (ch == '\t') {
-            ch = ' ';
+            int complete_rc = ush_linenoise_complete(sh);
+            if (complete_rc == USH_LINENOISE_COMPLETE_EDITED || complete_rc == USH_LINENOISE_COMPLETE_LISTED) {
+                ush_history_cancel_nav(sh);
+            }
+            continue;
         }
 
         if (ush_is_printable(ch) == 0) {
@@ -789,7 +807,7 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             }
 
             ush_input_insert_text(sh, &ch, 1ULL);
-            ush_render_line(sh);
+            ush_input_render_line(sh);
         }
     }
 }
