@@ -7,6 +7,12 @@
 #define USH_VIM_VIEW_ROWS 20ULL
 #define USH_VIM_VIEW_COLS 72ULL
 #define USH_VIM_UI_COLS (5ULL + USH_VIM_VIEW_COLS)
+#define USH_VIM_ROW_HEADER 1ULL
+#define USH_VIM_ROW_POS 2ULL
+#define USH_VIM_ROW_TOP_SEPARATOR 3ULL
+#define USH_VIM_ROW_TEXT_BASE 4ULL
+#define USH_VIM_ROW_BOTTOM_SEPARATOR (USH_VIM_ROW_TEXT_BASE + USH_VIM_VIEW_ROWS)
+#define USH_VIM_ROW_FOOTER (USH_VIM_ROW_BOTTOM_SEPARATOR + 1ULL)
 
 #define USH_VIM_MODE_NORMAL 0
 #define USH_VIM_MODE_INSERT 1
@@ -422,7 +428,7 @@ static int ush_vim_read_key(void) {
     return (int)code;
 }
 
-static void ush_vim_write_padded_line(const char *text) {
+static void ush_vim_write_padded_line_no_newline(const char *text) {
     u64 len = 0ULL;
     u64 i;
 
@@ -436,20 +442,24 @@ static void ush_vim_write_padded_line(const char *text) {
             ush_write_char(' ');
         }
     }
-
-    ush_write_char('\n');
 }
 
-static void ush_vim_write_separator(void) {
+static void ush_vim_write_separator_no_newline(void) {
     u64 i;
 
     for (i = 0ULL; i < USH_VIM_UI_COLS; i++) {
         ush_write_char('-');
     }
-    ush_write_char('\n');
 }
 
-static void ush_vim_render_line(const ush_vim_editor *ed, u64 line_index) {
+static void ush_vim_goto(u64 row, u64 col) {
+    char seq[48];
+
+    (void)snprintf(seq, sizeof(seq), "\x1B[%llu;%lluH", (unsigned long long)row, (unsigned long long)col);
+    ush_write(seq);
+}
+
+static void ush_vim_render_line_no_newline(const ush_vim_editor *ed, u64 line_index) {
     char buf[256];
     u64 col;
     const ush_vim_line *line;
@@ -464,7 +474,6 @@ static void ush_vim_render_line(const ush_vim_editor *ed, u64 line_index) {
         for (col = 1ULL; col < USH_VIM_UI_COLS; col++) {
             ush_write_char(' ');
         }
-        ush_write_char('\n');
         return;
     }
 
@@ -485,8 +494,6 @@ static void ush_vim_render_line(const ush_vim_editor *ed, u64 line_index) {
             ush_write_char(out_ch);
         }
     }
-
-    ush_write_char('\n');
 }
 
 static const char *ush_vim_mode_text(const ush_vim_editor *ed) {
@@ -514,7 +521,7 @@ static void ush_vim_place_terminal_cursor(const ush_vim_editor *ed) {
     }
 
     if (ed->mode == USH_VIM_MODE_COMMAND) {
-        row = 5ULL + USH_VIM_VIEW_ROWS;
+        row = USH_VIM_ROW_FOOTER;
         col = 2ULL + ed->command_len;
         if (col > USH_VIM_UI_COLS) {
             col = USH_VIM_UI_COLS;
@@ -533,7 +540,7 @@ static void ush_vim_place_terminal_cursor(const ush_vim_editor *ed) {
             visual_col = USH_VIM_VIEW_COLS - 1ULL;
         }
 
-        row = 4ULL + visual_row;
+        row = USH_VIM_ROW_TEXT_BASE + visual_row;
         col = 6ULL + visual_col;
     }
 
@@ -541,10 +548,8 @@ static void ush_vim_place_terminal_cursor(const ush_vim_editor *ed) {
     ush_write(seq);
 }
 
-static void ush_vim_render(const ush_vim_editor *ed) {
+static void ush_vim_render_header_at(const ush_vim_editor *ed) {
     char header[256];
-    char pos[128];
-    u64 row;
     const char *name;
 
     if (ed == (const ush_vim_editor *)0) {
@@ -553,30 +558,95 @@ static void ush_vim_render(const ush_vim_editor *ed) {
 
     name = (ed->file_path[0] != '\0') ? ed->file_path : "[No Name]";
 
-    ush_write("\x1B[H");
+    ush_vim_goto(USH_VIM_ROW_HEADER, 1ULL);
     (void)snprintf(header, sizeof(header), "vim clone | %s | %s%s", name, ush_vim_mode_text(ed),
                    (ed->modified != 0) ? " [+]" : "");
-    ush_vim_write_padded_line(header);
+    ush_vim_write_padded_line_no_newline(header);
+}
 
-    (void)snprintf(pos, sizeof(pos), "line %llu/%llu col %llu", (unsigned long long)(ed->cursor_line + 1ULL),
-                   (unsigned long long)ed->line_count, (unsigned long long)(ed->cursor_col + 1ULL));
-    ush_vim_write_padded_line(pos);
-    ush_vim_write_separator();
+static void ush_vim_render_pos_at(const ush_vim_editor *ed) {
+    char pos[128];
 
-    for (row = 0ULL; row < USH_VIM_VIEW_ROWS; row++) {
-        ush_vim_render_line(ed, ed->scroll_top + row);
+    if (ed == (const ush_vim_editor *)0) {
+        return;
     }
 
-    ush_vim_write_separator();
+    ush_vim_goto(USH_VIM_ROW_POS, 1ULL);
+    (void)snprintf(pos, sizeof(pos), "line %llu/%llu col %llu", (unsigned long long)(ed->cursor_line + 1ULL),
+                   (unsigned long long)ed->line_count, (unsigned long long)(ed->cursor_col + 1ULL));
+    ush_vim_write_padded_line_no_newline(pos);
+}
+
+static void ush_vim_render_visual_line_at(const ush_vim_editor *ed, u64 visual_row) {
+    if (ed == (const ush_vim_editor *)0 || visual_row >= USH_VIM_VIEW_ROWS) {
+        return;
+    }
+
+    ush_vim_goto(USH_VIM_ROW_TEXT_BASE + visual_row, 1ULL);
+    ush_vim_render_line_no_newline(ed, ed->scroll_top + visual_row);
+}
+
+static void ush_vim_render_footer_at(const ush_vim_editor *ed) {
+    if (ed == (const ush_vim_editor *)0) {
+        return;
+    }
+
+    ush_vim_goto(USH_VIM_ROW_FOOTER, 1ULL);
     if (ed->mode == USH_VIM_MODE_COMMAND) {
         char cmdline[USH_VIM_CMD_MAX + 2ULL];
 
         cmdline[0] = ':';
         cmdline[1] = '\0';
         ush_copy(cmdline + 1ULL, (u64)sizeof(cmdline) - 1ULL, ed->command);
-        ush_vim_write_padded_line(cmdline);
+        ush_vim_write_padded_line_no_newline(cmdline);
     } else {
-        ush_vim_write_padded_line(ed->status);
+        ush_vim_write_padded_line_no_newline(ed->status);
+    }
+}
+
+static void ush_vim_render(const ush_vim_editor *ed) {
+    u64 row;
+
+    if (ed == (const ush_vim_editor *)0) {
+        return;
+    }
+
+    ush_write("\x1B[?25l");
+    ush_vim_render_header_at(ed);
+    ush_vim_render_pos_at(ed);
+    ush_vim_goto(USH_VIM_ROW_TOP_SEPARATOR, 1ULL);
+    ush_vim_write_separator_no_newline();
+
+    for (row = 0ULL; row < USH_VIM_VIEW_ROWS; row++) {
+        ush_vim_render_visual_line_at(ed, row);
+    }
+
+    ush_vim_goto(USH_VIM_ROW_BOTTOM_SEPARATOR, 1ULL);
+    ush_vim_write_separator_no_newline();
+    ush_vim_render_footer_at(ed);
+
+    ush_vim_place_terminal_cursor(ed);
+}
+
+static void ush_vim_render_partial(const ush_vim_editor *ed, int header_dirty, int pos_dirty, int footer_dirty,
+                                   int line_dirty, u64 line_index) {
+    if (ed == (const ush_vim_editor *)0) {
+        return;
+    }
+
+    ush_write("\x1B[?25l");
+    if (header_dirty != 0) {
+        ush_vim_render_header_at(ed);
+    }
+    if (pos_dirty != 0) {
+        ush_vim_render_pos_at(ed);
+    }
+    if (line_dirty != 0 && line_index >= ed->scroll_top &&
+        line_index < ed->scroll_top + USH_VIM_VIEW_ROWS) {
+        ush_vim_render_visual_line_at(ed, line_index - ed->scroll_top);
+    }
+    if (footer_dirty != 0) {
+        ush_vim_render_footer_at(ed);
     }
 
     ush_vim_place_terminal_cursor(ed);
@@ -1088,6 +1158,28 @@ static int ush_cmd_vim(ush_state *sh, const char *arg) {
 
     for (;;) {
         int key;
+        u64 old_cursor_line;
+        u64 old_cursor_col;
+        u64 old_scroll_top;
+        u64 old_line_count;
+        int old_mode;
+        int old_modified;
+        char old_status[USH_VIM_STATUS_MAX];
+        u64 dirty_line;
+        int header_dirty;
+        int pos_dirty;
+        int footer_dirty;
+        int line_dirty;
+        int full_dirty;
+        int edit_key_dirty;
+
+        old_cursor_line = ed.cursor_line;
+        old_cursor_col = ed.cursor_col;
+        old_scroll_top = ed.scroll_top;
+        old_line_count = ed.line_count;
+        old_mode = ed.mode;
+        old_modified = ed.modified;
+        ush_copy(old_status, (u64)sizeof(old_status), ed.status);
 
         key = ush_vim_read_key();
         if (ed.mode == USH_VIM_MODE_INSERT) {
@@ -1104,7 +1196,47 @@ static int ush_cmd_vim(ush_state *sh, const char *arg) {
 
         ush_vim_keep_cursor_valid(&ed);
         ush_vim_ensure_cursor_visible(&ed);
-        ush_vim_render(&ed);
+
+        dirty_line = old_cursor_line;
+        if (ed.cursor_line < dirty_line) {
+            dirty_line = ed.cursor_line;
+        }
+        header_dirty = (old_mode != ed.mode || old_modified != ed.modified) ? 1 : 0;
+        pos_dirty = (old_cursor_line != ed.cursor_line || old_cursor_col != ed.cursor_col ||
+                     old_line_count != ed.line_count)
+                        ? 1
+                        : 0;
+        footer_dirty = (old_mode != ed.mode || old_status[0] != ed.status[0] ||
+                        strcmp(old_status, ed.status) != 0 || old_mode == USH_VIM_MODE_COMMAND ||
+                        ed.mode == USH_VIM_MODE_COMMAND)
+                           ? 1
+                           : 0;
+        edit_key_dirty = 0;
+        if (old_mode == USH_VIM_MODE_INSERT &&
+            (key == USH_VIM_KEY_BACKSPACE || key == USH_VIM_KEY_DEL || key == '\t' ||
+             (key >= 32 && key <= 126))) {
+            edit_key_dirty = 1;
+        }
+        if (old_mode == USH_VIM_MODE_NORMAL && (key == 'x')) {
+            edit_key_dirty = 1;
+        }
+        line_dirty = (old_cursor_line != ed.cursor_line || old_cursor_col != ed.cursor_col ||
+                      old_modified != ed.modified || edit_key_dirty != 0)
+                         ? 1
+                         : 0;
+        full_dirty = (old_scroll_top != ed.scroll_top || old_line_count != ed.line_count ||
+                      key == USH_VIM_KEY_ENTER || key == '\n')
+                         ? 1
+                         : 0;
+
+        if (full_dirty != 0) {
+            ush_vim_render(&ed);
+        } else {
+            ush_vim_render_partial(&ed, header_dirty, pos_dirty, footer_dirty, line_dirty, dirty_line);
+            if (line_dirty != 0 && old_cursor_line != ed.cursor_line) {
+                ush_vim_render_partial(&ed, 0, 0, 0, 1, ed.cursor_line);
+            }
+        }
     }
 
     ush_write("\x1B[0m\x1B[2J\x1B[H");
