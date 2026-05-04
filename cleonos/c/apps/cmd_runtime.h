@@ -83,6 +83,10 @@ void ush_write_char(char ch);
 void ush_writeln(const char *text);
 void ush_write_hex_u64(u64 value);
 void ush_print_kv_hex(const char *label, u64 value);
+int ush_locale_is_zh(void);
+void ush_write_i18n_label(const char *en, const char *zh);
+void ush_writeln_i18n(const char *en, const char *zh);
+void ush_print_kv_hex_i18n(const char *en, const char *zh, u64 value);
 
 int ush_resolve_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);
 int ush_resolve_exec_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);

@@ -432,6 +432,14 @@ u64 cleonos_sys_sysinfo(cleonos_sysinfo *out_info) {
     return cleonos_syscall(CLEONOS_SYSCALL_SYSINFO, (u64)out_info, (u64)sizeof(cleonos_sysinfo), 0ULL);
 }
 
+u64 cleonos_sys_locale_get(char *out_locale, u64 out_size) {
+    return cleonos_syscall(CLEONOS_SYSCALL_LOCALE_GET, (u64)(usize)out_locale, out_size, 0ULL);
+}
+
+u64 cleonos_sys_locale_set(const char *locale) {
+    return cleonos_syscall(CLEONOS_SYSCALL_LOCALE_SET, (u64)(usize)locale, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_net_available(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_AVAILABLE, 0ULL, 0ULL, 0ULL);
 }

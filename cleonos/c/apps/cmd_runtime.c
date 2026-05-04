@@ -3,6 +3,8 @@
 const char *ush_pipeline_stdin_text = (const char *)0;
 u64 ush_pipeline_stdin_len = 0ULL;
 static char ush_pipeline_stdin_buf[USH_COPY_MAX + 1U];
+static int ush_locale_cached = 0;
+static int ush_locale_cached_zh = 0;
 
 static int ush_cmd_runtime_has_prefix(const char *text, const char *prefix) {
     u64 i = 0ULL;
@@ -276,6 +278,53 @@ void ush_write_hex_u64(u64 value) {
 
 void ush_print_kv_hex(const char *label, u64 value) {
     ush_write(label);
+    ush_write(": ");
+    ush_write_hex_u64(value);
+    ush_write_char('\n');
+}
+
+int ush_locale_is_zh(void) {
+    char locale[CLEONOS_LOCALE_TEXT_MAX];
+
+    if (ush_locale_cached != 0) {
+        return ush_locale_cached_zh;
+    }
+
+    ush_locale_cached = 1;
+    ush_locale_cached_zh = 0;
+    ush_zero(locale, (u64)sizeof(locale));
+
+    if (cleonos_sys_locale_get(locale, (u64)sizeof(locale)) == 0ULL) {
+        return 0;
+    }
+
+    if (locale[0] == 'z' && locale[1] == 'h' &&
+        (locale[2] == '\0' || locale[2] == '_' || locale[2] == '-' || locale[2] == '.')) {
+        ush_locale_cached_zh = 1;
+    }
+
+    return ush_locale_cached_zh;
+}
+
+void ush_write_i18n_label(const char *en, const char *zh) {
+    if (ush_locale_is_zh() != 0 && zh != (const char *)0 && zh[0] != '\0') {
+        ush_write(zh);
+        ush_write(" (");
+        ush_write(en);
+        ush_write(")");
+        return;
+    }
+
+    ush_write(en);
+}
+
+void ush_writeln_i18n(const char *en, const char *zh) {
+    ush_write_i18n_label(en, zh);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_hex_i18n(const char *en, const char *zh, u64 value) {
+    ush_write_i18n_label(en, zh);
     ush_write(": ");
     ush_write_hex_u64(value);
     ush_write_char('\n');

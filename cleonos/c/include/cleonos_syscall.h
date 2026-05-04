@@ -14,6 +14,7 @@ typedef unsigned long long usize;
 #define CLEONOS_USER_ROLE_ADMIN 1ULL
 #define CLEONOS_SYSINFO_TEXT_MAX 32ULL
 #define CLEONOS_SYSINFO_BOOT_MODE_MAX 16ULL
+#define CLEONOS_LOCALE_TEXT_MAX 32ULL
 
 #define CLEONOS_PROC_STATE_UNUSED 0ULL
 #define CLEONOS_PROC_STATE_PENDING 1ULL
@@ -392,6 +393,8 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_USER_IS_ADMIN 141ULL
 #define CLEONOS_SYSCALL_DISK_FSCK_FAT32 142ULL
 #define CLEONOS_SYSCALL_SYSINFO 143ULL
+#define CLEONOS_SYSCALL_LOCALE_GET 144ULL
+#define CLEONOS_SYSCALL_LOCALE_SET 145ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -499,6 +502,8 @@ u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector);
 u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data);
 u64 cleonos_sys_disk_fsck_fat32(u64 flags, cleonos_disk_fsck_result *out_result);
 u64 cleonos_sys_sysinfo(cleonos_sysinfo *out_info);
+u64 cleonos_sys_locale_get(char *out_locale, u64 out_size);
+u64 cleonos_sys_locale_set(const char *locale);
 u64 cleonos_sys_net_available(void);
 u64 cleonos_sys_net_ipv4_addr(void);
 u64 cleonos_sys_net_netmask(void);

@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~143）
+## 4. Syscall 列表（0~145）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1252,6 +1252,27 @@ typedef struct cleonos_sysinfo {
 - `CLEONOS_SYSINFO_BOOT_MODE_MAX` = `16`
 - `boot_mode` 当前用于区分 ISO/ramdisk 临时启动、硬盘启动和 Wine 兼容运行模式。
 
+### 144 `CLEONOS_SYSCALL_LOCALE_GET`
+
+- 参数：
+- `arg0`: `char *out_locale`
+- `arg1`: `u64 out_size`
+- 返回：写入的 locale 字节数（不含 `\0`），失败返回 `0`
+- 说明：读取当前内核态系统语言设置，例如 `en_US.UTF-8`、`zh_CN.UTF-8`。
+- 输出最大长度与 `CLEONOS_LOCALE_TEXT_MAX` 对齐，当前为 `32` 字节。
+
+### 145 `CLEONOS_SYSCALL_LOCALE_SET`
+
+- 参数：
+- `arg0`: `const char *locale`
+- 返回：
+- `1`：内核态 locale 已更新，并成功写入 `/system/locale.conf`
+- `2`：内核态 locale 已更新，但写入 `/system/locale.conf` 失败
+- `0`：参数非法或权限不足
+- 说明：设置系统语言。locale 字符串只允许 ASCII 字母、数字、`_`、`-`、`.`，且长度必须小于 `CLEONOS_LOCALE_TEXT_MAX`。
+- 说明：该 syscall 属于系统配置修改，需要通过当前用户权限/USC 检查。
+- 用户态命令：`locale` / `locale get` / `locale set zh_CN.UTF-8`。
+
 用户态 mmap 兼容层：
 
 - 头文件：`#include <sys/mman.h>`
@@ -1312,6 +1333,8 @@ typedef struct cleonos_sysinfo {
 - `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
 - `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()` / `cleonos_sys_disk_fsck_fat32()`
 - `cleonos_sys_sysinfo()`
+- `cleonos_sys_locale_get()`
+- `cleonos_sys_locale_set()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
@@ -1333,7 +1356,7 @@ typedef struct cleonos_sysinfo {
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..143`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`USER_*`、`DRIVER_*`、`SYSINFO`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..145`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`USER_*`、`DRIVER_*`、`SYSINFO`、`LOCALE_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -1352,6 +1375,7 @@ typedef struct cleonos_sysinfo {
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
 - `DISK_FSCK_FAT32`（`142`）在 Wine 中为虚拟磁盘目录/原始扇区后端的健康检查兼容实现，会返回结构化结果；它不是物理 FAT32 链修复器，不能替代真实 CLKS 内核下的磁盘一致性检查。
 - `SYSINFO`（`143`）在 Wine 中返回 `kernel_name=CLeonKernelSystem`、`boot_mode=wine` 或 `wine-disk`、timer/heap/fs/tasks/services 等兼容统计。
+- `LOCALE_GET/LOCALE_SET`（`144..145`）在 Wine 中为共享内核状态实现；默认 `en_US.UTF-8`，不会持久写入 host rootfs。
 - `VM_ALLOC/VM_FREE`（`130..131`）在 Wine 中映射 Unicorn guest 内存，用于兼容用户态大块内存申请。
 - `USER_*`（`132..141`）在 Wine 中为轻量共享状态实现；默认存在 `root/root`，默认当前用户为 `root/admin`。
 - 网络 syscall（`95..106`）和 `NET_TCP_LAST_ERROR`（`129`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。

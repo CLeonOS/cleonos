@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_help(void) {
-    ush_writeln("commands:");
+    ush_writeln_i18n("commands:", "命令:");
     ush_writeln("  help");
     ush_writeln("  args [a b c]      (print argc/argv/envp)");
     ush_writeln("  ls [-l] [-R] [path]");
@@ -19,6 +19,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
     ush_writeln("  uname [-a|--sysinfo]");
+    ush_writeln("  locale [get|set <locale>]  (kernel system language)");
     ush_writeln("  fastfetch [--plain]");
     ush_writeln("  whoami / passwd [user] / logout");
     ush_writeln("  users / useradd [-a|--admin] <name> / userdel <name> / usermod <admin|user> <name>");
@@ -56,9 +57,11 @@ static int ush_cmd_help(void) {
     ush_writeln("  shutdown / restart");
     ush_writeln("  exit [code]");
     ush_writeln("  rusttest / panic / elfloader (kernel shell only)");
-    ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt");
-    ush_writeln("redirection append:   cmd >> out.txt");
-    ush_writeln("edit keys: Left/Right, Home/End, Up/Down history");
+    ush_writeln_i18n("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt",
+                     "管道/重定向: cmd1 | cmd2 | cmd3 > out.txt");
+    ush_writeln_i18n("redirection append:   cmd >> out.txt", "追加重定向:   cmd >> out.txt");
+    ush_writeln_i18n("edit keys: Left/Right, Home/End, Up/Down history",
+                     "编辑按键: Left/Right, Home/End, Up/Down 历史");
     return 1;
 }
 

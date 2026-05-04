@@ -19,14 +19,14 @@ static void uname_write_u64(u64 value) {
     }
 }
 
-static void uname_print_kv_text(const char *key, const char *value) {
-    ush_write(key);
+static void uname_print_kv_text_i18n(const char *key, const char *zh, const char *value) {
+    ush_write_i18n_label(key, zh);
     ush_write(": ");
     ush_writeln(value);
 }
 
-static void uname_print_kv_u64(const char *key, u64 value) {
-    ush_write(key);
+static void uname_print_kv_u64_i18n(const char *key, const char *zh, u64 value) {
+    ush_write_i18n_label(key, zh);
     ush_write(": ");
     uname_write_u64(value);
     ush_write_char('\n');
@@ -37,30 +37,30 @@ static int uname_show_sysinfo(void) {
 
     ush_zero(&info, (u64)sizeof(info));
     if (cleonos_sys_sysinfo(&info) == 0ULL) {
-        ush_writeln("uname: sysinfo syscall failed");
+        ush_writeln_i18n("uname: sysinfo syscall failed", "uname: sysinfo 系统调用失败");
         return 0;
     }
 
-    uname_print_kv_text("Kernel", info.kernel_name);
-    uname_print_kv_text("Version", info.kernel_version);
-    uname_print_kv_text("Arch", info.arch);
-    uname_print_kv_text("BuildDate", info.build_date);
-    uname_print_kv_text("BuildTime", info.build_time);
-    uname_print_kv_text("BootMode", info.boot_mode);
-    uname_print_kv_u64("UptimeMs", info.uptime_ms);
-    uname_print_kv_u64("TimerTicks", info.timer_ticks);
-    uname_print_kv_u64("TimerHz", info.timer_hz);
-    uname_print_kv_u64("ManagedPages", info.managed_pages);
-    uname_print_kv_u64("FreePages", info.free_pages);
-    uname_print_kv_u64("UsedPages", info.used_pages);
-    uname_print_kv_u64("DroppedPages", info.dropped_pages);
-    uname_print_kv_u64("HeapTotalBytes", info.heap_total_bytes);
-    uname_print_kv_u64("HeapUsedBytes", info.heap_used_bytes);
-    uname_print_kv_u64("HeapFreeBytes", info.heap_free_bytes);
-    uname_print_kv_u64("FSNodes", info.fs_nodes);
-    uname_print_kv_u64("Tasks", info.task_count);
-    uname_print_kv_u64("Services", info.service_count);
-    uname_print_kv_u64("ServicesReady", info.service_ready_count);
+    uname_print_kv_text_i18n("Kernel", "内核", info.kernel_name);
+    uname_print_kv_text_i18n("Version", "版本", info.kernel_version);
+    uname_print_kv_text_i18n("Arch", "架构", info.arch);
+    uname_print_kv_text_i18n("BuildDate", "构建日期", info.build_date);
+    uname_print_kv_text_i18n("BuildTime", "构建时间", info.build_time);
+    uname_print_kv_text_i18n("BootMode", "启动模式", info.boot_mode);
+    uname_print_kv_u64_i18n("UptimeMs", "运行时间毫秒", info.uptime_ms);
+    uname_print_kv_u64_i18n("TimerTicks", "计时器滴答", info.timer_ticks);
+    uname_print_kv_u64_i18n("TimerHz", "计时器频率", info.timer_hz);
+    uname_print_kv_u64_i18n("ManagedPages", "管理页数", info.managed_pages);
+    uname_print_kv_u64_i18n("FreePages", "空闲页数", info.free_pages);
+    uname_print_kv_u64_i18n("UsedPages", "已用页数", info.used_pages);
+    uname_print_kv_u64_i18n("DroppedPages", "丢弃页数", info.dropped_pages);
+    uname_print_kv_u64_i18n("HeapTotalBytes", "堆总字节", info.heap_total_bytes);
+    uname_print_kv_u64_i18n("HeapUsedBytes", "堆已用字节", info.heap_used_bytes);
+    uname_print_kv_u64_i18n("HeapFreeBytes", "堆空闲字节", info.heap_free_bytes);
+    uname_print_kv_u64_i18n("FSNodes", "文件系统节点", info.fs_nodes);
+    uname_print_kv_u64_i18n("Tasks", "任务数", info.task_count);
+    uname_print_kv_u64_i18n("Services", "服务数", info.service_count);
+    uname_print_kv_u64_i18n("ServicesReady", "就绪服务数", info.service_ready_count);
     return 1;
 }
 
@@ -69,7 +69,7 @@ static int uname_show_short(int all) {
 
     ush_zero(&info, (u64)sizeof(info));
     if (cleonos_sys_sysinfo(&info) == 0ULL) {
-        ush_writeln("uname: sysinfo syscall failed");
+        ush_writeln_i18n("uname: sysinfo syscall failed", "uname: sysinfo 系统调用失败");
         return 0;
     }
 
@@ -99,7 +99,7 @@ static int ush_cmd_uname(const char *arg) {
     }
 
     if (ush_split_first_and_rest(arg, first, (u64)sizeof(first), &rest) == 0 || rest[0] != '\0') {
-        ush_writeln("usage: uname [-a|--all|--sysinfo]");
+        ush_writeln_i18n("usage: uname [-a|--all|--sysinfo]", "用法: uname [-a|--all|--sysinfo]");
         return 0;
     }
 
@@ -111,7 +111,7 @@ static int ush_cmd_uname(const char *arg) {
         return uname_show_sysinfo();
     }
 
-    ush_writeln("usage: uname [-a|--all|--sysinfo]");
+    ush_writeln_i18n("usage: uname [-a|--all|--sysinfo]", "用法: uname [-a|--all|--sysinfo]");
     return 0;
 }
 
