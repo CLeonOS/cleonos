@@ -22,12 +22,17 @@
 #define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/users.db"
 #define INSTALL_MANIFEST_SOURCE "/system/install_manifest.db"
 #define INSTALL_MANIFEST_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.db"
+#define INSTALL_MANIFEST_NEW_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.new"
+#define INSTALL_MANIFEST_PREV_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.prev"
+#define INSTALL_UPDATE_STATE_TARGET INSTALL_MOUNT_PATH "/system/update_state.db"
+#define INSTALL_DRYRUN_MANIFEST "/temp/install2disk_manifest.new"
 #define INSTALL_HOME_TARGET INSTALL_MOUNT_PATH "/home"
 #define INSTALL_ROOT_HOME_TARGET INSTALL_MOUNT_PATH "/home/root"
 #define INSTALL_ARG_MAX 96U
 #define INSTALL_REPAIR_NAME_MAX 96U
 #define INSTALL_SHA256_HEX_LEN 64U
 #define INSTALL_MANIFEST_MAX_BYTES 32768ULL
+#define INSTALL_UPDATE_MAX_ENTRIES 512U
 
 typedef unsigned char install_u8;
 
@@ -54,6 +59,8 @@ typedef struct install_manifest_writer {
     u64 manifest_bytes;
 } install_manifest_writer;
 
+typedef int (*install_manifest_include_fn)(const char *logical_path);
+
 typedef struct install_verify_result {
     const char *root_path;
     u64 required_checked;
@@ -65,6 +72,24 @@ typedef struct install_verify_result {
     u64 corrupt;
     u64 boot_errors;
 } install_verify_result;
+
+typedef struct install_manifest_entry {
+    char path[USH_PATH_MAX];
+    u64 size;
+    char hash[INSTALL_SHA256_HEX_LEN + 1U];
+} install_manifest_entry;
+
+typedef struct install_update_result {
+    u64 added;
+    u64 updated;
+    u64 unchanged;
+    u64 deleted;
+    u64 copied_files;
+    u64 copied_bytes;
+} install_update_result;
+
+static install_manifest_entry install_update_old_entries[INSTALL_UPDATE_MAX_ENTRIES];
+static install_manifest_entry install_update_new_entries[INSTALL_UPDATE_MAX_ENTRIES];
 
 static void install_stage(const char *name) {
     (void)printf("install2disk: == %s ==\n", name);
@@ -406,6 +431,34 @@ static int install_mkdir(const char *path) {
     return 1;
 }
 
+static int install_mkdir_parents_for_file(const char *file_path) {
+    char path[USH_PATH_MAX];
+    u64 i;
+
+    if (file_path == (const char *)0 || file_path[0] != '/') {
+        return 0;
+    }
+
+    if (strlen(file_path) >= sizeof(path)) {
+        return 0;
+    }
+
+    (void)snprintf(path, (unsigned long)sizeof(path), "%s", file_path);
+    for (i = 1ULL; path[i] != '\0'; i++) {
+        if (path[i] != '/') {
+            continue;
+        }
+
+        path[i] = '\0';
+        if (path[0] != '\0' && install_mkdir(path) == 0) {
+            return 0;
+        }
+        path[i] = '/';
+    }
+
+    return 1;
+}
+
 static int install_prepare_limine_dirs(void) {
     if (install_mkdir(INSTALL_MOUNT_PATH "/boot") == 0 || install_mkdir(INSTALL_MOUNT_PATH "/boot/limine") == 0 ||
         install_mkdir(INSTALL_MOUNT_PATH "/limine") == 0) {
@@ -416,10 +469,15 @@ static int install_prepare_limine_dirs(void) {
 }
 
 static int install_mount_existing_disk(void);
+static int install_update_kernel(void);
 
 static void install_print_usage(void) {
     (void)puts("usage:");
     (void)puts("  install2disk");
+    (void)puts("  install2disk update");
+    (void)puts("  install2disk update-shell");
+    (void)puts("  install2disk update shell");
+    (void)puts("  install2disk update-shell --dry-run");
     (void)puts("  install2disk update-kernel");
     (void)puts("  install2disk update kernel");
     (void)puts("  install2disk verify");
@@ -990,7 +1048,17 @@ static int install_manifest_path_included(const char *logical_path) {
         return 0;
     }
 
-    if (strcmp(logical_path, INSTALL_MANIFEST_SOURCE) == 0) {
+    if (strcmp(logical_path, INSTALL_MANIFEST_SOURCE) == 0 ||
+        strcmp(logical_path, "/system/install_manifest.new") == 0 ||
+        strcmp(logical_path, "/system/install_manifest.prev") == 0 ||
+        strcmp(logical_path, "/system/update_state.db") == 0 || strcmp(logical_path, "/system/users.db") == 0 ||
+        strcmp(logical_path, "/kernel.elf") == 0) {
+        return 0;
+    }
+
+    if (install_path_is_under(logical_path, "/system/pkg") != 0 ||
+        install_path_is_under(logical_path, "/home") != 0 || install_path_is_under(logical_path, "/temp") != 0 ||
+        install_path_is_under(logical_path, "/dev") != 0 || install_path_is_under(logical_path, "/proc") != 0) {
         return 0;
     }
 
@@ -1001,6 +1069,23 @@ static int install_manifest_path_included(const char *logical_path) {
     }
 
     if (strcmp(logical_path, "/limine.conf") == 0 || strcmp(logical_path, "/limine-bios.sys") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static int install_update_shell_path_included(const char *logical_path) {
+    if (logical_path == (const char *)0 || logical_path[0] != '/') {
+        return 0;
+    }
+
+    if (install_manifest_path_included(logical_path) == 0) {
+        return 0;
+    }
+
+    if (install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/driver") != 0 ||
+        install_path_is_under(logical_path, "/system") != 0) {
         return 1;
     }
 
@@ -1053,14 +1138,16 @@ static int install_manifest_append_entry(const char *manifest_path, const char *
     return 1;
 }
 
-static int install_manifest_scan_tree(const char *real_path, const char *logical_path, install_manifest_writer *writer,
-                                      u64 depth, const char *manifest_path) {
+static int install_manifest_scan_tree_filtered(const char *real_path, const char *logical_path,
+                                               install_manifest_writer *writer, u64 depth,
+                                               const char *manifest_path,
+                                               install_manifest_include_fn include_fn) {
     u64 type;
     u64 count;
     u64 i;
 
     if (real_path == (const char *)0 || logical_path == (const char *)0 || writer == (install_manifest_writer *)0 ||
-        manifest_path == (const char *)0) {
+        manifest_path == (const char *)0 || include_fn == (install_manifest_include_fn)0) {
         return 0;
     }
 
@@ -1071,13 +1158,15 @@ static int install_manifest_scan_tree(const char *real_path, const char *logical
 
     if (strcmp(logical_path, "/proc") == 0 || install_path_is_under(logical_path, "/proc") != 0 ||
         strcmp(logical_path, "/dev") == 0 || install_path_is_under(logical_path, "/dev") != 0 ||
-        strcmp(logical_path, "/temp") == 0 || install_path_is_under(logical_path, "/temp") != 0) {
+        strcmp(logical_path, "/temp") == 0 || install_path_is_under(logical_path, "/temp") != 0 ||
+        strcmp(logical_path, "/home") == 0 || install_path_is_under(logical_path, "/home") != 0 ||
+        strcmp(logical_path, "/system/pkg") == 0 || install_path_is_under(logical_path, "/system/pkg") != 0) {
         return 1;
     }
 
     type = cleonos_sys_fs_stat_type(real_path);
     if (type == 1ULL) {
-        if (install_manifest_path_included(logical_path) == 0) {
+        if (include_fn(logical_path) == 0) {
             return 1;
         }
         return install_manifest_append_entry(manifest_path, real_path, logical_path, writer);
@@ -1112,7 +1201,8 @@ static int install_manifest_scan_tree(const char *real_path, const char *logical
             return 0;
         }
 
-        if (install_manifest_scan_tree(child_real, child_logical, writer, depth + 1ULL, manifest_path) == 0) {
+        if (install_manifest_scan_tree_filtered(child_real, child_logical, writer, depth + 1ULL, manifest_path,
+                                                include_fn) == 0) {
             return 0;
         }
     }
@@ -1120,22 +1210,22 @@ static int install_manifest_scan_tree(const char *real_path, const char *logical
     return 1;
 }
 
-static int install_generate_manifest(const char *root_path) {
-    char manifest_path[USH_PATH_MAX];
+static int install_generate_manifest_to(const char *root_path, const char *manifest_path,
+                                        install_manifest_include_fn include_fn) {
     char system_path[USH_PATH_MAX];
     install_manifest_writer writer;
 
-    if (root_path == (const char *)0 || root_path[0] != '/') {
+    if (root_path == (const char *)0 || root_path[0] != '/' || manifest_path == (const char *)0 ||
+        manifest_path[0] != '/' || include_fn == (install_manifest_include_fn)0) {
         return 0;
     }
 
-    if (install_root_join(manifest_path, (u64)sizeof(manifest_path), root_path, INSTALL_MANIFEST_SOURCE) == 0 ||
-        install_root_join(system_path, (u64)sizeof(system_path), root_path, "/system") == 0) {
+    if (install_root_join(system_path, (u64)sizeof(system_path), root_path, "/system") == 0) {
         (void)puts("install2disk: manifest path too long");
         return 0;
     }
 
-    if (install_mkdir(system_path) == 0) {
+    if (strcmp(root_path, "/") != 0 && install_mkdir(system_path) == 0) {
         return 0;
     }
 
@@ -1150,7 +1240,7 @@ static int install_generate_manifest(const char *root_path) {
     }
 
     memset(&writer, 0, sizeof(writer));
-    if (install_manifest_scan_tree(root_path, "/", &writer, 0ULL, manifest_path) == 0) {
+    if (install_manifest_scan_tree_filtered(root_path, "/", &writer, 0ULL, manifest_path, include_fn) == 0) {
         return 0;
     }
 
@@ -1163,6 +1253,17 @@ static int install_generate_manifest(const char *root_path) {
                  (unsigned long long)writer.files, (unsigned long long)writer.file_bytes,
                  (unsigned long long)writer.manifest_bytes);
     return 1;
+}
+
+static int install_generate_manifest(const char *root_path) {
+    char manifest_path[USH_PATH_MAX];
+
+    if (install_root_join(manifest_path, (u64)sizeof(manifest_path), root_path, INSTALL_MANIFEST_SOURCE) == 0) {
+        (void)puts("install2disk: manifest path too long");
+        return 0;
+    }
+
+    return install_generate_manifest_to(root_path, manifest_path, install_manifest_path_included);
 }
 
 static int install_manifest_sha_hex_valid(const char *hash) {
@@ -1183,6 +1284,152 @@ static int install_manifest_sha_hex_valid(const char *hash) {
     }
 
     return 1;
+}
+
+static int install_manifest_parse_line(char *line, install_manifest_entry *entry) {
+    char *size_field;
+    char *hash_field;
+    char *end_ptr;
+    u64 size_value;
+
+    if (line == (char *)0 || entry == (install_manifest_entry *)0 || line[0] == '\0') {
+        return 0;
+    }
+
+    size_field = strchr(line, '|');
+    if (size_field == (char *)0) {
+        return 0;
+    }
+    *size_field = '\0';
+    size_field++;
+
+    hash_field = strchr(size_field, '|');
+    if (hash_field == (char *)0) {
+        return 0;
+    }
+    *hash_field = '\0';
+    hash_field++;
+
+    if (line[0] != '/' || strlen(line) >= sizeof(entry->path) || install_manifest_sha_hex_valid(hash_field) == 0) {
+        return 0;
+    }
+
+    end_ptr = (char *)0;
+    size_value = (u64)strtoull(size_field, &end_ptr, 10);
+    if (end_ptr == size_field || end_ptr == (char *)0 || *end_ptr != '\0') {
+        return 0;
+    }
+
+    (void)snprintf(entry->path, (unsigned long)sizeof(entry->path), "%s", line);
+    entry->size = size_value;
+    (void)snprintf(entry->hash, (unsigned long)sizeof(entry->hash), "%s", hash_field);
+    return 1;
+}
+
+static u64 install_manifest_load(const char *manifest_path, install_manifest_entry *entries, u64 max_entries,
+                                 int missing_ok) {
+    char *buffer;
+    u64 size;
+    u64 fd;
+    u64 off = 0ULL;
+    u64 line_start = 0ULL;
+    u64 count = 0ULL;
+    u64 i;
+
+    if (manifest_path == (const char *)0 || entries == (install_manifest_entry *)0 || max_entries == 0ULL) {
+        return (u64)-1;
+    }
+
+    size = cleonos_sys_fs_stat_size(manifest_path);
+    if (size == (u64)-1) {
+        if (missing_ok != 0) {
+            return 0ULL;
+        }
+        (void)printf("install2disk: manifest missing: %s\n", manifest_path);
+        return (u64)-1;
+    }
+
+    if (size > INSTALL_MANIFEST_MAX_BYTES) {
+        (void)printf("install2disk: manifest too large: %s\n", manifest_path);
+        return (u64)-1;
+    }
+
+    buffer = (char *)malloc((size_t)size + 1U);
+    if (buffer == (char *)0) {
+        (void)puts("install2disk: manifest buffer allocation failed");
+        return (u64)-1;
+    }
+
+    fd = cleonos_sys_fd_open(manifest_path, CLEONOS_O_RDONLY, 0ULL);
+    if (fd == (u64)-1) {
+        free(buffer);
+        (void)printf("install2disk: manifest open failed: %s\n", manifest_path);
+        return (u64)-1;
+    }
+
+    while (off < size) {
+        u64 got = cleonos_sys_fd_read(fd, buffer + (size_t)off, size - off);
+        if (got == (u64)-1 || got == 0ULL) {
+            (void)cleonos_sys_fd_close(fd);
+            free(buffer);
+            (void)printf("install2disk: manifest read failed: %s\n", manifest_path);
+            return (u64)-1;
+        }
+        off += got;
+    }
+    (void)cleonos_sys_fd_close(fd);
+    buffer[size] = '\0';
+
+    for (i = 0ULL; i <= size; i++) {
+        if (buffer[i] == '\n' || buffer[i] == '\0') {
+            char *line = buffer + (size_t)line_start;
+            buffer[i] = '\0';
+            if (i > line_start && buffer[i - 1ULL] == '\r') {
+                buffer[i - 1ULL] = '\0';
+            }
+            if (line[0] != '\0') {
+                if (count >= max_entries) {
+                    free(buffer);
+                    (void)puts("install2disk: manifest entry limit exceeded");
+                    return (u64)-1;
+                }
+                if (install_manifest_parse_line(line, entries + count) == 0) {
+                    free(buffer);
+                    (void)printf("install2disk: invalid manifest entry: %s\n", line);
+                    return (u64)-1;
+                }
+                count++;
+            }
+            line_start = i + 1ULL;
+        }
+    }
+
+    free(buffer);
+    return count;
+}
+
+static install_manifest_entry *install_manifest_find(install_manifest_entry *entries, u64 count, const char *path) {
+    u64 i;
+
+    if (entries == (install_manifest_entry *)0 || path == (const char *)0) {
+        return (install_manifest_entry *)0;
+    }
+
+    for (i = 0ULL; i < count; i++) {
+        if (strcmp(entries[i].path, path) == 0) {
+            return entries + i;
+        }
+    }
+
+    return (install_manifest_entry *)0;
+}
+
+static int install_manifest_entry_same(const install_manifest_entry *a, const install_manifest_entry *b) {
+    if (a == (const install_manifest_entry *)0 || b == (const install_manifest_entry *)0) {
+        return 0;
+    }
+
+    return (a->size == b->size && strcmp(a->hash, b->hash) == 0) ? 1 : 0;
 }
 
 static int install_verify_file_required(install_verify_result *result, const char *logical_path) {
@@ -2113,6 +2360,378 @@ static int install_running_from_disk_boot(void) {
     return (strcmp(mount_path, "/") == 0) ? 1 : 0;
 }
 
+static int install_update_shell_target_matches(const install_manifest_entry *entry) {
+    char target_path[USH_PATH_MAX];
+    char actual_hash[INSTALL_SHA256_HEX_LEN + 1U];
+    u64 actual_size;
+
+    if (entry == (const install_manifest_entry *)0) {
+        return 0;
+    }
+
+    if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, entry->path) == 0) {
+        return 0;
+    }
+
+    if (cleonos_sys_fs_stat_type(target_path) != 1ULL) {
+        return 0;
+    }
+
+    actual_size = cleonos_sys_fs_stat_size(target_path);
+    if (actual_size != entry->size) {
+        return 0;
+    }
+
+    if (install_sha256_file_hex(target_path, actual_hash) == 0) {
+        return 0;
+    }
+
+    return (strcmp(actual_hash, entry->hash) == 0) ? 1 : 0;
+}
+
+static int install_update_shell_plan_copy(const install_manifest_entry *entry,
+                                          const install_manifest_entry *old_entry) {
+    if (entry == (const install_manifest_entry *)0) {
+        return 0;
+    }
+
+    if (old_entry == (const install_manifest_entry *)0) {
+        return 1;
+    }
+
+    if (install_manifest_entry_same(entry, old_entry) == 0) {
+        return 1;
+    }
+
+    return (install_update_shell_target_matches(entry) == 0) ? 1 : 0;
+}
+
+static int install_update_shell_copy_entry(const install_manifest_entry *entry, u64 *copied_files,
+                                           u64 *copied_bytes, install_progress *progress) {
+    char source_path[USH_PATH_MAX];
+    char target_path[USH_PATH_MAX];
+
+    if (entry == (const install_manifest_entry *)0) {
+        return 0;
+    }
+
+    if (install_root_join(source_path, (u64)sizeof(source_path), "/", entry->path) == 0 ||
+        install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, entry->path) == 0) {
+        (void)printf("install2disk: update path too long: %s\n", entry->path);
+        return 0;
+    }
+
+    if (install_mkdir_parents_for_file(target_path) == 0) {
+        (void)printf("install2disk: update mkdir parents failed: %s\n", target_path);
+        return 0;
+    }
+
+    if (install_copy_file(source_path, target_path, copied_files, copied_bytes, progress) == 0) {
+        return 0;
+    }
+
+    if (install_update_shell_target_matches(entry) == 0) {
+        (void)printf("install2disk: update verify failed: %s\n", entry->path);
+        return 0;
+    }
+
+    return 1;
+}
+
+static int install_update_shell_delete_obsolete(install_manifest_entry *old_entries, u64 old_count,
+                                                install_manifest_entry *new_entries, u64 new_count, int dry_run,
+                                                install_update_result *result) {
+    u64 i;
+
+    if (old_entries == (install_manifest_entry *)0 || new_entries == (install_manifest_entry *)0 ||
+        result == (install_update_result *)0) {
+        return 0;
+    }
+
+    for (i = 0ULL; i < old_count; i++) {
+        char target_path[USH_PATH_MAX];
+        u64 type;
+
+        if (install_update_shell_path_included(old_entries[i].path) == 0) {
+            continue;
+        }
+
+        if (install_manifest_find(new_entries, new_count, old_entries[i].path) != (install_manifest_entry *)0) {
+            continue;
+        }
+
+        if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, old_entries[i].path) == 0) {
+            (void)printf("install2disk: obsolete path too long: %s\n", old_entries[i].path);
+            return 0;
+        }
+
+        type = cleonos_sys_fs_stat_type(target_path);
+        if (type == (u64)-1) {
+            continue;
+        }
+
+        if (type != 1ULL) {
+            (void)printf("install2disk: obsolete path is not a file, skipped: %s\n", old_entries[i].path);
+            continue;
+        }
+
+        if (dry_run == 0 && cleonos_sys_fs_remove(target_path) == 0ULL) {
+            (void)printf("install2disk: remove obsolete file failed: %s\n", target_path);
+            return 0;
+        }
+
+        result->deleted++;
+        (void)printf("install2disk: obsolete %s%s\n", dry_run != 0 ? "would remove: " : "removed: ",
+                     old_entries[i].path);
+    }
+
+    return 1;
+}
+
+static int install_update_shell_write_state_files(void) {
+    static const char state_text[] = "shell-update\n";
+    u64 copied_files = 0ULL;
+    u64 copied_bytes = 0ULL;
+
+    if (install_mkdir(INSTALL_MOUNT_PATH "/system") == 0) {
+        return 0;
+    }
+
+    if (cleonos_sys_fs_write(INSTALL_UPDATE_STATE_TARGET, state_text, (u64)strlen(state_text)) !=
+        (u64)strlen(state_text)) {
+        (void)puts("install2disk: write update state failed");
+        return 0;
+    }
+
+    if (cleonos_sys_fs_stat_type(INSTALL_MANIFEST_TARGET) == 1ULL &&
+        install_copy_file(INSTALL_MANIFEST_TARGET, INSTALL_MANIFEST_PREV_TARGET, &copied_files, &copied_bytes,
+                          (install_progress *)0) == 0) {
+        return 0;
+    }
+
+    if (install_copy_file(INSTALL_DRYRUN_MANIFEST, INSTALL_MANIFEST_NEW_TARGET, &copied_files, &copied_bytes,
+                          (install_progress *)0) == 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int install_update_shell_refresh_manifest(install_manifest_entry *old_entries, u64 old_count,
+                                                 install_manifest_entry *new_entries, u64 new_count) {
+    install_manifest_writer writer;
+    u64 i;
+
+    if (old_entries == (install_manifest_entry *)0 || new_entries == (install_manifest_entry *)0) {
+        return 0;
+    }
+
+    if (cleonos_sys_fs_stat_type(INSTALL_MANIFEST_TARGET) == 1ULL &&
+        cleonos_sys_fs_remove(INSTALL_MANIFEST_TARGET) == 0ULL) {
+        (void)puts("install2disk: remove old manifest failed");
+        return 0;
+    }
+
+    if (cleonos_sys_fs_write(INSTALL_MANIFEST_TARGET, "", 0ULL) == 0ULL) {
+        (void)puts("install2disk: create manifest failed");
+        return 0;
+    }
+
+    memset(&writer, 0, sizeof(writer));
+
+    for (i = 0ULL; i < old_count; i++) {
+        char target_path[USH_PATH_MAX];
+
+        if (install_update_shell_path_included(old_entries[i].path) != 0 ||
+            install_manifest_path_included(old_entries[i].path) == 0) {
+            continue;
+        }
+
+        if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, old_entries[i].path) == 0) {
+            (void)printf("install2disk: manifest path too long: %s\n", old_entries[i].path);
+            return 0;
+        }
+
+        if (cleonos_sys_fs_stat_type(target_path) != 1ULL) {
+            continue;
+        }
+
+        if (install_manifest_append_entry(INSTALL_MANIFEST_TARGET, target_path, old_entries[i].path, &writer) == 0) {
+            return 0;
+        }
+    }
+
+    for (i = 0ULL; i < new_count; i++) {
+        char target_path[USH_PATH_MAX];
+
+        if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, new_entries[i].path) == 0) {
+            (void)printf("install2disk: manifest path too long: %s\n", new_entries[i].path);
+            return 0;
+        }
+
+        if (install_manifest_append_entry(INSTALL_MANIFEST_TARGET, target_path, new_entries[i].path, &writer) == 0) {
+            return 0;
+        }
+    }
+
+    if (writer.files == 0ULL) {
+        (void)puts("install2disk: refreshed manifest has no files");
+        return 0;
+    }
+
+    (void)printf("install2disk: manifest refreshed: %llu files, %llu bytes, %llu manifest bytes\n",
+                 (unsigned long long)writer.files, (unsigned long long)writer.file_bytes,
+                 (unsigned long long)writer.manifest_bytes);
+    return 1;
+}
+
+static void install_update_shell_cleanup_state(void) {
+    if (cleonos_sys_fs_stat_type(INSTALL_UPDATE_STATE_TARGET) == 1ULL) {
+        (void)cleonos_sys_fs_remove(INSTALL_UPDATE_STATE_TARGET);
+    }
+    if (cleonos_sys_fs_stat_type(INSTALL_MANIFEST_NEW_TARGET) == 1ULL) {
+        (void)cleonos_sys_fs_remove(INSTALL_MANIFEST_NEW_TARGET);
+    }
+    if (cleonos_sys_fs_stat_type(INSTALL_DRYRUN_MANIFEST) == 1ULL) {
+        (void)cleonos_sys_fs_remove(INSTALL_DRYRUN_MANIFEST);
+    }
+}
+
+static int install_update_shell(int dry_run) {
+    install_update_result result;
+    install_progress progress;
+    u64 old_count;
+    u64 new_count;
+    u64 i;
+
+    install_stage((dry_run != 0) ? "plan shell update" : "update shell");
+
+    if (cleonos_sys_disk_present() == 0ULL) {
+        (void)puts("install2disk: disk not present");
+        return 0;
+    }
+
+    if (install_running_from_disk_boot() != 0) {
+        (void)puts("install2disk: refused: current system is booted from disk");
+        (void)puts("install2disk: boot the ISO installer before updating the disk shell");
+        return 0;
+    }
+
+    if (install_mount_existing_disk() == 0) {
+        (void)puts("install2disk: mount existing disk failed");
+        return 0;
+    }
+
+    if (install_generate_manifest_to("/", INSTALL_DRYRUN_MANIFEST, install_update_shell_path_included) == 0) {
+        return 0;
+    }
+
+    old_count = install_manifest_load(INSTALL_MANIFEST_TARGET, install_update_old_entries,
+                                      (u64)INSTALL_UPDATE_MAX_ENTRIES, 1);
+    if (old_count == (u64)-1) {
+        return 0;
+    }
+
+    new_count = install_manifest_load(INSTALL_DRYRUN_MANIFEST, install_update_new_entries,
+                                      (u64)INSTALL_UPDATE_MAX_ENTRIES, 0);
+    if (new_count == (u64)-1 || new_count == 0ULL) {
+        (void)puts("install2disk: no shell update entries found");
+        return 0;
+    }
+
+    memset(&result, 0, sizeof(result));
+    memset(&progress, 0, sizeof(progress));
+    progress.label = (dry_run != 0) ? "plan shell files" : "update shell files";
+
+    for (i = 0ULL; i < new_count; i++) {
+        install_manifest_entry *old_entry = install_manifest_find(install_update_old_entries, old_count,
+                                                                  install_update_new_entries[i].path);
+        if (install_update_shell_plan_copy(install_update_new_entries + i, old_entry) == 0) {
+            result.unchanged++;
+            continue;
+        }
+
+        if (old_entry == (install_manifest_entry *)0) {
+            result.added++;
+        } else {
+            result.updated++;
+        }
+
+        {
+            char source_path[USH_PATH_MAX];
+            if (install_root_join(source_path, (u64)sizeof(source_path), "/", install_update_new_entries[i].path) ==
+                0) {
+                (void)printf("install2disk: update source path too long: %s\n", install_update_new_entries[i].path);
+                return 0;
+            }
+            install_progress_plan_file(&progress, source_path, 1ULL);
+        }
+    }
+
+    if (install_update_shell_delete_obsolete(install_update_old_entries, old_count, install_update_new_entries,
+                                             new_count, 1, &result) == 0) {
+        return 0;
+    }
+
+    (void)printf("install2disk: shell update plan: added=%llu updated=%llu unchanged=%llu removed=%llu\n",
+                 (unsigned long long)result.added, (unsigned long long)result.updated,
+                 (unsigned long long)result.unchanged, (unsigned long long)result.deleted);
+
+    if (dry_run != 0) {
+        return 1;
+    }
+
+    if (install_update_shell_write_state_files() == 0) {
+        return 0;
+    }
+
+    install_progress_print(&progress, 1);
+    for (i = 0ULL; i < new_count; i++) {
+        install_manifest_entry *old_entry = install_manifest_find(install_update_old_entries, old_count,
+                                                                  install_update_new_entries[i].path);
+        if (install_update_shell_plan_copy(install_update_new_entries + i, old_entry) == 0) {
+            continue;
+        }
+
+        if (install_update_shell_copy_entry(install_update_new_entries + i, &result.copied_files,
+                                            &result.copied_bytes, &progress) == 0) {
+            return 0;
+        }
+    }
+    progress.done_items = progress.total_items;
+    progress.done_bytes = progress.total_bytes;
+    install_progress_print(&progress, 1);
+
+    result.deleted = 0ULL;
+    if (install_update_shell_delete_obsolete(install_update_old_entries, old_count, install_update_new_entries,
+                                             new_count, 0, &result) == 0) {
+        return 0;
+    }
+
+    install_stage("refresh install manifest");
+    if (install_update_shell_refresh_manifest(install_update_old_entries, old_count, install_update_new_entries,
+                                              new_count) == 0) {
+        return 0;
+    }
+
+    install_update_shell_cleanup_state();
+    (void)printf("install2disk: shell updated: copied=%llu files %llu bytes, removed=%llu\n",
+                 (unsigned long long)result.copied_files, (unsigned long long)result.copied_bytes,
+                 (unsigned long long)result.deleted);
+    (void)puts("install2disk: preserved /home, /system/users.db, /system/pkg and untracked files");
+    return 1;
+}
+
+static int install_update_all(void) {
+    install_stage("update kernel and shell");
+
+    if (install_update_kernel() == 0) {
+        return 0;
+    }
+
+    return install_update_shell(0);
+}
+
 static int install_update_kernel(void) {
     u64 copied_files = 0ULL;
     u64 copied_bytes = 0ULL;
@@ -2193,16 +2812,24 @@ static int install2disk_run(void) {
         int choice;
 
         choice = install_prompt_choice(
-            "install2disk: choose [u]pdate kernel, [r]epair component, [f]ormat full install, [c]ancel (default: u): ",
-            "urfc", 'u');
+            "install2disk: choose [a]update kernel+shell, [u]kernel only, [s]shell only, [r]epair, [f]ormat full install, [c]ancel (default: a): ",
+            "ausrfc", 'a');
 
         if (choice == 'c') {
             (void)puts("install2disk: cancelled");
             return 0;
         }
 
+        if (choice == 'a') {
+            return install_update_all();
+        }
+
         if (choice == 'u') {
             return install_update_kernel();
+        }
+
+        if (choice == 's') {
+            return install_update_shell(0);
         }
 
         if (choice == 'r') {
@@ -2271,10 +2898,28 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)envp;
 
     if (argc > 1 && argv != (char **)0 && argv[1] != (char *)0) {
+        if (strcmp(argv[1], "update") == 0 &&
+            (argc <= 2 || argv[2] == (char *)0 || strcmp(argv[2], "all") == 0)) {
+            return (install_update_all() != 0) ? 0 : 1;
+        }
+
         if (strcmp(argv[1], "update-kernel") == 0 || strcmp(argv[1], "kernel") == 0 ||
             (strcmp(argv[1], "update") == 0 && argc > 2 && argv[2] != (char *)0 &&
              strcmp(argv[2], "kernel") == 0)) {
             return (install_update_kernel() != 0) ? 0 : 1;
+        }
+
+        if (strcmp(argv[1], "update-shell") == 0 || strcmp(argv[1], "shell") == 0 ||
+            (strcmp(argv[1], "update") == 0 && argc > 2 && argv[2] != (char *)0 &&
+             strcmp(argv[2], "shell") == 0)) {
+            int dry_run = 0;
+
+            if ((argc > 2 && argv[2] != (char *)0 && strcmp(argv[2], "--dry-run") == 0) ||
+                (argc > 3 && argv[3] != (char *)0 && strcmp(argv[3], "--dry-run") == 0)) {
+                dry_run = 1;
+            }
+
+            return (install_update_shell(dry_run) != 0) ? 0 : 1;
         }
 
         if (strcmp(argv[1], "repair") == 0) {
