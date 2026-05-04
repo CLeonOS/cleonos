@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~145）
+## 4. Syscall 列表（0~146）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1045,7 +1045,7 @@ typedef struct cleonos_wm_snapshot {
 - 内核按 4 KiB 页对齐分配物理页，并映射到当前进程页表中的用户 VM 窗口。
 - 单次申请上限当前为 `32 MiB`。
 - 进程退出、异常终止或被 kill 时，内核会自动解除映射并归还物理页。
-- 当前这是匿名私有映射；暂不支持文件映射、共享映射、指定地址映射或部分区间释放。
+- 当前这是匿名私有映射底层接口；文件映射请优先使用 `MMAP`。
 - 用户态 `malloc/calloc/realloc` 已优先走该接口，失败时回退旧 `USER_HEAP_ALLOC`。
 
 ### 131 `CLEONOS_SYSCALL_VM_FREE`
@@ -1055,9 +1055,10 @@ typedef struct cleonos_wm_snapshot {
 - `arg1`: `u64 size`
 - 返回：成功返回 `1`，失败返回 `0`。
 - 说明：
-- `addr` 必须是 `VM_ALLOC` 返回的起始地址。
-- `size` 可传 `0`，也可传原始请求大小或页对齐后的映射大小。
-- 当前不支持释放映射中间的一段；需要释放整个 VM 区域。
+- `addr` 必须 4 KiB 页对齐，并落在当前进程 VM 区域内。
+- `size` 传 `0` 表示从 `addr` 释放到当前 VM 区域末尾；非零时内核向上按 4 KiB 页对齐。
+- 支持按页释放整个区域、前缀、后缀或中间区间；释放中间区间时内核会把 VM 元数据拆成前后两个区域。
+- `munmap(addr, length)` 走该 syscall，因此也支持按页释放 `mmap` 返回的匿名/文件私有映射。
 
 ### 132 `CLEONOS_SYSCALL_USER_CURRENT`
 
@@ -1273,12 +1274,46 @@ typedef struct cleonos_sysinfo {
 - 说明：该 syscall 属于系统配置修改，需要通过当前用户权限/USC 检查。
 - 用户态命令：`locale` / `locale get` / `locale set zh_CN.UTF-8`。
 
+### 146 `CLEONOS_SYSCALL_MMAP`
+
+- 参数：
+- `arg0`: `cleonos_mmap_req *req`
+- 返回：成功返回当前进程可访问的映射起始地址，失败返回 `0`。
+- 请求结构：
+
+```c
+typedef struct cleonos_mmap_req {
+    u64 addr_hint;
+    u64 length;
+    u64 prot;
+    u64 flags;
+    u64 fd;
+    u64 offset;
+} cleonos_mmap_req;
+```
+
+- `prot`：
+- `CLEONOS_VM_FLAG_READ` = `0x1`
+- `CLEONOS_VM_FLAG_WRITE` = `0x2`
+- `CLEONOS_VM_FLAG_EXEC` = `0x4`
+- `flags`：
+- `CLEONOS_MMAP_FLAG_PRIVATE` = `0x02`
+- `CLEONOS_MMAP_FLAG_ANONYMOUS` = `0x20`
+- 说明：
+- 支持匿名私有映射：`addr_hint=0`、`length>0`、`flags=PRIVATE|ANONYMOUS`、`fd=-1`、`offset=0`。
+- 支持文件私有映射：`addr_hint=0`、`length>0`、`flags=PRIVATE`、`fd` 为可读普通文件或 `/dev/zero` fd、`offset` 为文件偏移。
+- 文件私有映射不会改变 fd 当前 `offset`；映射内容来自调用时文件快照，超过 EOF 的部分保持零填充。
+- 内核按 4 KiB 页分配并清零物理页，文件内容拷贝完成后会按 `prot` 更新页权限。
+- 当前不支持 `MAP_SHARED`、`MAP_FIXED` 或非零地址 hint；共享写回文件也尚未实现。
+- 单次映射上限当前与 `VM_ALLOC` 一致，为 `32 MiB`。
+
 用户态 mmap 兼容层：
 
 - 头文件：`#include <sys/mman.h>`
-- 支持：`mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`
+- 支持：`mmap(NULL, length, PROT_*, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`
+- 支持：`mmap(NULL, length, PROT_*, MAP_PRIVATE, fd, offset)`
 - 支持：`munmap(addr, length)`
-- 不支持：文件映射、共享映射、固定地址映射、非零 offset。
+- 不支持：`MAP_SHARED`、`MAP_FIXED`、非空地址 hint。
 
 页表隔离状态：
 
@@ -1335,6 +1370,7 @@ typedef struct cleonos_sysinfo {
 - `cleonos_sys_sysinfo()`
 - `cleonos_sys_locale_get()`
 - `cleonos_sys_locale_set()`
+- `cleonos_sys_mmap()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
@@ -1342,7 +1378,7 @@ typedef struct cleonos_sysinfo {
 - `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
 - `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()` / `cleonos_sys_wm_set_flags()` / `cleonos_sys_wm_resize()`
 - `cleonos_sys_pty_open()`
-- `cleonos_sys_user_heap_alloc()` / `cleonos_sys_vm_alloc()` / `cleonos_sys_vm_free()`
+- `cleonos_sys_user_heap_alloc()` / `cleonos_sys_vm_alloc()` / `cleonos_sys_mmap()` / `cleonos_sys_vm_free()`
 - `cleonos_sys_user_current()` / `cleonos_sys_user_login()` / `cleonos_sys_user_logout()`
 - `cleonos_sys_user_count()` / `cleonos_sys_user_at()` / `cleonos_sys_user_add()`
 - `cleonos_sys_user_passwd()` / `cleonos_sys_user_set_role()` / `cleonos_sys_user_remove()` / `cleonos_sys_user_is_admin()`
@@ -1356,7 +1392,7 @@ typedef struct cleonos_sysinfo {
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..145`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`USER_*`、`DRIVER_*`、`SYSINFO`、`LOCALE_*`）。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..146`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`MMAP`、`USER_*`、`DRIVER_*`、`SYSINFO`、`LOCALE_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -1377,6 +1413,7 @@ typedef struct cleonos_sysinfo {
 - `SYSINFO`（`143`）在 Wine 中返回 `kernel_name=CLeonKernelSystem`、`boot_mode=wine` 或 `wine-disk`、timer/heap/fs/tasks/services 等兼容统计。
 - `LOCALE_GET/LOCALE_SET`（`144..145`）在 Wine 中为共享内核状态实现；默认 `en_US.UTF-8`，不会持久写入 host rootfs。
 - `VM_ALLOC/VM_FREE`（`130..131`）在 Wine 中映射 Unicorn guest 内存，用于兼容用户态大块内存申请。
+- `MMAP`（`146`）在 Wine 中应按 `VM_ALLOC/VM_FREE` 同类模型实现兼容；匿名映射可直接分配 guest 内存，文件映射需要按 fd/path 读取 host rootfs 内容后拷贝到 guest 内存。
 - `USER_*`（`132..141`）在 Wine 中为轻量共享状态实现；默认存在 `root/root`，默认当前用户为 `root/admin`。
 - 网络 syscall（`95..106`）和 `NET_TCP_LAST_ERROR`（`129`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。

@@ -552,6 +552,10 @@ void *cleonos_sys_vm_alloc(u64 size, u64 flags) {
     return (void *)(usize)cleonos_syscall(CLEONOS_SYSCALL_VM_ALLOC, size, flags, 0ULL);
 }
 
+void *cleonos_sys_mmap(const cleonos_mmap_req *req) {
+    return (void *)(usize)cleonos_syscall(CLEONOS_SYSCALL_MMAP, (u64)(usize)req, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_vm_free(void *ptr, u64 size) {
     return cleonos_syscall(CLEONOS_SYSCALL_VM_FREE, (u64)(usize)ptr, size, 0ULL);
 }
