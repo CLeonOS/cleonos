@@ -1,5 +1,5 @@
-#ifndef CLEONOS_LIBC_CTYPE_H
-#define CLEONOS_LIBC_CTYPE_H
+#ifndef CLEONOS_LUA_CTYPE_H
+#define CLEONOS_LUA_CTYPE_H
 
 int isspace(int ch);
 int isdigit(int ch);
