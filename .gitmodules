@@ -31,3 +31,6 @@
 [submodule "cleonos/third-party/lua"]
 	path = cleonos/third-party/lua
 	url = https://github.com/CLeonOS/lua
+[submodule "cleonos/third-party/zlib"]
+	path = cleonos/third-party/zlib
+	url = https://github.com/CLeonOS/zlib
