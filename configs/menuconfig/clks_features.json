@@ -101,6 +101,17 @@
       "group_zh": "窗口管理器"
     },
     {
+      "key": "CLEONOS_CLKS_ENABLE_BOOT_SPLASH",
+      "title": "Boot Splash Animation",
+      "title_zh": "启动动画",
+      "description": "Draw a framebuffer boot splash with animated progress bar during kernel startup.",
+      "description_zh": "内核启动期间绘制 framebuffer 启动画面和动态进度条。",
+      "type": "bool",
+      "default": true,
+      "group": "Boot UI",
+      "group_zh": "启动界面"
+    },
+    {
       "key": "CLEONOS_CLKS_ENABLE_DRIVER_MANAGER",
       "title": "Driver Manager",
       "title_zh": "驱动管理器",
