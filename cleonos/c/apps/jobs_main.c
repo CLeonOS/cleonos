@@ -45,13 +45,13 @@ static int ush_cmd_jobs(const char *arg) {
         if (ush_streq(arg, "-a") != 0 || ush_streq(arg, "--all") != 0) {
             include_exited = 1;
         } else {
-            ush_writeln("jobs: usage jobs [-a|--all]");
+            ush_writeln_i18n("jobs: usage jobs [-a|--all]", "jobs: 用法 jobs [-a|--all]");
             return 0;
         }
     }
 
     proc_count = cleonos_sys_proc_count();
-    ush_writeln("jobs:");
+    ush_writeln_i18n("jobs:", "任务 (jobs):");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;
@@ -86,7 +86,9 @@ static int ush_cmd_jobs(const char *arg) {
         ush_write("  ");
         ush_write(snap.path);
         if (snap.state == CLEONOS_PROC_STATE_EXITED) {
-            ush_write("  status=");
+            ush_write("  ");
+            ush_write_i18n_label("status", "状态");
+            ush_write("=");
             ush_write_hex_u64(snap.exit_status);
         }
         ush_write_char('\n');
@@ -94,7 +96,7 @@ static int ush_cmd_jobs(const char *arg) {
     }
 
     if (shown == 0ULL) {
-        ush_writeln("(no jobs)");
+        ush_writeln_i18n("(no jobs)", "(没有任务)");
     }
 
     return 1;

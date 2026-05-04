@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cmd_runtime.h"
 
 static int g_total = 0;
 static int g_failed = 0;
@@ -238,20 +239,22 @@ static void test_stdio_lib(void) {
 }
 
 int cleonos_app_main(void) {
-    (void)puts("[libctest] start");
+    ush_writeln_i18n("[libctest] start", "[libctest] 开始 (start)");
 
     test_string_lib();
     test_ctype_lib();
     test_stdlib_lib();
     test_stdio_lib();
 
-    (void)printf("[libctest] total=%d failed=%d\n", g_total, g_failed);
+    (void)printf((ush_locale_is_zh() != 0) ? "[libctest] 总数 (total)=%d 失败 (failed)=%d\n"
+                                           : "[libctest] total=%d failed=%d\n",
+                 g_total, g_failed);
 
     if (g_failed == 0) {
-        (void)puts("[libctest] PASS");
+        ush_writeln_i18n("[libctest] PASS", "[libctest] 通过 (PASS)");
         return 0;
     }
 
-    (void)puts("[libctest] FAIL");
+    ush_writeln_i18n("[libctest] FAIL", "[libctest] 失败 (FAIL)");
     return 1;
 }

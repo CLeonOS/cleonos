@@ -76,20 +76,21 @@ static int ush_fg_wait_pid(u64 pid) {
         u64 wait_ret = cleonos_sys_wait_pid(pid, &status);
 
         if (wait_ret == (u64)-1) {
-            ush_writeln("fg: pid not found");
+            ush_writeln_i18n("fg: pid not found", "fg: 找不到进程");
             return 0;
         }
 
         if (wait_ret == 1ULL) {
-            ush_write("fg: done [");
+            ush_write_i18n_label("fg: done", "fg: 已结束");
+            ush_write(" [");
             ush_write_hex_u64(pid);
             ush_writeln("]");
             if ((status & (1ULL << 63)) != 0ULL) {
-                ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-                ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-                ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+                ush_print_kv_hex_i18n("  SIGNAL", "  信号", status & 0xFFULL);
+                ush_print_kv_hex_i18n("  VECTOR", "  向量", (status >> 8) & 0xFFULL);
+                ush_print_kv_hex_i18n("  ERROR", "  错误码", (status >> 16) & 0xFFFFULL);
             } else {
-                ush_print_kv_hex("  STATUS", status);
+                ush_print_kv_hex_i18n("  STATUS", "  状态", status);
             }
             return 1;
         }
@@ -104,18 +105,18 @@ static int ush_cmd_fg(const char *arg) {
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_parse_u64_dec(arg, &pid) == 0 || pid == 0ULL) {
-            ush_writeln("fg: usage fg [pid]");
+            ush_writeln_i18n("fg: usage fg [pid]", "fg: 用法 fg [pid]");
             return 0;
         }
     } else {
         if (ush_fg_pick_latest_job(&pid) == 0) {
-            ush_writeln("fg: no active background job");
+            ush_writeln_i18n("fg: no active background job", "fg: 没有活动的后台任务");
             return 0;
         }
     }
 
     if (cleonos_sys_proc_snapshot(pid, &snap, (u64)sizeof(snap)) == 0ULL) {
-        ush_writeln("fg: pid not found");
+        ush_writeln_i18n("fg: pid not found", "fg: 找不到进程");
         return 0;
     }
 
@@ -123,17 +124,18 @@ static int ush_cmd_fg(const char *arg) {
         u64 ret = cleonos_sys_proc_kill(pid, CLEONOS_SIGCONT);
 
         if (ret == (u64)-1) {
-            ush_writeln("fg: pid not found");
+            ush_writeln_i18n("fg: pid not found", "fg: 找不到进程");
             return 0;
         }
 
         if (ret == 0ULL) {
-            ush_writeln("fg: failed to continue job");
+            ush_writeln_i18n("fg: failed to continue job", "fg: 继续任务失败");
             return 0;
         }
     }
 
-    ush_write("fg: waiting [");
+    ush_write_i18n_label("fg: waiting", "fg: 正在等待");
+    ush_write(" [");
     ush_write_hex_u64(pid);
     ush_writeln("]");
     return ush_fg_wait_pid(pid);

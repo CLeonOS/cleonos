@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_shutdown(void) {
-    ush_writeln("shutdown: powering off...");
+    ush_writeln_i18n("shutdown: powering off...", "shutdown: 正在关机...");
     (void)cleonos_sys_shutdown();
     return 1;
 }

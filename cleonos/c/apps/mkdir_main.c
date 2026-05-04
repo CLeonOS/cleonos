@@ -3,17 +3,17 @@ static int ush_cmd_mkdir(const ush_state *sh, const char *arg) {
     char path[USH_PATH_MAX];
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("mkdir: directory path required");
+        ush_writeln_i18n("mkdir: directory path required", "mkdir: 需要目录路径");
         return 0;
     }
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("mkdir: invalid path");
+        ush_writeln_i18n("mkdir: invalid path", "mkdir: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_mkdir(path) == 0ULL) {
-        ush_writeln("mkdir: failed");
+        ush_writeln_i18n("mkdir: failed", "mkdir: 创建失败");
         return 0;
     }
 

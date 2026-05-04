@@ -5,20 +5,20 @@ static int ush_copy_file(const char *src_path, const char *dst_path) {
     u64 dst_fd;
 
     if (cleonos_sys_fs_stat_type(src_path) != 1ULL) {
-        ush_writeln("cp: source file not found");
+        ush_writeln_i18n("cp: source file not found", "cp: 源文件不存在");
         return 0;
     }
 
     src_fd = cleonos_sys_fd_open(src_path, CLEONOS_O_RDONLY, 0ULL);
     if (src_fd == (u64)-1) {
-        ush_writeln("cp: failed to open source");
+        ush_writeln_i18n("cp: failed to open source", "cp: 打开源文件失败");
         return 0;
     }
 
     dst_fd = cleonos_sys_fd_open(dst_path, CLEONOS_O_WRONLY | CLEONOS_O_CREAT | CLEONOS_O_TRUNC, 0ULL);
     if (dst_fd == (u64)-1) {
         (void)cleonos_sys_fd_close(src_fd);
-        ush_writeln("cp: failed to open destination");
+        ush_writeln_i18n("cp: failed to open destination", "cp: 打开目标文件失败");
         return 0;
     }
 
@@ -28,7 +28,7 @@ static int ush_copy_file(const char *src_path, const char *dst_path) {
         if (got == (u64)-1) {
             (void)cleonos_sys_fd_close(dst_fd);
             (void)cleonos_sys_fd_close(src_fd);
-            ush_writeln("cp: read failed");
+            ush_writeln_i18n("cp: read failed", "cp: 读取失败");
             return 0;
         }
 
@@ -43,7 +43,7 @@ static int ush_copy_file(const char *src_path, const char *dst_path) {
                 if (written == (u64)-1 || written == 0ULL) {
                     (void)cleonos_sys_fd_close(dst_fd);
                     (void)cleonos_sys_fd_close(src_fd);
-                    ush_writeln("cp: write failed");
+                    ush_writeln_i18n("cp: write failed", "cp: 写入失败");
                     return 0;
                 }
                 written_total += written;
@@ -63,18 +63,18 @@ static int ush_cmd_cp(const ush_state *sh, const char *arg) {
     char dst_path[USH_PATH_MAX];
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("cp: usage cp <src> <dst>");
+        ush_writeln_i18n("cp: usage cp <src> <dst>", "cp: 用法 cp <src> <dst>");
         return 0;
     }
 
     if (ush_split_two_args(arg, src_arg, (u64)sizeof(src_arg), dst_arg, (u64)sizeof(dst_arg)) == 0) {
-        ush_writeln("cp: usage cp <src> <dst>");
+        ush_writeln_i18n("cp: usage cp <src> <dst>", "cp: 用法 cp <src> <dst>");
         return 0;
     }
 
     if (ush_resolve_path(sh, src_arg, src_path, (u64)sizeof(src_path)) == 0 ||
         ush_resolve_path(sh, dst_arg, dst_path, (u64)sizeof(dst_path)) == 0) {
-        ush_writeln("cp: invalid path");
+        ush_writeln_i18n("cp: invalid path", "cp: 无效路径");
         return 0;
     }
 

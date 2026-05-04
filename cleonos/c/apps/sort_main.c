@@ -44,24 +44,24 @@ static int ush_sort_load_input(const ush_state *sh, const char *file_arg, char *
 
     if (file_arg != (const char *)0 && file_arg[0] != '\0') {
         if (ush_resolve_path(sh, file_arg, path, (u64)sizeof(path)) == 0) {
-            ush_writeln("sort: invalid path");
+            ush_writeln_i18n("sort: invalid path", "sort: 无效路径");
             return 0;
         }
 
         if (cleonos_sys_fs_stat_type(path) != 1ULL) {
-            ush_writeln("sort: file not found");
+            ush_writeln_i18n("sort: file not found", "sort: 文件不存在");
             return 0;
         }
 
         size = cleonos_sys_fs_stat_size(path);
 
         if (size == (u64)-1) {
-            ush_writeln("sort: failed to stat file");
+            ush_writeln_i18n("sort: failed to stat file", "sort: 获取文件信息失败");
             return 0;
         }
 
         if (size + 1ULL > out_buf_size) {
-            ush_writeln("sort: file too large for user buffer");
+            ush_writeln_i18n("sort: file too large for user buffer", "sort: 文件过大，无法放入用户缓冲区");
             return 0;
         }
 
@@ -72,7 +72,7 @@ static int ush_sort_load_input(const ush_state *sh, const char *file_arg, char *
         got = cleonos_sys_fs_read(path, out_buf, size);
 
         if (got == 0ULL || got != size) {
-            ush_writeln("sort: read failed");
+            ush_writeln_i18n("sort: read failed", "sort: 读取失败");
             return 0;
         }
 
@@ -82,12 +82,12 @@ static int ush_sort_load_input(const ush_state *sh, const char *file_arg, char *
     }
 
     if (ush_pipeline_stdin_text == (const char *)0) {
-        ush_writeln("sort: file path required (or pipeline input)");
+        ush_writeln_i18n("sort: file path required (or pipeline input)", "sort: 需要文件路径或管道输入");
         return 0;
     }
 
     if (ush_pipeline_stdin_len + 1ULL > out_buf_size) {
-        ush_writeln("sort: pipeline input too large");
+        ush_writeln_i18n("sort: pipeline input too large", "sort: 管道输入过大");
         return 0;
     }
 
@@ -194,7 +194,7 @@ static int ush_cmd_sort(const ush_state *sh, const char *arg) {
     }
 
     if (ush_sort_parse_args(arg, file_arg, (u64)sizeof(file_arg)) == 0) {
-        ush_writeln("sort: usage sort [file]");
+        ush_writeln_i18n("sort: usage sort [file]", "sort: 用法 sort [file]");
         return 0;
     }
 
@@ -205,7 +205,7 @@ static int ush_cmd_sort(const ush_state *sh, const char *arg) {
     collect_status = ush_sort_collect_lines(sort_buf, len, lines, (u64)USH_SORT_MAX_LINES, &line_count);
 
     if (collect_status == 0) {
-        ush_writeln("sort: internal parse error");
+        ush_writeln_i18n("sort: internal parse error", "sort: 内部解析错误");
         return 0;
     }
 
@@ -216,7 +216,7 @@ static int ush_cmd_sort(const ush_state *sh, const char *arg) {
     }
 
     if (collect_status == 2) {
-        ush_writeln("[sort] line count truncated");
+        ush_writeln_i18n("[sort] line count truncated", "[sort] 行数已截断");
     }
 
     return 1;

@@ -1,6 +1,7 @@
 #include <cleonos_tui.h>
 #include <dlfcn.h>
 #include <stdio.h>
+#include "cmd_runtime.h"
 
 #define TUITEST_LIB_PATH "/shell/tui.elf"
 
@@ -35,7 +36,9 @@ typedef struct tuitest_api {
 static int tuitest_load_symbol(void *handle, const char *name, void **out) {
     *out = dlsym(handle, name);
     if (*out == (void *)0) {
-        (void)printf("[tuitest] missing symbol: %s\n", name);
+        (void)printf((ush_locale_is_zh() != 0) ? "[tuitest] 缺少符号 (missing symbol): %s\n"
+                                               : "[tuitest] missing symbol: %s\n",
+                     name);
         return 0;
     }
     return 1;
@@ -92,22 +95,36 @@ static void tuitest_draw(const tuitest_api *tui, int focused_button, const char 
 
     tui->clear();
     tuitest_print_line(tui, border, "+------------------------------------------------------------------------------+");
-    tuitest_print_line(tui, title, "| CLeonOS TUI dynamic library                                                   |");
+    tuitest_print_line(tui, title,
+                       (ush_locale_is_zh() != 0)
+                           ? "| CLeonOS TUI dynamic library / 动态库                                          |"
+                           : "| CLeonOS TUI dynamic library                                                   |");
     tuitest_print_line(tui, border, "+------------------------------------------------------------------------------+");
     (void)puts("|                                                                              |");
-    (void)puts("| libtui-style API loaded through dlopen/dlsym.                                 |");
-    (void)puts("| This fallback-safe demo avoids heavy cursor positioning on weak TTY backends. |");
+    (void)puts((ush_locale_is_zh() != 0)
+                   ? "| libtui-style API loaded through dlopen/dlsym. / API 已加载                    |"
+                   : "| libtui-style API loaded through dlopen/dlsym.                                 |");
+    (void)puts((ush_locale_is_zh() != 0)
+                   ? "| Fallback-safe demo for weak TTY backends. / 弱 TTY 安全演示                   |"
+                   : "| This fallback-safe demo avoids heavy cursor positioning on weak TTY backends. |");
     (void)puts("|                                                                              |");
-    (void)puts("| Features: colors, boxes, status bars, buttons and blocking key read.          |");
-    (void)puts("| Keys: TAB switches focus, q exits. Other keys are displayed below.            |");
+    (void)puts((ush_locale_is_zh() != 0)
+                   ? "| Features: colors, boxes, buttons. / 颜色、边框、按钮                          |"
+                   : "| Features: colors, boxes, status bars, buttons and blocking key read.          |");
+    (void)puts((ush_locale_is_zh() != 0)
+                   ? "| Keys: TAB focus, q exits. / TAB 切换焦点，q 退出                              |"
+                   : "| Keys: TAB switches focus, q exits. Other keys are displayed below.            |");
     (void)puts("|                                                                              |");
     tuitest_draw_button_line(tui, focused_button);
     (void)puts("|                                                                              |");
-    (void)printf("| Last key: %-66s |\n", last_key);
+    (void)printf((ush_locale_is_zh() != 0) ? "| Last key / 最近按键: %-53s |\n" : "| Last key: %-66s |\n",
+                 last_key);
     (void)puts("|                                                                              |");
     tuitest_print_line(tui, border, "+------------------------------------------------------------------------------+");
     tui->set_style(bar);
-    (void)puts(" tuitest | dynamic TUI library demo                         TAB focus | q quit ");
+    (void)puts((ush_locale_is_zh() != 0)
+                   ? " tuitest | dynamic TUI library demo / 动态 TUI 库演示        TAB focus | q quit "
+                   : " tuitest | dynamic TUI library demo                         TAB focus | q quit ");
     tui->reset_style();
     tui->refresh();
 }
@@ -128,7 +145,9 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
 
     handle = dlopen(lib_path, 0);
     if (handle == (void *)0) {
-        (void)printf("[tuitest] dlopen failed: %s\n", lib_path);
+        (void)printf((ush_locale_is_zh() != 0) ? "[tuitest] dlopen 失败 (failed): %s\n"
+                                               : "[tuitest] dlopen failed: %s\n",
+                     lib_path);
         return 1;
     }
 
@@ -157,6 +176,6 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
 
     tui.shutdown();
     (void)dlclose(handle);
-    (void)puts("[tuitest] PASS");
+    ush_writeln_i18n("[tuitest] PASS", "[tuitest] 通过 (PASS)");
     return 0;
 }

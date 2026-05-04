@@ -19,16 +19,16 @@ static int ush_cmd_ifconfig(const char *arg) {
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_streq(arg, "--help") != 0 || ush_streq(arg, "-h") != 0) {
-            (void)puts("usage: ifconfig");
+            ush_writeln_i18n("usage: ifconfig", "用法: ifconfig");
             return 1;
         }
-        (void)puts("ifconfig: usage ifconfig");
+        ush_writeln_i18n("ifconfig: usage ifconfig", "ifconfig: 用法 ifconfig");
         return 0;
     }
 
     available = cleonos_sys_net_available();
     if (available == 0ULL) {
-        (void)puts("ifconfig: network unavailable");
+        ush_writeln_i18n("ifconfig: network unavailable", "ifconfig: 网络不可用");
         return 0;
     }
 
@@ -37,19 +37,23 @@ static int ush_cmd_ifconfig(const char *arg) {
     gateway = cleonos_sys_net_gateway();
     dns = cleonos_sys_net_dns_server();
 
-    (void)fputs("inet: ", 1);
+    ush_write_i18n_label("inet", "IPv4 地址");
+    ush_write(": ");
     ush_ifconfig_print_ipv4(ip);
     (void)putchar('\n');
 
-    (void)fputs("netmask: ", 1);
+    ush_write_i18n_label("netmask", "子网掩码");
+    ush_write(": ");
     ush_ifconfig_print_ipv4(netmask);
     (void)putchar('\n');
 
-    (void)fputs("gateway: ", 1);
+    ush_write_i18n_label("gateway", "网关");
+    ush_write(": ");
     ush_ifconfig_print_ipv4(gateway);
     (void)putchar('\n');
 
-    (void)fputs("dns: ", 1);
+    ush_write_i18n_label("dns", "DNS");
+    ush_write(": ");
     ush_ifconfig_print_ipv4(dns);
     (void)putchar('\n');
 

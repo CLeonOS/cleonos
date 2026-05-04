@@ -477,51 +477,58 @@ static int ush_cmd_httpget(const char *arg) {
     int ok = 0;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        (void)puts("httpget: usage httpget <http://host[:port]/path>");
-        (void)puts("               httpget <https://host[:port]/path>");
+        ush_writeln_i18n("httpget: usage httpget <http://host[:port]/path>",
+                         "httpget: 用法 httpget <http://host[:port]/path>");
+        ush_writeln("               httpget <https://host[:port]/path>");
         return 0;
     }
 
     if (ush_streq(arg, "--help") != 0 || ush_streq(arg, "-h") != 0) {
-        (void)puts("usage: httpget <http://host[:port]/path>");
-        (void)puts("       httpget <https://host[:port]/path>");
-        (void)puts("note: TLS certificate verification is not available yet");
+        ush_writeln_i18n("usage: httpget <http://host[:port]/path>", "用法: httpget <http://host[:port]/path>");
+        ush_writeln("       httpget <https://host[:port]/path>");
+        ush_writeln_i18n("note: TLS certificate verification is not available yet",
+                         "提示: TLS 证书验证暂不可用");
         return 1;
     }
 
     if (cleonos_sys_net_available() == 0ULL) {
-        (void)puts("httpget: network unavailable");
+        ush_writeln_i18n("httpget: network unavailable", "httpget: 网络不可用");
         return 0;
     }
 
     if (ush_httpget_parse_url(arg, &url) == 0) {
-        (void)puts("httpget: invalid URL, expected http://host[:port]/path or https://host[:port]/path");
+        ush_writeln_i18n("httpget: invalid URL, expected http://host[:port]/path or https://host[:port]/path",
+                         "httpget: 无效 URL，需要 http://host[:port]/path 或 https://host[:port]/path");
         return 0;
     }
 
     if (ush_httpget_parse_ipv4_be(url.host, &dst_ipv4_be) == 0) {
         if (ush_httpget_dns_resolve_ipv4(url.host, &dst_ipv4_be) == 0) {
-            (void)fputs("httpget: DNS resolve failed for ", 1);
+            ush_write_i18n_label("httpget: DNS resolve failed for", "httpget: DNS 解析失败");
+            ush_write(" ");
             (void)puts(url.host);
             return 0;
         }
     }
 
-    (void)fputs("httpget: connect ", 1);
+    ush_write_i18n_label("httpget: connect", "httpget: 连接");
+    ush_write(" ");
     ush_httpget_print_ipv4(dst_ipv4_be);
     (void)printf(":%u%s\n", (unsigned int)url.port, (url.tls != 0) ? " tls" : "");
 
     if (url.tls != 0) {
         tls_conn = (cleonos_tls_conn *)malloc(sizeof(*tls_conn));
         if (tls_conn == (cleonos_tls_conn *)0) {
-            (void)puts("httpget: tls allocation failed");
+            ush_writeln_i18n("httpget: tls allocation failed", "httpget: TLS 分配失败");
             goto done;
         }
         ush_zero(tls_conn, (u64)sizeof(*tls_conn));
         if (cleonos_tls_connect(tls_conn, dst_ipv4_be, url.port, url.host, USH_HTTPGET_TCP_POLL_BUDGET) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf("httpget: tls connect failed: %s\n", tls_error);
+            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 连接失败 (tls connect failed): %s\n"
+                                                    : "httpget: tls connect failed: %s\n",
+                         tls_error);
             goto done;
         }
         tls_open = 1;
@@ -533,7 +540,7 @@ static int ush_cmd_httpget(const char *arg) {
         conn_req.poll_budget = USH_HTTPGET_TCP_POLL_BUDGET;
 
         if (cleonos_sys_net_tcp_connect(&conn_req) == 0ULL) {
-            (void)puts("httpget: tcp connect failed");
+            ush_writeln_i18n("httpget: tcp connect failed", "httpget: TCP 连接失败");
             goto done;
         }
         tcp_open = 1;
@@ -552,7 +559,7 @@ static int ush_cmd_httpget(const char *arg) {
     }
 
     if (request_len <= 0 || (u64)request_len >= (u64)sizeof(request)) {
-        (void)puts("httpget: request build failed");
+        ush_writeln_i18n("httpget: request build failed", "httpget: 请求构建失败");
         goto done;
     }
 
@@ -560,7 +567,9 @@ static int ush_cmd_httpget(const char *arg) {
         if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf("httpget: tls send failed: %s\n", tls_error);
+            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 发送失败 (tls send failed): %s\n"
+                                                    : "httpget: tls send failed: %s\n",
+                         tls_error);
             goto done;
         }
     } else {
@@ -570,7 +579,7 @@ static int ush_cmd_httpget(const char *arg) {
 
         sent = cleonos_sys_net_tcp_send(&send_req);
         if (sent != (u64)request_len) {
-            (void)puts("httpget: tcp send failed");
+            ush_writeln_i18n("httpget: tcp send failed", "httpget: TCP 发送失败");
             goto done;
         }
     }
@@ -584,7 +593,9 @@ static int ush_cmd_httpget(const char *arg) {
             if (tls_got < 0) {
                 char tls_error[96];
                 cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-                (void)printf("httpget: tls recv failed: %s\n", tls_error);
+                (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 接收失败 (tls recv failed): %s\n"
+                                                        : "httpget: tls recv failed: %s\n",
+                             tls_error);
                 goto done;
             }
             got = (u64)tls_got;
@@ -610,7 +621,7 @@ static int ush_cmd_httpget(const char *arg) {
 
         idle_loops = 0ULL;
         if (ush_httpget_stdout_write(chunk, got) == 0) {
-            (void)puts("\nhttpget: write failed");
+            ush_writeln_i18n("\nhttpget: write failed", "\nhttpget: 写入失败");
             goto done;
         }
     }

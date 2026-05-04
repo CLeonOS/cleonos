@@ -358,47 +358,49 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
     }
 
     if (ush_wavplay_parse_args(arg, path_arg, (u64)sizeof(path_arg), &steps, &ticks_per_step, &stop_only) == 0) {
-        ush_writeln("wavplay: usage wavplay <file.wav> [steps<=4096] [ticks<=64]");
-        ush_writeln("wavplay: usage wavplay --stop");
+        ush_writeln_i18n("wavplay: usage wavplay <file.wav> [steps<=4096] [ticks<=64]",
+                         "wavplay: 用法 wavplay <file.wav> [steps<=4096] [ticks<=64]");
+        ush_writeln_i18n("wavplay: usage wavplay --stop", "wavplay: 用法 wavplay --stop");
         return 0;
     }
 
     if (stop_only != 0) {
         (void)cleonos_sys_audio_stop();
-        ush_writeln("wavplay: stopped");
+        ush_writeln_i18n("wavplay: stopped", "wavplay: 已停止");
         return 1;
     }
 
     if (cleonos_sys_audio_available() == 0ULL) {
-        ush_writeln("wavplay: audio device unavailable");
+        ush_writeln_i18n("wavplay: audio device unavailable", "wavplay: 音频设备不可用");
         return 0;
     }
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
-        ush_writeln("wavplay: invalid path");
+        ush_writeln_i18n("wavplay: invalid path", "wavplay: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_stat_type(abs_path) != 1ULL) {
-        ush_writeln("wavplay: file not found");
+        ush_writeln_i18n("wavplay: file not found", "wavplay: 文件不存在");
         return 0;
     }
 
     fd = cleonos_sys_fd_open(abs_path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
-        ush_writeln("wavplay: open failed");
+        ush_writeln_i18n("wavplay: open failed", "wavplay: 打开失败");
         return 0;
     }
 
     if (ush_wav_parse_stream(fd, &info) == 0) {
         (void)cleonos_sys_fd_close(fd);
-        ush_writeln("wavplay: unsupported wav (need PCM 8/16-bit, mono/stereo)");
+        ush_writeln_i18n("wavplay: unsupported wav (need PCM 8/16-bit, mono/stereo)",
+                         "wavplay: 不支持的 WAV（需要 PCM 8/16-bit，单声道/立体声）");
         return 0;
     }
 
     if (info.block_align > (u64)sizeof(frame_buf)) {
         (void)cleonos_sys_fd_close(fd);
-        ush_writeln("wavplay: unsupported block align");
+        ush_writeln_i18n("wavplay: unsupported block align", "wavplay: 不支持的块对齐");
         return 0;
     }
 
@@ -408,7 +410,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
 
     if (steps == 0ULL) {
         (void)cleonos_sys_fd_close(fd);
-        ush_writeln("wavplay: nothing to play");
+        ush_writeln_i18n("wavplay: nothing to play", "wavplay: 没有可播放内容");
         return 0;
     }
 
@@ -439,7 +441,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
 
         if (frame_index < current_frame) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("wavplay: internal frame order error");
+            ush_writeln_i18n("wavplay: internal frame order error", "wavplay: 内部帧顺序错误");
             return 0;
         }
 
@@ -447,13 +449,13 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
         if (skip_frames > 0ULL) {
             if (skip_frames > (0xFFFFFFFFFFFFFFFFULL / info.block_align)) {
                 (void)cleonos_sys_fd_close(fd);
-                ush_writeln("wavplay: frame skip overflow");
+                ush_writeln_i18n("wavplay: frame skip overflow", "wavplay: 帧跳过溢出");
                 return 0;
             }
 
             if (ush_wav_skip_bytes(fd, skip_frames * info.block_align) == 0) {
                 (void)cleonos_sys_fd_close(fd);
-                ush_writeln("wavplay: seek/read failed");
+                ush_writeln_i18n("wavplay: seek/read failed", "wavplay: 定位/读取失败");
                 return 0;
             }
             current_frame = frame_index;
@@ -461,7 +463,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
 
         if (ush_wav_read_exact(fd, frame_buf, info.block_align) == 0) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("wavplay: read failed");
+            ush_writeln_i18n("wavplay: read failed", "wavplay: 读取失败");
             return 0;
         }
         current_frame++;
@@ -487,7 +489,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
 
         if (cleonos_sys_audio_play_tone(run_freq, run_ticks) == 0ULL) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("wavplay: playback failed");
+            ush_writeln_i18n("wavplay: playback failed", "wavplay: 播放失败");
             (void)cleonos_sys_audio_stop();
             return 0;
         }
@@ -499,7 +501,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
     if (run_ticks > 0ULL) {
         if (cleonos_sys_audio_play_tone(run_freq, run_ticks) == 0ULL) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("wavplay: playback failed");
+            ush_writeln_i18n("wavplay: playback failed", "wavplay: 播放失败");
             (void)cleonos_sys_audio_stop();
             return 0;
         }
@@ -507,7 +509,7 @@ static int ush_cmd_wavplay(const ush_state *sh, const char *arg) {
 
     (void)cleonos_sys_fd_close(fd);
     (void)cleonos_sys_audio_stop();
-    ush_writeln("wavplay: done");
+    ush_writeln_i18n("wavplay: done", "wavplay: 完成");
     return 1;
 }
 

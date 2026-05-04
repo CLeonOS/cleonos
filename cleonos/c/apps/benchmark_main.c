@@ -27,13 +27,13 @@ static unsigned char bench_dst[BENCH_MEM_SIZE];
 static char bench_file_buf[BENCH_FILE_SIZE];
 
 static void bench_print_help(void) {
-    puts("usage: benchmark [--quick|--full|--help]");
+    ush_writeln_i18n("usage: benchmark [--quick|--full|--help]", "用法: benchmark [--quick|--full|--help]");
     puts("");
-    puts("Runs simple userland speed tests:");
-    puts("  cpu      integer xorshift loop");
-    puts("  memory   fill/copy/checksum over static buffers");
-    puts("  syscall  timer syscall throughput");
-    puts("  file     /temp write/read/remove throughput");
+    ush_writeln_i18n("Runs simple userland speed tests:", "运行简单用户态测速:");
+    ush_writeln_i18n("  cpu      integer xorshift loop", "  cpu      整数 xorshift 循环");
+    ush_writeln_i18n("  memory   fill/copy/checksum over static buffers", "  memory   静态缓冲区填充/复制/校验");
+    ush_writeln_i18n("  syscall  timer syscall throughput", "  syscall  timer 系统调用吞吐");
+    ush_writeln_i18n("  file     /temp write/read/remove throughput", "  file     /temp 写入/读取/删除吞吐");
 }
 
 static u64 bench_elapsed_ticks(u64 start, u64 end) {
@@ -114,7 +114,7 @@ static void bench_print_result(const bench_result *result) {
     printf("%-8s ", result->name);
 
     if (result->ok == 0) {
-        puts("skipped/failed");
+        ush_writeln_i18n("skipped/failed", "已跳过/失败");
         return;
     }
 
@@ -313,7 +313,8 @@ static int bench_select_mode(const char *arg, bench_mode *out_mode) {
         return 2;
     }
 
-    puts("benchmark: usage benchmark [--quick|--full|--help]");
+    ush_writeln_i18n("benchmark: usage benchmark [--quick|--full|--help]",
+                     "benchmark: 用法 benchmark [--quick|--full|--help]");
     return 0;
 }
 
@@ -334,8 +335,10 @@ static int ush_cmd_benchmark(const char *arg) {
         return 1;
     }
 
-    printf("CLeonOS benchmark (%s)\n", mode.name);
-    puts("test     work         unit     elapsed   throughput      checksum");
+    (void)printf((ush_locale_is_zh() != 0) ? "CLeonOS benchmark 测速 (%s)\n" : "CLeonOS benchmark (%s)\n",
+                 mode.name);
+    ush_writeln_i18n("test     work         unit     elapsed   throughput      checksum",
+                     "test     work         unit     elapsed   throughput      checksum");
     puts("------------------------------------------------------------------");
 
     total_ticks = cleonos_sys_timer_ticks();
@@ -351,7 +354,8 @@ static int ush_cmd_benchmark(const char *arg) {
     bench_print_result(&file);
 
     puts("------------------------------------------------------------------");
-    printf("total: %llu ticks\n", (unsigned long long)total_ticks);
+    (void)printf((ush_locale_is_zh() != 0) ? "total (总计): %llu ticks\n" : "total: %llu ticks\n",
+                 (unsigned long long)total_ticks);
     return 1;
 }
 

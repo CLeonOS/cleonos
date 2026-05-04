@@ -6,23 +6,23 @@ static int ush_cmd_append(const ush_state *sh, const char *arg) {
     u64 payload_len;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("append: usage append <file> <text>");
+        ush_writeln_i18n("append: usage append <file> <text>", "append: 用法 append <file> <text>");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, path_arg, (u64)sizeof(path_arg), &payload) == 0) {
-        ush_writeln("append: usage append <file> <text>");
+        ush_writeln_i18n("append: usage append <file> <text>", "append: 用法 append <file> <text>");
         return 0;
     }
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
-        ush_writeln("append: invalid path");
+        ush_writeln_i18n("append: invalid path", "append: 无效路径");
         return 0;
     }
 
     if (payload == (const char *)0 || payload[0] == '\0') {
         if (ush_pipeline_stdin_text == (const char *)0) {
-            ush_writeln("append: usage append <file> <text>");
+            ush_writeln_i18n("append: usage append <file> <text>", "append: 用法 append <file> <text>");
             return 0;
         }
         payload = ush_pipeline_stdin_text;
@@ -32,7 +32,7 @@ static int ush_cmd_append(const ush_state *sh, const char *arg) {
     }
 
     if (cleonos_sys_fs_append(abs_path, payload, payload_len) == 0ULL) {
-        ush_writeln("append: failed");
+        ush_writeln_i18n("append: failed", "append: 追加失败");
         return 0;
     }
 

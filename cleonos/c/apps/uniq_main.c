@@ -41,24 +41,24 @@ static int ush_uniq_load_input(const ush_state *sh, const char *file_arg, const 
 
     if (file_arg != (const char *)0 && file_arg[0] != '\0') {
         if (ush_resolve_path(sh, file_arg, path, (u64)sizeof(path)) == 0) {
-            ush_writeln("uniq: invalid path");
+            ush_writeln_i18n("uniq: invalid path", "uniq: 无效路径");
             return 0;
         }
 
         if (cleonos_sys_fs_stat_type(path) != 1ULL) {
-            ush_writeln("uniq: file not found");
+            ush_writeln_i18n("uniq: file not found", "uniq: 文件不存在");
             return 0;
         }
 
         size = cleonos_sys_fs_stat_size(path);
 
         if (size == (u64)-1) {
-            ush_writeln("uniq: failed to stat file");
+            ush_writeln_i18n("uniq: failed to stat file", "uniq: 获取文件信息失败");
             return 0;
         }
 
         if (size > (u64)USH_COPY_MAX) {
-            ush_writeln("uniq: file too large for user buffer");
+            ush_writeln_i18n("uniq: file too large for user buffer", "uniq: 文件过大，无法放入用户缓冲区");
             return 0;
         }
 
@@ -72,7 +72,7 @@ static int ush_uniq_load_input(const ush_state *sh, const char *file_arg, const 
         got = cleonos_sys_fs_read(path, file_buf, size);
 
         if (got == 0ULL || got != size) {
-            ush_writeln("uniq: read failed");
+            ush_writeln_i18n("uniq: read failed", "uniq: 读取失败");
             return 0;
         }
 
@@ -83,7 +83,7 @@ static int ush_uniq_load_input(const ush_state *sh, const char *file_arg, const 
     }
 
     if (ush_pipeline_stdin_text == (const char *)0) {
-        ush_writeln("uniq: file path required (or pipeline input)");
+        ush_writeln_i18n("uniq: file path required (or pipeline input)", "uniq: 需要文件路径或管道输入");
         return 0;
     }
 
@@ -133,7 +133,7 @@ static int ush_cmd_uniq(const ush_state *sh, const char *arg) {
     }
 
     if (ush_uniq_parse_args(arg, file_arg, (u64)sizeof(file_arg)) == 0) {
-        ush_writeln("uniq: usage uniq [file]");
+        ush_writeln_i18n("uniq: usage uniq [file]", "uniq: 用法 uniq [file]");
         return 0;
     }
 

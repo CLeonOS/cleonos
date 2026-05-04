@@ -1,10 +1,4 @@
 #include "cmd_runtime.h"
-#include <stdio.h>
-
-static void clio_writeln(const char *text) {
-    (void)fputs(text, 1);
-    (void)putchar('\n');
-}
 
 static int ush_cmd_diskinfo(void) {
     u64 present = cleonos_sys_disk_present();
@@ -15,7 +9,7 @@ static int ush_cmd_diskinfo(void) {
     char mount_path[USH_PATH_MAX];
 
     if (present == 0ULL) {
-        clio_writeln("disk: not present");
+        ush_writeln_i18n("disk: not present", "disk: 磁盘不存在");
         return 0;
     }
 
@@ -29,16 +23,19 @@ static int ush_cmd_diskinfo(void) {
         (void)cleonos_sys_disk_mount_path(mount_path, (u64)sizeof(mount_path));
     }
 
-    (void)printf("disk.present: %llu\n", (unsigned long long)present);
-    (void)printf("disk.size_bytes: %llu\n", (unsigned long long)size_bytes);
-    (void)printf("disk.sectors: %llu\n", (unsigned long long)sectors);
-    (void)printf("disk.formatted_fat32: %llu\n", (unsigned long long)formatted);
-    (void)printf("disk.mounted: %llu\n", (unsigned long long)mounted);
+    ush_print_kv_hex_i18n("disk.present", "disk.存在", present);
+    ush_print_kv_hex_i18n("disk.size_bytes", "disk.大小字节", size_bytes);
+    ush_print_kv_hex_i18n("disk.sectors", "disk.扇区数", sectors);
+    ush_print_kv_hex_i18n("disk.formatted_fat32", "disk.FAT32已格式化", formatted);
+    ush_print_kv_hex_i18n("disk.mounted", "disk.已挂载", mounted);
 
     if (mounted != 0ULL && mount_path[0] != '\0') {
-        (void)printf("disk.mount_path: %s\n", mount_path);
+        ush_write_i18n_label("disk.mount_path", "disk.挂载路径");
+        ush_write(": ");
+        ush_writeln(mount_path);
     } else {
-        clio_writeln("disk.mount_path: (none)");
+        ush_write_i18n_label("disk.mount_path", "disk.挂载路径");
+        ush_writeln(": (none)");
     }
 
     return 1;

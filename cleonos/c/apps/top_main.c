@@ -96,14 +96,20 @@ static void ush_top_render_frame(u64 frame_index, u64 delay_ticks) {
     u64 shown = 0ULL;
 
     ush_write("\x1B[2J\x1B[H");
-    ush_write("top frame=");
+    ush_write_i18n_label("top frame", "top 帧");
+    ush_write("=");
     ush_write_hex_u64(frame_index);
-    ush_write(" ticks=");
+    ush_write(" ");
+    ush_write_i18n_label("ticks", "Tick");
+    ush_write("=");
     ush_write_hex_u64(cleonos_sys_timer_ticks());
-    ush_write(" delay=");
+    ush_write(" ");
+    ush_write_i18n_label("delay", "延迟");
+    ush_write("=");
     ush_write_hex_u64(delay_ticks);
     ush_write_char('\n');
-    ush_writeln("PID      ST   TTY    RTICKS           MEM              PATH");
+    ush_writeln_i18n("PID      ST   TTY    RTICKS           MEM              PATH",
+                     "PID      ST   TTY    RTICKS           MEM              PATH");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;
@@ -137,11 +143,11 @@ static void ush_top_render_frame(u64 frame_index, u64 delay_ticks) {
     }
 
     if (shown == 0ULL) {
-        ush_writeln("(no active process)");
+        ush_writeln_i18n("(no active process)", "(没有活动进程)");
     }
 
     ush_writeln("");
-    ush_writeln("press q to quit");
+    ush_writeln_i18n("press q to quit", "按 q 退出 (press q to quit)");
 }
 
 static int ush_top_sleep_or_quit(u64 delay_ticks) {
@@ -171,7 +177,8 @@ static int ush_cmd_top(const char *arg) {
     u64 frame = 0ULL;
 
     if (ush_top_parse(arg, &loops, &delay_ticks) == 0) {
-        ush_writeln("top: usage top [--once] [-n loops] [-d ticks]");
+        ush_writeln_i18n("top: usage top [--once] [-n loops] [-d ticks]",
+                         "top: 用法 top [--once] [-n loops] [-d ticks]");
         return 0;
     }
 

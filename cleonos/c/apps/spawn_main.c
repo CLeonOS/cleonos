@@ -8,12 +8,12 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     u64 pid;
 
     if (sh == (const ush_state *)0 || arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("spawn: usage spawn <path|name> [args...]");
+        ush_writeln_i18n("spawn: usage spawn <path|name> [args...]", "spawn: 用法 spawn <path|name> [args...]");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, target, (u64)sizeof(target), &rest) == 0) {
-        ush_writeln("spawn: usage spawn <path|name> [args...]");
+        ush_writeln_i18n("spawn: usage spawn <path|name> [args...]", "spawn: 用法 spawn <path|name> [args...]");
         return 0;
     }
 
@@ -23,12 +23,13 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     }
 
     if (ush_resolve_exec_path(sh, target, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("spawn: invalid target");
+        ush_writeln_i18n("spawn: invalid target", "spawn: 无效目标");
         return 0;
     }
 
     if (ush_path_is_under_system(path) != 0) {
-        ush_writeln("spawn: /system/*.elf is kernel-mode (KELF), not user-exec");
+        ush_writeln_i18n("spawn: /system/*.elf is kernel-mode (KELF), not user-exec",
+                         "spawn: /system/*.elf 是内核态程序 (KELF)，不能作为用户态程序执行");
         return 0;
     }
 
@@ -39,12 +40,12 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     pid = cleonos_sys_spawn_pathv(path, argv_line, env_line);
 
     if (pid == (u64)-1) {
-        ush_writeln("spawn: request failed");
+        ush_writeln_i18n("spawn: request failed", "spawn: 请求失败");
         return 0;
     }
 
-    ush_writeln("spawn: completed");
-    ush_print_kv_hex("  PID", pid);
+    ush_writeln_i18n("spawn: completed", "spawn: 已完成");
+    ush_print_kv_hex_i18n("  PID", "  进程号", pid);
     return 1;
 }
 

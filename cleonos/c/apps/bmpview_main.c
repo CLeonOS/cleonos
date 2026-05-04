@@ -235,43 +235,43 @@ static int ush_cmd_bmpview(const ush_state *sh, const char *arg) {
 
     parse_ret = ush_bmpview_parse_args(arg, path_arg, (u64)sizeof(path_arg), &cols);
     if (parse_ret == 2) {
-        ush_writeln("usage: bmpview <file.bmp> [cols]");
-        ush_writeln("note: supports uncompressed 24/32-bit BMP");
+        ush_writeln_i18n("usage: bmpview <file.bmp> [cols]", "用法: bmpview <file.bmp> [cols]");
+        ush_writeln_i18n("note: supports uncompressed 24/32-bit BMP", "提示: 支持未压缩 24/32-bit BMP");
         return 1;
     }
 
     if (parse_ret == 0) {
-        ush_writeln("bmpview: usage bmpview <file.bmp> [cols]");
+        ush_writeln_i18n("bmpview: usage bmpview <file.bmp> [cols]", "bmpview: 用法 bmpview <file.bmp> [cols]");
         return 0;
     }
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
-        ush_writeln("bmpview: invalid path");
+        ush_writeln_i18n("bmpview: invalid path", "bmpview: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_stat_type(abs_path) != 1ULL) {
-        ush_writeln("bmpview: file not found");
+        ush_writeln_i18n("bmpview: file not found", "bmpview: 文件不存在");
         return 0;
     }
 
     fd = cleonos_sys_fd_open(abs_path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
-        ush_writeln("bmpview: open failed");
+        ush_writeln_i18n("bmpview: open failed", "bmpview: 打开失败");
         return 0;
     }
 
     ush_zero(&info, (u64)sizeof(info));
     if (ush_bmpview_parse_header(fd, &info) == 0) {
         (void)cleonos_sys_fd_close(fd);
-        ush_writeln("bmpview: unsupported or invalid bmp");
+        ush_writeln_i18n("bmpview: unsupported or invalid bmp", "bmpview: 不支持或无效的 BMP");
         return 0;
     }
 
     if (info.pixel_offset > 54ULL) {
         if (ush_bmpview_skip_bytes(fd, info.pixel_offset - 54ULL) == 0) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("bmpview: failed to seek pixel data");
+            ush_writeln_i18n("bmpview: failed to seek pixel data", "bmpview: 定位像素数据失败");
             return 0;
         }
     }
@@ -317,7 +317,7 @@ static int ush_cmd_bmpview(const ush_state *sh, const char *arg) {
 
         if (ush_bmpview_read_exact(fd, ush_bmpview_row_buf, info.row_stride) == 0) {
             (void)cleonos_sys_fd_close(fd);
-            ush_writeln("bmpview: read pixel data failed");
+            ush_writeln_i18n("bmpview: read pixel data failed", "bmpview: 读取像素数据失败");
             return 0;
         }
 

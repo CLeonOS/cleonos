@@ -66,49 +66,50 @@ static int ush_cmd_ping(const char *arg) {
     u64 count = 4ULL;
     u64 i;
     u64 received = 0ULL;
+    int zh = ush_locale_is_zh();
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        (void)puts("ping: usage ping <a.b.c.d> [count]");
+        ush_writeln_i18n("ping: usage ping <a.b.c.d> [count]", "ping: 用法 ping <a.b.c.d> [count]");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, host, (u64)sizeof(host), &rest) == 0) {
-        (void)puts("ping: usage ping <a.b.c.d> [count]");
+        ush_writeln_i18n("ping: usage ping <a.b.c.d> [count]", "ping: 用法 ping <a.b.c.d> [count]");
         return 0;
     }
 
     if (ush_ping_parse_ipv4_be(host, &target_ipv4_be) == 0) {
-        (void)puts("ping: invalid ipv4 address");
+        ush_writeln_i18n("ping: invalid ipv4 address", "ping: 无效 IPv4 地址");
         return 0;
     }
 
     if (rest != (const char *)0 && rest[0] != '\0') {
         if (ush_split_first_and_rest(rest, count_text, (u64)sizeof(count_text), &rest2) == 0) {
-            (void)puts("ping: usage ping <a.b.c.d> [count]");
+            ush_writeln_i18n("ping: usage ping <a.b.c.d> [count]", "ping: 用法 ping <a.b.c.d> [count]");
             return 0;
         }
 
         if (rest2 != (const char *)0 && rest2[0] != '\0') {
-            (void)puts("ping: usage ping <a.b.c.d> [count]");
+            ush_writeln_i18n("ping: usage ping <a.b.c.d> [count]", "ping: 用法 ping <a.b.c.d> [count]");
             return 0;
         }
 
         if (ush_parse_u64_dec(count_text, &count) == 0 || count == 0ULL || count > 64ULL) {
-            (void)puts("ping: count must be in range 1..64");
+            ush_writeln_i18n("ping: count must be in range 1..64", "ping: count 必须在 1..64 范围内");
             return 0;
         }
     }
 
     if (cleonos_sys_net_available() == 0ULL) {
-        (void)puts("ping: network unavailable (e1000 not ready)");
+        ush_writeln_i18n("ping: network unavailable (e1000 not ready)", "ping: 网络不可用 (e1000 未就绪)");
         return 0;
     }
 
     local_ipv4_be = cleonos_sys_net_ipv4_addr();
 
-    (void)fputs("PING ", 1);
+    (void)fputs((zh != 0) ? "PING 目标 " : "PING ", 1);
     ush_ping_print_ipv4(target_ipv4_be);
-    (void)fputs(" from ", 1);
+    (void)fputs((zh != 0) ? " 来自 " : " from ", 1);
     ush_ping_print_ipv4(local_ipv4_be);
     (void)putchar('\n');
 
@@ -116,12 +117,12 @@ static int ush_cmd_ping(const char *arg) {
         u64 ok = cleonos_sys_net_ping(target_ipv4_be, USH_PING_POLL_BUDGET);
 
         if (ok != 0ULL) {
-            (void)fputs("reply from ", 1);
+            (void)fputs((zh != 0) ? "收到回复 来自 " : "reply from ", 1);
             ush_ping_print_ipv4(target_ipv4_be);
             (void)printf(" seq=%llu\n", (unsigned long long)(i + 1ULL));
             received++;
         } else {
-            (void)fputs("timeout from ", 1);
+            (void)fputs((zh != 0) ? "超时 来自 " : "timeout from ", 1);
             ush_ping_print_ipv4(target_ipv4_be);
             (void)printf(" seq=%llu\n", (unsigned long long)(i + 1ULL));
         }
@@ -132,8 +133,9 @@ static int ush_cmd_ping(const char *arg) {
     }
 
     (void)puts("");
-    (void)printf("ping stats: tx=%llu rx=%llu loss=%llu\n", (unsigned long long)count, (unsigned long long)received,
-                 (unsigned long long)(count - received));
+    (void)printf((zh != 0) ? "ping 统计 (ping stats): tx=%llu rx=%llu loss=%llu\n"
+                           : "ping stats: tx=%llu rx=%llu loss=%llu\n",
+                 (unsigned long long)count, (unsigned long long)received, (unsigned long long)(count - received));
 
     return (received > 0ULL) ? 1 : 0;
 }

@@ -1069,13 +1069,13 @@ static int ush_cmd_vim(ush_state *sh, const char *arg) {
     ush_vim_init(&ed);
 
     if (ush_vim_parse_start_path(sh, arg, target_path, (u64)sizeof(target_path)) == 0) {
-        ush_writeln("vim: invalid path");
+        ush_writeln_i18n("vim: invalid path", "vim: 无效路径");
         return 0;
     }
 
     if (target_path[0] != '\0') {
         if (ush_vim_load_file(&ed, target_path) == 0) {
-            ush_writeln("vim: failed to open file");
+            ush_writeln_i18n("vim: failed to open file", "vim: 打开文件失败");
             return 0;
         }
     }
@@ -1108,7 +1108,7 @@ static int ush_cmd_vim(ush_state *sh, const char *arg) {
     }
 
     ush_write("\x1B[0m\x1B[2J\x1B[H");
-    ush_writeln("vim: bye");
+    ush_writeln_i18n("vim: bye", "vim: 再见");
     return 1;
 }
 

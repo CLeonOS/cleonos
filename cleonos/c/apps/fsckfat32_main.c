@@ -1,10 +1,11 @@
+#include "cmd_runtime.h"
 #include <cleonos_syscall.h>
-
 #include <stdio.h>
 #include <string.h>
 
 static void fsck_print_result(const cleonos_disk_fsck_result *result) {
-    (void)printf("fsckfat32: status: %s\n", (result->status == 0ULL) ? "clean" : "issues-found");
+    (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 状态 (status): %s\n" : "fsckfat32: status: %s\n",
+                 (result->status == 0ULL) ? "clean" : "issues-found");
     (void)printf("fsckfat32: checked_clusters: %llu\n", (unsigned long long)result->checked_clusters);
     (void)printf("fsckfat32: free_clusters: %llu\n", (unsigned long long)result->free_clusters);
     (void)printf("fsckfat32: used_clusters: %llu\n", (unsigned long long)result->used_clusters);
@@ -27,30 +28,32 @@ static int fsckfat32_run(int argc, char **argv) {
             continue;
         }
         if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
-            puts("usage: fsckfat32 [--fix]");
+            ush_writeln_i18n("usage: fsckfat32 [--fix]", "用法: fsckfat32 [--fix]");
             return 1;
         }
         if (strcmp(arg, "--fix") == 0 || strcmp(arg, "-f") == 0) {
             flags |= CLEONOS_DISK_FSCK_FLAG_FIX;
             continue;
         }
-        printf("fsckfat32: unknown option: %s\n", arg);
-        puts("usage: fsckfat32 [--fix]");
+        (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 未知选项 (unknown option): %s\n"
+                                                : "fsckfat32: unknown option: %s\n",
+                     arg);
+        ush_writeln_i18n("usage: fsckfat32 [--fix]", "用法: fsckfat32 [--fix]");
         return 0;
     }
 
     if (cleonos_sys_disk_present() == 0ULL) {
-        puts("fsckfat32: disk not present");
+        ush_writeln_i18n("fsckfat32: disk not present", "fsckfat32: 磁盘不存在");
         return 0;
     }
 
     if (cleonos_sys_disk_formatted() == 0ULL) {
-        puts("fsckfat32: disk is not FAT32/formatted");
+        ush_writeln_i18n("fsckfat32: disk is not FAT32/formatted", "fsckfat32: 磁盘不是 FAT32 或尚未格式化");
         return 0;
     }
 
     if (cleonos_sys_disk_fsck_fat32(flags, &result) == 0ULL) {
-        puts("fsckfat32: check failed");
+        ush_writeln_i18n("fsckfat32: check failed", "fsckfat32: 检查失败");
         return 0;
     }
 

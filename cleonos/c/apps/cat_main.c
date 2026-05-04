@@ -12,23 +12,23 @@ static int ush_cmd_cat(const ush_state *sh, const char *arg) {
             return 1;
         }
 
-        (void)puts("cat: file path required");
+        ush_writeln_i18n("cat: file path required", "cat: 需要文件路径");
         return 0;
     }
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
-        (void)puts("cat: invalid path");
+        ush_writeln_i18n("cat: invalid path", "cat: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_stat_type(path) != 1ULL) {
-        (void)puts("cat: file not found");
+        ush_writeln_i18n("cat: file not found", "cat: 文件不存在");
         return 0;
     }
 
     fd = cleonos_sys_fd_open(path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
-        (void)puts("cat: open failed");
+        ush_writeln_i18n("cat: open failed", "cat: 打开失败");
         return 0;
     }
 
@@ -38,7 +38,7 @@ static int ush_cmd_cat(const ush_state *sh, const char *arg) {
 
         if (got == (u64)-1) {
             (void)cleonos_sys_fd_close(fd);
-            (void)puts("cat: read failed");
+            ush_writeln_i18n("cat: read failed", "cat: 读取失败");
             return 0;
         }
 
@@ -50,7 +50,7 @@ static int ush_cmd_cat(const ush_state *sh, const char *arg) {
             u64 written = cleonos_sys_fd_write(1ULL, buf + written_total, got - written_total);
             if (written == (u64)-1 || written == 0ULL) {
                 (void)cleonos_sys_fd_close(fd);
-                (void)puts("cat: write failed");
+                ush_writeln_i18n("cat: write failed", "cat: 写入失败");
                 return 0;
             }
             written_total += written;

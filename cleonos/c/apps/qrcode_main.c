@@ -212,9 +212,11 @@ static int ush_qrcode_parse_ecc(const char *text, enum qrcodegen_Ecc *out_ecc) {
 }
 
 static void ush_qrcode_usage(void) {
-    ush_writeln("usage: qrcode [--ecc <L|M|Q|H>] <text>");
+    ush_writeln_i18n("usage: qrcode [--ecc <L|M|Q|H>] <text>",
+                     "用法: qrcode [--ecc <L|M|Q|H>] <text>");
     ush_writeln("       qrcode --help");
-    ush_writeln("note: pipeline input supported when <text> omitted");
+    ush_writeln_i18n("note: pipeline input supported when <text> omitted",
+                     "提示: 省略 <text> 时支持管道输入");
 }
 
 /* return: 0 fail, 1 ok, 2 help */
@@ -556,14 +558,15 @@ static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
     ush_zero(&fb_info, (u64)sizeof(fb_info));
     if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL ||
         fb_info.bpp != 32ULL) {
-        ush_writeln("qrcode: desktop unavailable, fallback to ascii");
+        ush_writeln_i18n("qrcode: desktop unavailable, fallback to ascii",
+                         "qrcode: 桌面不可用，回退到 ASCII 输出");
         ush_qrcode_emit_ascii(qrcode);
         return 1;
     }
 
     ush_qrcode_choose_window_geometry(&fb_info, &win_x, &win_y, &win_w, &win_h);
     if (ush_qrcode_draw_window_canvas(qrcode, win_w, win_h) == 0) {
-        ush_writeln("qrcode: desktop window too small");
+        ush_writeln_i18n("qrcode: desktop window too small", "qrcode: 桌面窗口过小");
         return 0;
     }
 
@@ -582,7 +585,8 @@ static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
         if (old_tty != USH_QRCODE_TTY_DISPLAY) {
             (void)cleonos_sys_tty_switch(old_tty);
         }
-        ush_writeln("qrcode: wm window create failed, fallback to ascii");
+        ush_writeln_i18n("qrcode: wm window create failed, fallback to ascii",
+                         "qrcode: WM 窗口创建失败，回退到 ASCII 输出");
         ush_qrcode_emit_ascii(qrcode);
         return 1;
     }
@@ -592,7 +596,7 @@ static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
         if (old_tty != USH_QRCODE_TTY_DISPLAY) {
             (void)cleonos_sys_tty_switch(old_tty);
         }
-        ush_writeln("qrcode: wm present failed");
+        ush_writeln_i18n("qrcode: wm present failed", "qrcode: WM 显示失败");
         return 0;
     }
 
@@ -629,7 +633,8 @@ static int ush_cmd_qrcode(const char *arg) {
                               qrcodegen_Mask_AUTO, true);
 
     if (ok == 0) {
-        ush_writeln("qrcode: encode failed (input too long or invalid)");
+        ush_writeln_i18n("qrcode: encode failed (input too long or invalid)",
+                         "qrcode: 编码失败（输入过长或无效）");
         return 0;
     }
 

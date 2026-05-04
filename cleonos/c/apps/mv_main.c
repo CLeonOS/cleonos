@@ -8,19 +8,19 @@ static int ush_copy_file(const char *src_path, const char *dst_path) {
     src_type = cleonos_sys_fs_stat_type(src_path);
 
     if (src_type != 1ULL) {
-        ush_writeln("cp: source file not found");
+        ush_writeln_i18n("mv: source file not found", "mv: 源文件不存在");
         return 0;
     }
 
     src_size = cleonos_sys_fs_stat_size(src_path);
 
     if (src_size == (u64)-1) {
-        ush_writeln("cp: failed to stat source");
+        ush_writeln_i18n("mv: failed to stat source", "mv: 获取源文件状态失败");
         return 0;
     }
 
     if (src_size > (u64)USH_COPY_MAX) {
-        ush_writeln("cp: source too large for user shell buffer");
+        ush_writeln_i18n("mv: source too large for user shell buffer", "mv: 源文件超过用户外壳缓冲区限制");
         return 0;
     }
 
@@ -30,13 +30,13 @@ static int ush_copy_file(const char *src_path, const char *dst_path) {
         got = cleonos_sys_fs_read(src_path, copy_buf, src_size);
 
         if (got == 0ULL || got != src_size) {
-            ush_writeln("cp: failed to read source");
+            ush_writeln_i18n("mv: failed to read source", "mv: 读取源文件失败");
             return 0;
         }
     }
 
     if (cleonos_sys_fs_write(dst_path, copy_buf, got) == 0ULL) {
-        ush_writeln("cp: failed to write destination");
+        ush_writeln_i18n("mv: failed to write destination", "mv: 写入目标文件失败");
         return 0;
     }
 
@@ -50,18 +50,18 @@ static int ush_cmd_mv(const ush_state *sh, const char *arg) {
     char dst_path[USH_PATH_MAX];
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("mv: usage mv <src> <dst>");
+        ush_writeln_i18n("mv: usage mv <src> <dst>", "mv: 用法 mv <src> <dst>");
         return 0;
     }
 
     if (ush_split_two_args(arg, src_arg, (u64)sizeof(src_arg), dst_arg, (u64)sizeof(dst_arg)) == 0) {
-        ush_writeln("mv: usage mv <src> <dst>");
+        ush_writeln_i18n("mv: usage mv <src> <dst>", "mv: 用法 mv <src> <dst>");
         return 0;
     }
 
     if (ush_resolve_path(sh, src_arg, src_path, (u64)sizeof(src_path)) == 0 ||
         ush_resolve_path(sh, dst_arg, dst_path, (u64)sizeof(dst_path)) == 0) {
-        ush_writeln("mv: invalid path");
+        ush_writeln_i18n("mv: invalid path", "mv: 无效路径");
         return 0;
     }
 
@@ -70,7 +70,7 @@ static int ush_cmd_mv(const ush_state *sh, const char *arg) {
     }
 
     if (cleonos_sys_fs_remove(src_path) == 0ULL) {
-        ush_writeln("mv: source remove failed");
+        ush_writeln_i18n("mv: source remove failed", "mv: 删除源文件失败");
         return 0;
     }
 

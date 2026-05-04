@@ -307,10 +307,22 @@ int ush_locale_is_zh(void) {
 }
 
 void ush_write_i18n_label(const char *en, const char *zh) {
+    const char *en_label = en;
+    const char *zh_label = zh;
+
     if (ush_locale_is_zh() != 0 && zh != (const char *)0 && zh[0] != '\0') {
-        ush_write(zh);
+        while (en_label != (const char *)0 && *en_label == ' ') {
+            ush_write_char(' ');
+            en_label++;
+        }
+
+        while (zh_label != (const char *)0 && *zh_label == ' ') {
+            zh_label++;
+        }
+
+        ush_write(zh_label);
         ush_write(" (");
-        ush_write(en);
+        ush_write(en_label);
         ush_write(")");
         return;
     }

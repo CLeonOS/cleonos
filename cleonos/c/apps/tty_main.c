@@ -4,8 +4,8 @@ static int ush_cmd_tty(const char *arg) {
     u64 active = cleonos_sys_tty_active();
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_print_kv_hex("TTY_COUNT", tty_count);
-        ush_print_kv_hex("TTY_ACTIVE", active);
+        ush_print_kv_hex_i18n("TTY_COUNT", "TTY 数量", tty_count);
+        ush_print_kv_hex_i18n("TTY_ACTIVE", "当前 TTY", active);
         return 1;
     }
 
@@ -13,22 +13,22 @@ static int ush_cmd_tty(const char *arg) {
         u64 idx;
 
         if (ush_parse_u64_dec(arg, &idx) == 0) {
-            ush_writeln("tty: usage tty [index]");
+            ush_writeln_i18n("tty: usage tty [index]", "tty: 用法 tty [index]");
             return 0;
         }
 
         if (idx >= tty_count) {
-            ush_writeln("tty: index out of range");
+            ush_writeln_i18n("tty: index out of range", "tty: 索引超出范围");
             return 0;
         }
 
         if (cleonos_sys_tty_switch(idx) == (u64)-1) {
-            ush_writeln("tty: switch failed");
+            ush_writeln_i18n("tty: switch failed", "tty: 切换失败");
             return 0;
         }
 
-        ush_writeln("tty: switched");
-        ush_print_kv_hex("TTY_ACTIVE", cleonos_sys_tty_active());
+        ush_writeln_i18n("tty: switched", "tty: 已切换");
+        ush_print_kv_hex_i18n("TTY_ACTIVE", "当前 TTY", cleonos_sys_tty_active());
         return 1;
     }
 }

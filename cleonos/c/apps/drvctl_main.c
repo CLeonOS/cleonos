@@ -56,14 +56,16 @@ static const char *drvctl_class_name(u64 driver_class) {
 }
 
 static void drvctl_usage(void) {
-    (void)puts("usage: drvctl list | load <path> | unload <name|path> | reload");
+    ush_writeln_i18n("usage: drvctl list | load <path> | unload <name|path> | reload",
+                     "用法: drvctl list | load <path> | unload <name|path> | reload");
 }
 
 static int drvctl_list(void) {
     u64 count = cleonos_sys_driver_count();
     u64 i;
 
-    (void)printf("drivers: %llu\n", (unsigned long long)count);
+    (void)printf((ush_locale_is_zh() != 0) ? "drivers (驱动数): %llu\n" : "drivers: %llu\n",
+                 (unsigned long long)count);
 
     for (i = 0ULL; i < count; i++) {
         cleonos_driver_info info;
@@ -93,11 +95,12 @@ static int drvctl_load(const char *path) {
 
     id = cleonos_sys_driver_load(path);
     if (id == 0ULL) {
-        (void)puts("drvctl: load failed");
+        ush_writeln_i18n("drvctl: load failed", "drvctl: 加载失败");
         return 0;
     }
 
-    (void)printf("drvctl: loaded id=%llu\n", (unsigned long long)id);
+    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已加载 (loaded) id=%llu\n" : "drvctl: loaded id=%llu\n",
+                 (unsigned long long)id);
     return 1;
 }
 
@@ -108,17 +111,19 @@ static int drvctl_unload(const char *name_or_path) {
     }
 
     if (cleonos_sys_driver_unload(name_or_path) == 0ULL) {
-        (void)puts("drvctl: unload failed");
+        ush_writeln_i18n("drvctl: unload failed", "drvctl: 卸载失败");
         return 0;
     }
 
-    (void)puts("drvctl: unloaded");
+    ush_writeln_i18n("drvctl: unloaded", "drvctl: 已卸载");
     return 1;
 }
 
 static int drvctl_reload(void) {
     u64 loaded = cleonos_sys_driver_reload();
-    (void)printf("drvctl: reloaded %llu driver(s)\n", (unsigned long long)loaded);
+    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已重新加载 (reloaded) %llu driver(s)\n"
+                                           : "drvctl: reloaded %llu driver(s)\n",
+                 (unsigned long long)loaded);
     return 1;
 }
 

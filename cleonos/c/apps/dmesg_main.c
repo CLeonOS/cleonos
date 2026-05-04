@@ -7,13 +7,13 @@ static int ush_cmd_dmesg(const char *arg) {
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_parse_u64_dec(arg, &limit) == 0 || limit == 0ULL) {
-            ush_writeln("dmesg: usage dmesg [positive_count]");
+            ush_writeln_i18n("dmesg: usage dmesg [positive_count]", "dmesg: 用法 dmesg [positive_count]");
             return 0;
         }
     }
 
     if (total == 0ULL) {
-        ush_writeln("(journal empty)");
+        ush_writeln_i18n("(journal empty)", "(日志为空)");
         return 1;
     }
 

@@ -8,14 +8,14 @@ static int devtest_read_once(const char *path) {
 
     fd = cleonos_sys_fd_open(path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
-        (void)printf("%s: open failed\n", path);
+        (void)printf((ush_locale_is_zh() != 0) ? "%s: 打开失败 (open failed)\n" : "%s: open failed\n", path);
         return 0;
     }
 
     got = cleonos_sys_fd_read(fd, buf, (u64)(sizeof(buf) - 1U));
     if (got == (u64)-1) {
         (void)cleonos_sys_fd_close(fd);
-        (void)printf("%s: read failed\n", path);
+        (void)printf((ush_locale_is_zh() != 0) ? "%s: 读取失败 (read failed)\n" : "%s: read failed\n", path);
         return 0;
     }
 
@@ -39,13 +39,13 @@ static int devtest_fb_clear(const char *arg) {
 
     fd = cleonos_sys_fd_open("/dev/fb0", CLEONOS_O_WRONLY, 0ULL);
     if (fd == (u64)-1) {
-        (void)puts("/dev/fb0: open write failed");
+        ush_writeln_i18n("/dev/fb0: open write failed", "/dev/fb0: 打开写入失败");
         return 0;
     }
 
     if (cleonos_sys_fd_write(fd, color, (u64)ush_strlen(color)) == (u64)-1) {
         (void)cleonos_sys_fd_close(fd);
-        (void)puts("/dev/fb0: write failed");
+        ush_writeln_i18n("/dev/fb0: write failed", "/dev/fb0: 写入失败");
         return 0;
     }
 
@@ -74,7 +74,8 @@ static int devtest_run(const char *arg) {
     ok &= devtest_read_once("/dev/net0");
     ok &= devtest_read_once("/dev/disk0");
     ok &= devtest_read_once("/dev/input/mouse");
-    (void)puts("/dev/input/kbd: non-blocking char stream; read it manually with cat if needed");
+    ush_writeln_i18n("/dev/input/kbd: non-blocking char stream; read it manually with cat if needed",
+                     "/dev/input/kbd: 非阻塞字符流；需要时可用 cat 手动读取");
     return ok;
 }
 

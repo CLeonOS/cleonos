@@ -103,24 +103,24 @@ static int ush_cut_load_input(const ush_state *sh, const char *file_arg, const c
 
     if (file_arg != (const char *)0 && file_arg[0] != '\0') {
         if (ush_resolve_path(sh, file_arg, path, (u64)sizeof(path)) == 0) {
-            ush_writeln("cut: invalid path");
+            ush_writeln_i18n("cut: invalid path", "cut: 无效路径");
             return 0;
         }
 
         if (cleonos_sys_fs_stat_type(path) != 1ULL) {
-            ush_writeln("cut: file not found");
+            ush_writeln_i18n("cut: file not found", "cut: 文件不存在");
             return 0;
         }
 
         size = cleonos_sys_fs_stat_size(path);
 
         if (size == (u64)-1) {
-            ush_writeln("cut: failed to stat file");
+            ush_writeln_i18n("cut: failed to stat file", "cut: 获取文件信息失败");
             return 0;
         }
 
         if (size > (u64)USH_COPY_MAX) {
-            ush_writeln("cut: file too large for user buffer");
+            ush_writeln_i18n("cut: file too large for user buffer", "cut: 文件过大，无法放入用户缓冲区");
             return 0;
         }
 
@@ -134,7 +134,7 @@ static int ush_cut_load_input(const ush_state *sh, const char *file_arg, const c
         got = cleonos_sys_fs_read(path, file_buf, size);
 
         if (got == 0ULL || got != size) {
-            ush_writeln("cut: read failed");
+            ush_writeln_i18n("cut: read failed", "cut: 读取失败");
             return 0;
         }
 
@@ -145,7 +145,7 @@ static int ush_cut_load_input(const ush_state *sh, const char *file_arg, const c
     }
 
     if (ush_pipeline_stdin_text == (const char *)0) {
-        ush_writeln("cut: file path required (or pipeline input)");
+        ush_writeln_i18n("cut: file path required (or pipeline input)", "cut: 需要文件路径或管道输入");
         return 0;
     }
 
@@ -197,7 +197,7 @@ static int ush_cmd_cut(const ush_state *sh, const char *arg) {
     }
 
     if (ush_cut_parse_args(arg, &delim, &field_index, file_arg, (u64)sizeof(file_arg)) == 0) {
-        ush_writeln("cut: usage cut -d <char> -f <N> [file]");
+        ush_writeln_i18n("cut: usage cut -d <char> -f <N> [file]", "cut: 用法 cut -d <char> -f <N> [file]");
         return 0;
     }
 

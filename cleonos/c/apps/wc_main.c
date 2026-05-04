@@ -62,24 +62,24 @@ static int ush_wc_load_input(const ush_state *sh, const char *file_arg, const ch
 
     if (file_arg != (const char *)0 && file_arg[0] != '\0') {
         if (ush_resolve_path(sh, file_arg, path, (u64)sizeof(path)) == 0) {
-            (void)puts("wc: invalid path");
+            ush_writeln_i18n("wc: invalid path", "wc: 无效路径");
             return 0;
         }
 
         if (cleonos_sys_fs_stat_type(path) != 1ULL) {
-            (void)puts("wc: file not found");
+            ush_writeln_i18n("wc: file not found", "wc: 文件不存在");
             return 0;
         }
 
         size = cleonos_sys_fs_stat_size(path);
 
         if (size == (u64)-1) {
-            (void)puts("wc: failed to stat file");
+            ush_writeln_i18n("wc: failed to stat file", "wc: 获取文件信息失败");
             return 0;
         }
 
         if (size > (u64)USH_COPY_MAX) {
-            (void)puts("wc: file too large for user buffer");
+            ush_writeln_i18n("wc: file too large for user buffer", "wc: 文件过大，无法放入用户缓冲区");
             return 0;
         }
 
@@ -93,7 +93,7 @@ static int ush_wc_load_input(const ush_state *sh, const char *file_arg, const ch
         got = cleonos_sys_fs_read(path, file_buf, size);
 
         if (got == 0ULL || got != size) {
-            (void)puts("wc: read failed");
+            ush_writeln_i18n("wc: read failed", "wc: 读取失败");
             return 0;
         }
 
@@ -104,7 +104,7 @@ static int ush_wc_load_input(const ush_state *sh, const char *file_arg, const ch
     }
 
     if (ush_pipeline_stdin_text == (const char *)0) {
-        (void)puts("wc: file path required (or pipeline input)");
+        ush_writeln_i18n("wc: file path required (or pipeline input)", "wc: 需要文件路径或管道输入");
         return 0;
     }
 
@@ -128,7 +128,7 @@ static int ush_cmd_wc(const ush_state *sh, const char *arg) {
     }
 
     if (ush_wc_parse_args(arg, file_arg, (u64)sizeof(file_arg)) == 0) {
-        (void)puts("wc: usage wc [file]");
+        ush_writeln_i18n("wc: usage wc [file]", "wc: 用法 wc [file]");
         return 0;
     }
 

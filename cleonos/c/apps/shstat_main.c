@@ -1,12 +1,12 @@
 #include "cmd_runtime.h"
 static int ush_cmd_shstat(const ush_state *sh) {
-    ush_writeln("shstat:");
-    ush_print_kv_hex("  CMD_TOTAL", sh->cmd_total);
-    ush_print_kv_hex("  CMD_OK", sh->cmd_ok);
-    ush_print_kv_hex("  CMD_FAIL", sh->cmd_fail);
-    ush_print_kv_hex("  CMD_UNKNOWN", sh->cmd_unknown);
-    ush_print_kv_hex("  EXIT_REQUESTED", (sh->exit_requested != 0) ? 1ULL : 0ULL);
-    ush_print_kv_hex("  EXIT_CODE", sh->exit_code);
+    ush_writeln_i18n("shstat:", "外壳统计 (shstat):");
+    ush_print_kv_hex_i18n("  CMD_TOTAL", "  命令总数", sh->cmd_total);
+    ush_print_kv_hex_i18n("  CMD_OK", "  命令成功", sh->cmd_ok);
+    ush_print_kv_hex_i18n("  CMD_FAIL", "  命令失败", sh->cmd_fail);
+    ush_print_kv_hex_i18n("  CMD_UNKNOWN", "  未知命令", sh->cmd_unknown);
+    ush_print_kv_hex_i18n("  EXIT_REQUESTED", "  请求退出", (sh->exit_requested != 0) ? 1ULL : 0ULL);
+    ush_print_kv_hex_i18n("  EXIT_CODE", "  退出码", sh->exit_code);
     return 1;
 }
 

@@ -8,12 +8,12 @@ static int ush_cmd_cd(ush_state *sh, const char *arg) {
     }
 
     if (ush_resolve_path(sh, target, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("cd: invalid path");
+        ush_writeln_i18n("cd: invalid path", "cd: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_stat_type(path) != 2ULL) {
-        ush_writeln("cd: directory not found");
+        ush_writeln_i18n("cd: directory not found", "cd: 目录不存在");
         return 0;
     }
 

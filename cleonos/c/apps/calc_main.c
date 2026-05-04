@@ -861,19 +861,21 @@ static int calc_join_args(int argc, char **argv, int start, char *out, unsigned 
 }
 
 static void calc_help(void) {
-    (void)puts("usage:");
+    ush_writeln_i18n("usage:", "用法:");
     (void)puts("  calc \"1+2*3\"");
     (void)puts("  calc \"sin(pi/2)+sqrt(9)\"");
     (void)puts("  calc plot \"sin(x)\" [-10 10 -2 2]");
     (void)puts("");
-    (void)puts("operators: + - * / % ^  parentheses supported");
-    (void)puts("constants: pi e tau  variable: x");
-    (void)puts("functions:");
+    ush_writeln_i18n("operators: + - * / % ^  parentheses supported",
+                     "运算符 (operators): + - * / % ^，支持括号");
+    ush_writeln_i18n("constants: pi e tau  variable: x", "常量 (constants): pi e tau，变量 (variable): x");
+    ush_writeln_i18n("functions:", "函数 (functions):");
     (void)puts("  sin cos tan asin acos atan sqrt abs exp ln log log10");
     (void)puts("  floor ceil round sign min max pow clamp");
-    (void)puts("plot: framebuffer pixel plot first, TTY ASCII fallback otherwise");
+    ush_writeln_i18n("plot: framebuffer pixel plot first, TTY ASCII fallback otherwise",
+                     "绘图 (plot): 优先使用 framebuffer 像素绘图，否则回退到 TTY ASCII");
     (void)puts("");
-    (void)puts("interactive commands:");
+    ush_writeln_i18n("interactive commands:", "交互命令 (interactive commands):");
     (void)puts("  plot <expr> [xmin xmax ymin ymax]");
     (void)puts("  help");
     (void)puts("  quit");
@@ -1085,11 +1087,12 @@ static int calc_plot_framebuffer(const char *expr, double xmin, double xmax, dou
         return 0;
     }
 
-    (void)fputs("pixel plot: ", 1);
+    ush_write_i18n_label("pixel plot", "像素绘图");
+    ush_write(": ");
     calc_print_u64((unsigned long long)width);
     (void)putchar('x');
     calc_print_u64((unsigned long long)height);
-    (void)fputs(" framebuffer image drawn\n", 1);
+    ush_writeln_i18n(" framebuffer image drawn", " framebuffer 图像已绘制");
 
     free(pixels);
     return 1;
@@ -1104,7 +1107,7 @@ static void calc_plot_ascii(const char *expr, double xmin, double xmax, double y
     int axis_y = -1;
 
     if (xmax <= xmin || ymax <= ymin) {
-        (void)puts("calc: invalid plot range");
+        ush_writeln_i18n("calc: invalid plot range", "calc: 绘图范围无效");
         return;
     }
 
@@ -1168,7 +1171,7 @@ static void calc_plot_ascii(const char *expr, double xmin, double xmax, double y
 
 static void calc_plot(const char *expr, double xmin, double xmax, double ymin, double ymax) {
     if (xmax <= xmin || ymax <= ymin) {
-        (void)puts("calc: invalid plot range");
+        ush_writeln_i18n("calc: invalid plot range", "calc: 绘图范围无效");
         return;
     }
 
@@ -1187,12 +1190,13 @@ static int calc_parse_plot_args(int argc, char **argv) {
     double ymax = 5.0;
 
     if (argc < 3 || argv == (char **)0 || argv[2] == (char *)0) {
-        (void)puts("calc: usage calc plot \"expr\" [xmin xmax ymin ymax]");
+        ush_writeln_i18n("calc: usage calc plot \"expr\" [xmin xmax ymin ymax]",
+                         "calc: 用法 calc plot \"expr\" [xmin xmax ymin ymax]");
         return 1;
     }
 
     if (calc_join_args(argc, argv, 2, expr, (unsigned long)sizeof(expr)) == 0) {
-        (void)puts("calc: expression too long");
+        ush_writeln_i18n("calc: expression too long", "calc: 表达式过长");
         return 1;
     }
 
@@ -1372,7 +1376,8 @@ static int calc_interactive_plot(const char *line) {
     }
 
     if (expr[0] == '\0') {
-        (void)puts("calc: plot usage: plot expr ; xmin xmax ymin ymax");
+        ush_writeln_i18n("calc: plot usage: plot expr ; xmin xmax ymin ymax",
+                         "calc: plot 用法: plot expr ; xmin xmax ymin ymax");
         return 1;
     }
 
@@ -1383,8 +1388,8 @@ static int calc_interactive_plot(const char *line) {
 static int calc_interactive(void) {
     char line[CALC_EXPR_MAX];
 
-    (void)puts("CLeonOS universal calculator");
-    (void)puts("type 'help' for usage, 'quit' to exit");
+    ush_writeln_i18n("CLeonOS universal calculator", "CLeonOS 万能计算器 (universal calculator)");
+    ush_writeln_i18n("type 'help' for usage, 'quit' to exit", "输入 help 查看用法，输入 quit 退出");
 
     for (;;) {
         double value = 0.0;
@@ -1409,7 +1414,8 @@ static int calc_interactive(void) {
         }
 
         if (calc_eval(line, 0.0, &value, err, (unsigned long)sizeof(err)) == 0) {
-            (void)fputs("error: ", 1);
+            ush_write_i18n_label("error", "错误");
+            ush_write(": ");
             (void)puts(err);
             continue;
         }
@@ -1444,7 +1450,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     }
 
     if (calc_join_args(argc, argv, 1, expr, (unsigned long)sizeof(expr)) == 0) {
-        (void)puts("calc: expression too long");
+        ush_writeln_i18n("calc: expression too long", "calc: 表达式过长");
         return 1;
     }
 

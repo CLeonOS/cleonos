@@ -6,23 +6,23 @@ static int ush_cmd_write(const ush_state *sh, const char *arg) {
     u64 payload_len;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("write: usage write <file> <text>");
+        ush_writeln_i18n("write: usage write <file> <text>", "write: 用法 write <file> <text>");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, path_arg, (u64)sizeof(path_arg), &payload) == 0) {
-        ush_writeln("write: usage write <file> <text>");
+        ush_writeln_i18n("write: usage write <file> <text>", "write: 用法 write <file> <text>");
         return 0;
     }
 
     if (ush_resolve_path(sh, path_arg, abs_path, (u64)sizeof(abs_path)) == 0) {
-        ush_writeln("write: invalid path");
+        ush_writeln_i18n("write: invalid path", "write: 无效路径");
         return 0;
     }
 
     if (payload == (const char *)0 || payload[0] == '\0') {
         if (ush_pipeline_stdin_text == (const char *)0) {
-            ush_writeln("write: usage write <file> <text>");
+            ush_writeln_i18n("write: usage write <file> <text>", "write: 用法 write <file> <text>");
             return 0;
         }
         payload = ush_pipeline_stdin_text;
@@ -32,7 +32,7 @@ static int ush_cmd_write(const ush_state *sh, const char *arg) {
     }
 
     if (cleonos_sys_fs_write(abs_path, payload, payload_len) == 0ULL) {
-        ush_writeln("write: failed");
+        ush_writeln_i18n("write: failed", "write: 写入失败");
         return 0;
     }
 

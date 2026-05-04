@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <cleonos_syscall.h>
+#include "cmd_runtime.h"
 
 int cl_doom_run_main(int argc, char **argv);
 
@@ -30,7 +31,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)envp;
 
     if (argc <= 0 || argv == (char **)0 || argv[0] == (char *)0) {
-        (void)printf("doom: invalid argv\n");
+        ush_writeln_i18n("doom: invalid argv", "doom: 无效参数 (invalid argv)");
         return 1;
     }
 
@@ -70,12 +71,12 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     run_argv[run_argc] = (char *)0;
 
     if (has_iwad == 0 && auto_wad == (const char *)0 && (argc <= 1 || argv[1] == (char *)0 || argv[1][0] == '-')) {
-        (void)printf("doom: no WAD provided\n");
-        (void)printf("doom: usage: doom /doom1.wad\n");
-        (void)printf("doom: or:    doom -iwad /doom1.wad\n");
+        ush_writeln_i18n("doom: no WAD provided", "doom: 未提供 WAD 文件 (no WAD provided)");
+        ush_writeln_i18n("doom: usage: doom /doom1.wad", "doom: 用法 (usage): doom /doom1.wad");
+        ush_writeln_i18n("doom: or:    doom -iwad /doom1.wad", "doom: 或 (or): doom -iwad /doom1.wad");
         return 1;
     }
 
-    (void)printf("doom: launching doomgeneric\n");
+    ush_writeln_i18n("doom: launching doomgeneric", "doom: 正在启动 doomgeneric (launching)");
     return cl_doom_run_main(run_argc, run_argv);
 }

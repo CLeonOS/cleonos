@@ -94,17 +94,19 @@ static int ush_cmd_kill(const char *arg) {
     u64 ret;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("kill: usage kill <pid> [TERM|KILL|STOP|CONT|signal]");
+        ush_writeln_i18n("kill: usage kill <pid> [TERM|KILL|STOP|CONT|signal]",
+                         "kill: 用法 kill <pid> [TERM|KILL|STOP|CONT|signal]");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, pid_text, (u64)sizeof(pid_text), &rest) == 0) {
-        ush_writeln("kill: usage kill <pid> [TERM|KILL|STOP|CONT|signal]");
+        ush_writeln_i18n("kill: usage kill <pid> [TERM|KILL|STOP|CONT|signal]",
+                         "kill: 用法 kill <pid> [TERM|KILL|STOP|CONT|signal]");
         return 0;
     }
 
     if (ush_parse_u64_dec(pid_text, &pid) == 0 || pid == 0ULL) {
-        ush_writeln("kill: invalid pid");
+        ush_writeln_i18n("kill: invalid pid", "kill: 无效进程号");
         return 0;
     }
 
@@ -112,7 +114,7 @@ static int ush_cmd_kill(const char *arg) {
         ush_copy(signal_text, (u64)sizeof(signal_text), rest);
         ush_trim_line(signal_text);
         if (ush_kill_parse_signal(signal_text, &signal) == 0) {
-            ush_writeln("kill: invalid signal");
+            ush_writeln_i18n("kill: invalid signal", "kill: 无效信号");
             return 0;
         }
     }
@@ -120,18 +122,21 @@ static int ush_cmd_kill(const char *arg) {
     ret = cleonos_sys_proc_kill(pid, signal);
 
     if (ret == (u64)-1) {
-        ush_writeln("kill: pid not found");
+        ush_writeln_i18n("kill: pid not found", "kill: 找不到进程");
         return 0;
     }
 
     if (ret == 0ULL) {
-        ush_writeln("kill: target cannot be terminated right now");
+        ush_writeln_i18n("kill: target cannot be terminated right now", "kill: 目标当前不能终止");
         return 0;
     }
 
-    ush_write("kill: sent signal ");
+    ush_write_i18n_label("kill: sent signal", "kill: 已发送信号");
+    ush_write(" ");
     ush_write_hex_u64(signal);
-    ush_write(" to ");
+    ush_write(" ");
+    ush_write_i18n_label("to", "到");
+    ush_write(" ");
     ush_write_hex_u64(pid);
     ush_write_char('\n');
     return 1;

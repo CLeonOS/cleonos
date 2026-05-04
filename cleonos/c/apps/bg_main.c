@@ -11,16 +11,17 @@ static int ush_bg_resume_pid(const char *pid_text) {
     ret = cleonos_sys_proc_kill(pid, CLEONOS_SIGCONT);
 
     if (ret == (u64)-1) {
-        ush_writeln("bg: pid not found");
+        ush_writeln_i18n("bg: pid not found", "bg: 找不到进程");
         return 1;
     }
 
     if (ret == 0ULL) {
-        ush_writeln("bg: target cannot be resumed right now");
+        ush_writeln_i18n("bg: target cannot be resumed right now", "bg: 目标当前不能继续运行");
         return 1;
     }
 
-    ush_write("bg: resumed [");
+    ush_write_i18n_label("bg: resumed", "bg: 已继续");
+    ush_write(" [");
     ush_write_hex_u64(pid);
     ush_writeln("]");
     return 1;
@@ -35,12 +36,12 @@ static int ush_cmd_bg(const ush_state *sh, const char *arg) {
     u64 pid;
 
     if (sh == (const ush_state *)0 || arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("bg: usage bg <path|name> [args...]");
+        ush_writeln_i18n("bg: usage bg <path|name> [args...]", "bg: 用法 bg <path|name> [args...]");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, target, (u64)sizeof(target), &rest) == 0) {
-        ush_writeln("bg: usage bg <path|name> [args...]");
+        ush_writeln_i18n("bg: usage bg <path|name> [args...]", "bg: 用法 bg <path|name> [args...]");
         return 0;
     }
 
@@ -54,12 +55,13 @@ static int ush_cmd_bg(const ush_state *sh, const char *arg) {
     }
 
     if (ush_resolve_exec_path(sh, target, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("bg: invalid target");
+        ush_writeln_i18n("bg: invalid target", "bg: 无效目标");
         return 0;
     }
 
     if (ush_path_is_under_system(path) != 0) {
-        ush_writeln("bg: /system/*.elf is kernel-mode (KELF), not user-exec");
+        ush_writeln_i18n("bg: /system/*.elf is kernel-mode (KELF), not user-exec",
+                         "bg: /system/*.elf 是内核态程序 (KELF)，不能作为用户态程序执行");
         return 0;
     }
 
@@ -70,7 +72,7 @@ static int ush_cmd_bg(const ush_state *sh, const char *arg) {
     pid = cleonos_sys_spawn_pathv(path, argv_line, env_line);
 
     if (pid == (u64)-1) {
-        ush_writeln("bg: request failed");
+        ush_writeln_i18n("bg: request failed", "bg: 请求失败");
         return 0;
     }
 

@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_ansi(void) {
-    ush_writeln("\x1B[1;36mansi color demo\x1B[0m");
+    ush_writeln_i18n("\x1B[1;36mansi color demo\x1B[0m", "\x1B[1;36mANSI 颜色演示 (ansi color demo)\x1B[0m");
     ush_writeln("  \x1B[30mblack\x1B[0m \x1B[31mred\x1B[0m \x1B[32mgreen\x1B[0m \x1B[33myellow\x1B[0m");
     ush_writeln("  \x1B[34mblue\x1B[0m \x1B[35mmagenta\x1B[0m \x1B[36mcyan\x1B[0m \x1B[37mwhite\x1B[0m");
     ush_writeln("  \x1B[90mbright-black\x1B[0m \x1B[91mbright-red\x1B[0m \x1B[92mbright-green\x1B[0m "
@@ -94,12 +94,13 @@ static void ush_ansitest_emit_bg256(u64 index) {
 static int ush_cmd_ansitest(void) {
     u64 i;
 
-    ush_writeln("\x1B[1;96mANSI test suite\x1B[0m");
-    ush_writeln("styles: \x1B[1mbold\x1B[0m  \x1B[7minverse\x1B[0m  \x1B[4munderline\x1B[0m");
-    ush_writeln("16-color demo:");
+    ush_writeln_i18n("\x1B[1;96mANSI test suite\x1B[0m", "\x1B[1;96mANSI 测试套件 (test suite)\x1B[0m");
+    ush_writeln_i18n("styles: \x1B[1mbold\x1B[0m  \x1B[7minverse\x1B[0m  \x1B[4munderline\x1B[0m",
+                     "样式 (styles): \x1B[1mbold\x1B[0m  \x1B[7minverse\x1B[0m  \x1B[4munderline\x1B[0m");
+    ush_writeln_i18n("16-color demo:", "16 色演示 (16-color demo):");
     (void)ush_cmd_ansi();
 
-    ush_writeln("256-color palette (0..255):");
+    ush_writeln_i18n("256-color palette (0..255):", "256 色调色板 (palette 0..255):");
     for (i = 0ULL; i < 256ULL; i++) {
         ush_ansitest_emit_bg256(i);
         if ((i % 32ULL) == 31ULL) {
@@ -108,11 +109,11 @@ static int ush_cmd_ansitest(void) {
     }
     ush_write_char('\n');
 
-    ush_writeln("truecolor demo:");
+    ush_writeln_i18n("truecolor demo:", "真彩色演示 (truecolor demo):");
     ush_writeln("  \x1B[38;2;255;64;64mRGB(255,64,64)\x1B[0m  \x1B[38;2;64;255;64mRGB(64,255,64)\x1B[0m  "
                 "\x1B[38;2;64;128;255mRGB(64,128,255)\x1B[0m");
 
-    ush_writeln("cursor control demo:");
+    ush_writeln_i18n("cursor control demo:", "光标控制演示 (cursor control demo):");
     ush_write("  0123456789");
     ush_write("\x1B[5D");
     ush_write("\x1B[93m<OK>\x1B[0m");
@@ -125,12 +126,12 @@ static int ush_cmd_ansitest(void) {
     ush_write("\x1B[92m<restore>\x1B[0m");
     ush_write_char('\n');
 
-    ush_writeln("erase-line demo:");
+    ush_writeln_i18n("erase-line demo:", "擦除行演示 (erase-line demo):");
     ush_write("  left|right-to-clear");
     ush_write("\x1B[14D\x1B[K");
     ush_write_char('\n');
 
-    ush_writeln("ansitest done");
+    ush_writeln_i18n("ansitest done", "ansitest 完成");
     return 1;
 }
 

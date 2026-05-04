@@ -158,7 +158,9 @@ static int ush_dns_parse_response(const u8 *resp, u64 resp_len, u16 expected_id)
     }
 
     if ((flags & 0x000FU) != 0U) {
-        (void)printf("nslookup: server error rcode=%u\n", (unsigned int)(flags & 0x000FU));
+        (void)printf((ush_locale_is_zh() != 0) ? "nslookup: 服务器错误 (server error) rcode=%u\n"
+                                               : "nslookup: server error rcode=%u\n",
+                     (unsigned int)(flags & 0x000FU));
         return 0;
     }
 
@@ -219,18 +221,18 @@ static int ush_cmd_nslookup(const char *arg) {
     int loops;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        (void)puts("nslookup: usage nslookup <domain>");
+        ush_writeln_i18n("nslookup: usage nslookup <domain>", "nslookup: 用法 nslookup <domain>");
         return 0;
     }
 
     if (cleonos_sys_net_available() == 0ULL) {
-        (void)puts("nslookup: network unavailable");
+        ush_writeln_i18n("nslookup: network unavailable", "nslookup: 网络不可用");
         return 0;
     }
 
     dns_server = cleonos_sys_net_dns_server();
     if (dns_server == 0ULL) {
-        (void)puts("nslookup: dns server unavailable");
+        ush_writeln_i18n("nslookup: dns server unavailable", "nslookup: DNS 服务器不可用");
         return 0;
     }
 
@@ -239,7 +241,7 @@ static int ush_cmd_nslookup(const char *arg) {
 
     (void)memset(query, 0, sizeof(query));
     if (ush_dns_encode_qname(arg, query + 12ULL, (u64)sizeof(query) - 12ULL, &qname_len) == 0) {
-        (void)puts("nslookup: invalid domain");
+        ush_writeln_i18n("nslookup: invalid domain", "nslookup: 无效域名");
         return 0;
     }
     ush_dns_write_be16(&query[0], txid);
@@ -251,7 +253,7 @@ static int ush_cmd_nslookup(const char *arg) {
 
     query_len = 12ULL + qname_len;
     if (query_len + 4ULL > (u64)sizeof(query)) {
-        (void)puts("nslookup: query too large");
+        ush_writeln_i18n("nslookup: query too large", "nslookup: 查询过大");
         return 0;
     }
     ush_dns_write_be16(&query[query_len], 1U);
@@ -265,16 +267,18 @@ static int ush_cmd_nslookup(const char *arg) {
     send_req.payload_len = query_len;
 
     if (cleonos_sys_net_udp_send(&send_req) != query_len) {
-        (void)puts("nslookup: send failed");
+        ush_writeln_i18n("nslookup: send failed", "nslookup: 发送失败");
         return 0;
     }
 
-    (void)fputs("Server: ", 1);
+    ush_write_i18n_label("Server", "服务器");
+    ush_write(": ");
     ush_dns_print_ipv4_be(dns_server);
     (void)putchar('\n');
-    (void)fputs("Query: ", 1);
+    ush_write_i18n_label("Query", "查询");
+    ush_write(": ");
     (void)puts(arg);
-    (void)puts("Answer:");
+    ush_writeln_i18n("Answer:", "应答 (Answer):");
 
     for (loops = 0; loops < 600; loops++) {
         cleonos_net_udp_recv_req recv_req;
@@ -304,7 +308,7 @@ static int ush_cmd_nslookup(const char *arg) {
         }
     }
 
-    (void)puts("nslookup: timeout");
+    ush_writeln_i18n("nslookup: timeout", "nslookup: 超时");
     return 0;
 }
 

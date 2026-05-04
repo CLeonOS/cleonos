@@ -73,7 +73,9 @@ static const char *ush_wget_tcp_error_text(u64 error_code) {
 
 static void ush_wget_print_tcp_connect_failed(void) {
     u64 err = cleonos_sys_net_tcp_last_error();
-    (void)printf("wget: tcp connect failed: %s (%llu)\n", ush_wget_tcp_error_text(err), (unsigned long long)err);
+    (void)printf((ush_locale_is_zh() != 0) ? "wget: TCP 连接失败 (tcp connect failed): %s (%llu)\n"
+                                           : "wget: tcp connect failed: %s (%llu)\n",
+                 ush_wget_tcp_error_text(err), (unsigned long long)err);
 }
 
 typedef struct ush_wget_url {
@@ -884,16 +886,18 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     int ok = 0;
 
     if (arg == (const char *)0 || arg[0] == '\0' || ush_streq(arg, "--help") != 0 || ush_streq(arg, "-h") != 0) {
-        (void)puts("usage: wget <http://host[:port]/path> [output]");
-        (void)puts("       wget <https://host[:port]/path> [output]");
-        (void)puts("       wget -O <output> <url>");
-        (void)puts("note: default network timeout is 10 seconds");
-        (void)puts("note: TLS uses encryption + SNI; certificate verification is not available yet");
+        ush_writeln_i18n("usage: wget <http://host[:port]/path> [output]",
+                         "用法: wget <http://host[:port]/path> [output]");
+        ush_writeln("       wget <https://host[:port]/path> [output]");
+        ush_writeln("       wget -O <output> <url>");
+        ush_writeln_i18n("note: default network timeout is 10 seconds", "提示: 默认网络超时为 10 秒");
+        ush_writeln_i18n("note: TLS uses encryption + SNI; certificate verification is not available yet",
+                         "提示: TLS 使用加密和 SNI；证书验证暂不可用");
         return 0;
     }
 
     if (sh == (const ush_state *)0 || ush_wget_parse_args(arg, &args) == 0 || ush_wget_parse_url(args.url, &url) == 0) {
-        (void)puts("wget: invalid arguments or URL");
+        ush_writeln_i18n("wget: invalid arguments or URL", "wget: 参数或 URL 无效");
         return 0;
     }
 
@@ -904,36 +908,39 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
     }
 
     if (ush_resolve_path(sh, output_arg, output_abs, (u64)sizeof(output_abs)) == 0) {
-        (void)puts("wget: invalid output path");
+        ush_writeln_i18n("wget: invalid output path", "wget: 输出路径无效");
         return 0;
     }
 
     if (cleonos_sys_net_available() == 0ULL) {
-        (void)puts("wget: network unavailable");
+        ush_writeln_i18n("wget: network unavailable", "wget: 网络不可用");
         return 0;
     }
 
     if (ush_wget_parse_ipv4_be(url.host, &dst_ipv4_be) == 0) {
         if (ush_wget_dns_resolve_ipv4(url.host, &dst_ipv4_be) == 0) {
-            (void)printf("wget: DNS resolve failed for %s\n", url.host);
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: DNS 解析失败 (DNS resolve failed) for %s\n"
+                                                    : "wget: DNS resolve failed for %s\n",
+                         url.host);
             return 0;
         }
     }
 
     out_fd = cleonos_sys_fd_open(output_abs, CLEONOS_O_WRONLY | CLEONOS_O_CREAT | CLEONOS_O_TRUNC, 0ULL);
     if (out_fd == (u64)-1) {
-        (void)puts("wget: output open failed");
+        ush_writeln_i18n("wget: output open failed", "wget: 打开输出文件失败");
         return 0;
     }
 
-    (void)printf("wget: connect ");
+    ush_write_i18n_label("wget: connect", "wget: 连接");
+    ush_write(" ");
     ush_wget_print_ipv4(dst_ipv4_be);
     (void)printf(":%u%s\n", (unsigned int)url.port, (url.tls != 0) ? " tls" : "");
 
     if (url.tls != 0) {
         tls_conn = (cleonos_tls_conn *)malloc(sizeof(*tls_conn));
         if (tls_conn == (cleonos_tls_conn *)0) {
-            (void)puts("wget: tls allocation failed");
+            ush_writeln_i18n("wget: tls allocation failed", "wget: TLS 分配失败");
             goto done;
         }
         ush_zero(tls_conn, (u64)sizeof(*tls_conn));
@@ -941,7 +948,9 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                                          ush_wget_deadline_after_timeout()) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf("wget: tls connect failed: %s\n", tls_error);
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 连接失败 (tls connect failed): %s\n"
+                                                    : "wget: tls connect failed: %s\n",
+                         tls_error);
             goto done;
         }
         tls_open = 1;
@@ -972,7 +981,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                                url.path, url.host, (unsigned int)url.port);
     }
     if (request_len <= 0 || (u64)request_len >= (u64)sizeof(request)) {
-        (void)puts("wget: request build failed");
+        ush_writeln_i18n("wget: request build failed", "wget: 请求构建失败");
         goto done;
     }
 
@@ -980,7 +989,9 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf("wget: tls send failed: %s\n", tls_error);
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 发送失败 (tls send failed): %s\n"
+                                                    : "wget: tls send failed: %s\n",
+                         tls_error);
             goto done;
         }
     } else {
@@ -988,7 +999,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         send_req.payload_len = (u64)request_len;
         send_req.poll_budget = USH_WGET_TCP_POLL_BUDGET;
         if (cleonos_sys_net_tcp_send(&send_req) != (u64)request_len) {
-            (void)puts("wget: tcp send failed");
+            ush_writeln_i18n("wget: tcp send failed", "wget: TCP 发送失败");
             goto done;
         }
     }
@@ -1004,7 +1015,9 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             if (tls_got < 0) {
                 char tls_error[96];
                 cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-                (void)printf("wget: tls recv failed: %s\n", tls_error);
+                (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 接收失败 (tls recv failed): %s\n"
+                                                        : "wget: tls recv failed: %s\n",
+                             tls_error);
                 goto done;
             }
             got = (u64)tls_got;
@@ -1031,7 +1044,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                 if (header_done != 0 && saved > 0ULL && has_content_length == 0 && is_chunked == 0) {
                     break;
                 }
-                (void)puts("wget: network timeout");
+                ush_writeln_i18n("wget: network timeout", "wget: 网络超时");
                 goto done;
             }
             (void)cleonos_sys_sleep_ms(10ULL);
@@ -1042,7 +1055,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         if (header_done == 0) {
             u64 body_offset = 0ULL;
             if (header_used + got > (u64)sizeof(header)) {
-                (void)puts("wget: HTTP header too large");
+                ush_writeln_i18n("wget: HTTP header too large", "wget: HTTP 头过大");
                 goto done;
             }
             memcpy(header + header_used, chunk, (usize)got);
@@ -1053,12 +1066,14 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             header_done = 1;
             status = ush_wget_status_code(header, header_used);
             if (status >= 400) {
-                (void)printf("wget: HTTP status %d\n", status);
+                (void)printf((ush_locale_is_zh() != 0) ? "wget: HTTP 状态 (HTTP status) %d\n"
+                                                        : "wget: HTTP status %d\n",
+                             status);
                 goto done;
             }
             if (ush_wget_parse_http_headers(header, body_offset, &is_chunked, &content_length, &has_content_length) ==
                 0) {
-                (void)puts("wget: invalid HTTP headers");
+                ush_writeln_i18n("wget: invalid HTTP headers", "wget: HTTP 头无效");
                 goto done;
             }
             if (header_used > body_offset) {
@@ -1066,7 +1081,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                 if (is_chunked != 0) {
                     if (ush_wget_chunked_write_feed(&chunk_state, out_fd, header + body_offset, body_len, &saved) ==
                         0) {
-                        (void)puts("wget: invalid chunked HTTP body");
+                        ush_writeln_i18n("wget: invalid chunked HTTP body", "wget: chunked HTTP body 无效");
                         goto done;
                     }
                     if (chunk_state.done != 0) {
@@ -1077,7 +1092,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                         body_len = content_length;
                     }
                     if (body_len > 0ULL && ush_wget_write_all(out_fd, header + body_offset, body_len) == 0) {
-                        (void)puts("wget: write failed");
+                        ush_writeln_i18n("wget: write failed", "wget: 写入失败");
                         goto done;
                     }
                     saved += body_len;
@@ -1085,7 +1100,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                         break;
                     }
                 } else if (ush_wget_write_all(out_fd, header + body_offset, body_len) == 0) {
-                    (void)puts("wget: write failed");
+                    ush_writeln_i18n("wget: write failed", "wget: 写入失败");
                     goto done;
                 } else {
                     saved += body_len;
@@ -1096,7 +1111,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
 
         if (is_chunked != 0) {
             if (ush_wget_chunked_write_feed(&chunk_state, out_fd, chunk, got, &saved) == 0) {
-                (void)puts("wget: invalid chunked HTTP body");
+                ush_writeln_i18n("wget: invalid chunked HTTP body", "wget: chunked HTTP body 无效");
                 goto done;
             }
             if (chunk_state.done != 0) {
@@ -1111,7 +1126,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             }
             if (got == 0ULL || saved + got >= content_length) {
                 if (got > 0ULL && ush_wget_write_all(out_fd, chunk, got) == 0) {
-                    (void)puts("wget: write failed");
+                    ush_writeln_i18n("wget: write failed", "wget: 写入失败");
                     goto done;
                 }
                 saved += got;
@@ -1120,18 +1135,20 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         }
 
         if (ush_wget_write_all(out_fd, chunk, got) == 0) {
-            (void)puts("wget: write failed");
+            ush_writeln_i18n("wget: write failed", "wget: 写入失败");
             goto done;
         }
         saved += got;
     }
 
     if (header_done == 0) {
-        (void)puts("wget: no HTTP response");
+        ush_writeln_i18n("wget: no HTTP response", "wget: 没有 HTTP 响应");
         goto done;
     }
 
-    (void)printf("wget: saved %llu bytes to %s\n", (unsigned long long)saved, output_abs);
+    (void)printf((ush_locale_is_zh() != 0) ? "wget: 已保存 (saved) %llu bytes to %s\n"
+                                           : "wget: saved %llu bytes to %s\n",
+                 (unsigned long long)saved, output_abs);
     ok = 1;
 
 done:

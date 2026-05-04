@@ -24,12 +24,14 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     int i;
     int env_count = 0;
 
-    ush_write("argc=");
+    ush_write_i18n_label("argc", "参数数量 (argc)");
+    ush_write("=");
     ush_args_write_u64_dec((u64)((argc >= 0) ? argc : 0));
     ush_write_char('\n');
 
     for (i = 0; i < argc; i++) {
-        ush_write("argv[");
+        ush_write_i18n_label("argv", "参数 (argv)");
+        ush_write("[");
         ush_args_write_u64_dec((u64)i);
         ush_write("]=");
 
@@ -46,12 +48,14 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
         }
     }
 
-    ush_write("envc=");
+    ush_write_i18n_label("envc", "环境变量数量 (envc)");
+    ush_write("=");
     ush_args_write_u64_dec((u64)env_count);
     ush_write_char('\n');
 
     for (i = 0; i < env_count; i++) {
-        ush_write("env[");
+        ush_write_i18n_label("env", "环境变量 (env)");
+        ush_write("[");
         ush_args_write_u64_dec((u64)i);
         ush_write("]=");
         ush_writeln(envp[i]);

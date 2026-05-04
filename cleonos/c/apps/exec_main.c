@@ -8,12 +8,12 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     u64 status;
 
     if (sh == (const ush_state *)0 || arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("exec: usage exec <path|name> [args...]");
+        ush_writeln_i18n("exec: usage exec <path|name> [args...]", "exec: 用法 exec <path|name> [args...]");
         return 0;
     }
 
     if (ush_split_first_and_rest(arg, target, (u64)sizeof(target), &rest) == 0) {
-        ush_writeln("exec: usage exec <path|name> [args...]");
+        ush_writeln_i18n("exec: usage exec <path|name> [args...]", "exec: 用法 exec <path|name> [args...]");
         return 0;
     }
 
@@ -23,12 +23,13 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     }
 
     if (ush_resolve_exec_path(sh, target, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("exec: invalid target");
+        ush_writeln_i18n("exec: invalid target", "exec: 无效目标");
         return 0;
     }
 
     if (ush_path_is_under_system(path) != 0) {
-        ush_writeln("exec: /system/*.elf is kernel-mode (KELF), not user-exec");
+        ush_writeln_i18n("exec: /system/*.elf is kernel-mode (KELF), not user-exec",
+                         "exec: /system/*.elf 是内核态程序 (KELF)，不能作为用户态程序执行");
         return 0;
     }
 
@@ -39,23 +40,23 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     status = cleonos_sys_exec_pathv(path, argv_line, env_line);
 
     if (status == (u64)-1) {
-        ush_writeln("exec: request failed");
+        ush_writeln_i18n("exec: request failed", "exec: 请求失败");
         return 0;
     }
 
     if (status == 0ULL) {
-        ush_writeln("exec: request accepted");
+        ush_writeln_i18n("exec: request accepted", "exec: 请求已接受");
         return 1;
     }
 
     if ((status & (1ULL << 63)) != 0ULL) {
-        ush_writeln("exec: terminated by signal");
-        ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-        ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-        ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+        ush_writeln_i18n("exec: terminated by signal", "exec: 被信号终止");
+        ush_print_kv_hex_i18n("  SIGNAL", "  信号", status & 0xFFULL);
+        ush_print_kv_hex_i18n("  VECTOR", "  向量", (status >> 8) & 0xFFULL);
+        ush_print_kv_hex_i18n("  ERROR", "  错误码", (status >> 16) & 0xFFFFULL);
     } else {
-        ush_writeln("exec: returned non-zero status");
-        ush_print_kv_hex("  STATUS", status);
+        ush_writeln_i18n("exec: returned non-zero status", "exec: 返回非零状态");
+        ush_print_kv_hex_i18n("  STATUS", "  状态", status);
     }
 
     return 0;

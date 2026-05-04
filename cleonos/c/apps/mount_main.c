@@ -42,50 +42,52 @@ static int ush_cmd_mount(ush_state *sh, const char *arg) {
     }
 
     if (cleonos_sys_disk_present() == 0ULL) {
-        (void)fputs("mount: disk not present\n", 1);
+        ush_writeln_i18n("mount: disk not present", "mount: 磁盘不存在");
         return 0;
     }
 
     if (ush_mount_parse_path_arg(arg, mount_arg, (u64)sizeof(mount_arg)) == 0) {
-        (void)fputs("mount: usage mount [path]\n", 1);
+        ush_writeln_i18n("mount: usage mount [path]", "mount: 用法 mount [path]");
         return 0;
     }
 
     mounted = cleonos_sys_disk_mounted();
     if (mount_arg[0] == '\0') {
         if (mounted == 0ULL) {
-            (void)fputs("mount: no mounted disk path\n", 1);
-            (void)fputs("mount: usage mount /temp/disk\n", 1);
+            ush_writeln_i18n("mount: no mounted disk path", "mount: 没有已挂载的磁盘路径");
+            ush_writeln_i18n("mount: usage mount /temp/disk", "mount: 用法 mount /temp/disk");
             return 0;
         }
 
         current_path[0] = '\0';
         (void)cleonos_sys_disk_mount_path(current_path, (u64)sizeof(current_path));
         if (current_path[0] == '\0') {
-            (void)fputs("disk0 on (unknown) type fat32\n", 1);
+            ush_writeln_i18n("disk0 on (unknown) type fat32", "disk0 挂载在 (unknown)，类型 fat32");
         } else {
-            (void)printf("disk0 on %s type fat32\n", current_path);
+            (void)printf((ush_locale_is_zh() != 0) ? "disk0 挂载在 %s，类型 fat32\n"
+                                                   : "disk0 on %s type fat32\n",
+                         current_path);
         }
         return 1;
     }
 
     if (cleonos_sys_disk_formatted() == 0ULL) {
-        (void)fputs("mount: disk is not FAT32 formatted\n", 1);
-        (void)fputs("mount: run mkfsfat32 first\n", 1);
+        ush_writeln_i18n("mount: disk is not FAT32 formatted", "mount: 磁盘未格式化为 FAT32");
+        ush_writeln_i18n("mount: run mkfsfat32 first", "mount: 请先运行 mkfsfat32");
         return 0;
     }
 
     if (ush_resolve_path(sh, mount_arg, mount_path, (u64)sizeof(mount_path)) == 0) {
-        (void)fputs("mount: invalid path\n", 1);
+        ush_writeln_i18n("mount: invalid path", "mount: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_disk_mount(mount_path) == 0ULL) {
-        (void)fputs("mount: mount failed\n", 1);
+        ush_writeln_i18n("mount: mount failed", "mount: 挂载失败");
         return 0;
     }
 
-    (void)printf("disk0 mounted on %s\n", mount_path);
+    (void)printf((ush_locale_is_zh() != 0) ? "disk0 已挂载到 %s\n" : "disk0 mounted on %s\n", mount_path);
     return 1;
 }
 

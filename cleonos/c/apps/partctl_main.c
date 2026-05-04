@@ -72,7 +72,7 @@ static int partctl_tokenize(const char *arg, char tokens[][USH_ARG_MAX], int max
 
 static int partctl_disk_required(void) {
     if (cleonos_sys_disk_present() == 0ULL) {
-        (void)fputs("partctl: disk not present\n", 1);
+        ush_writeln_i18n("partctl: disk not present", "partctl: 磁盘不存在");
         return 0;
     }
     return 1;
@@ -88,7 +88,7 @@ static int partctl_read_sector0(unsigned char *sector) {
     }
 
     if (cleonos_sys_disk_read_sector(0ULL, (void *)sector) == 0ULL) {
-        (void)fputs("partctl: read sector0 failed\n", 1);
+        ush_writeln_i18n("partctl: read sector0 failed", "partctl: 读取 sector0 失败");
         return 0;
     }
 
@@ -105,7 +105,7 @@ static int partctl_write_sector0(const unsigned char *sector) {
     }
 
     if (cleonos_sys_disk_write_sector(0ULL, (const void *)sector) == 0ULL) {
-        (void)fputs("partctl: write sector0 failed\n", 1);
+        ush_writeln_i18n("partctl: write sector0 failed", "partctl: 写入 sector0 失败");
         return 0;
     }
 
@@ -122,12 +122,12 @@ static void partctl_mbr_ensure_signature(unsigned char *sector) {
 }
 
 static void partctl_usage(void) {
-    (void)fputs("partctl usage:\n", 1);
-    (void)fputs("  partctl list\n", 1);
-    (void)fputs("  partctl init-mbr\n", 1);
-    (void)fputs("  partctl create <index:1-4> <start_lba> <sectors> <type_hex> [boot:0|1]\n", 1);
-    (void)fputs("  partctl delete <index:1-4>\n", 1);
-    (void)fputs("  partctl set-boot <index:1-4> <0|1>\n", 1);
+    ush_writeln_i18n("partctl usage:", "partctl 用法:");
+    ush_writeln("  partctl list");
+    ush_writeln("  partctl init-mbr");
+    ush_writeln("  partctl create <index:1-4> <start_lba> <sectors> <type_hex> [boot:0|1]");
+    ush_writeln("  partctl delete <index:1-4>");
+    ush_writeln("  partctl set-boot <index:1-4> <0|1>");
 }
 
 static int partctl_cmd_list(void) {
@@ -170,7 +170,7 @@ static int partctl_cmd_list(void) {
     }
 
     if (has_any == 0) {
-        (void)fputs("partctl: no partition entries\n", 1);
+        ush_writeln_i18n("partctl: no partition entries", "partctl: 没有分区项");
     }
 
     return 1;
@@ -221,7 +221,7 @@ static int partctl_cmd_init_mbr(void) {
         return 0;
     }
 
-    (void)fputs("partctl: MBR initialized\n", 1);
+    ush_writeln_i18n("partctl: MBR initialized", "partctl: MBR 已初始化");
     return 1;
 }
 
@@ -231,7 +231,8 @@ static int partctl_cmd_delete(const char *index_text) {
     u64 off;
 
     if (partctl_parse_u64(index_text, &index) == 0 || index < 1ULL || index > PARTCTL_MBR_ENTRY_COUNT) {
-        (void)fputs("partctl: delete usage: partctl delete <index:1-4>\n", 1);
+        ush_writeln_i18n("partctl: delete usage: partctl delete <index:1-4>",
+                         "partctl: delete 用法: partctl delete <index:1-4>");
         return 0;
     }
 
@@ -247,7 +248,9 @@ static int partctl_cmd_delete(const char *index_text) {
         return 0;
     }
 
-    (void)printf("partctl: deleted partition %llu\n", (unsigned long long)index);
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已删除分区 (deleted partition) %llu\n"
+                                           : "partctl: deleted partition %llu\n",
+                 (unsigned long long)index);
     return 1;
 }
 
@@ -259,12 +262,14 @@ static int partctl_cmd_set_boot(const char *index_text, const char *value_text) 
     u64 i;
 
     if (partctl_parse_u64(index_text, &index) == 0 || index < 1ULL || index > PARTCTL_MBR_ENTRY_COUNT) {
-        (void)fputs("partctl: set-boot usage: partctl set-boot <index:1-4> <0|1>\n", 1);
+        ush_writeln_i18n("partctl: set-boot usage: partctl set-boot <index:1-4> <0|1>",
+                         "partctl: set-boot 用法: partctl set-boot <index:1-4> <0|1>");
         return 0;
     }
 
     if (partctl_parse_u64(value_text, &value) == 0 || (value != 0ULL && value != 1ULL)) {
-        (void)fputs("partctl: set-boot usage: partctl set-boot <index:1-4> <0|1>\n", 1);
+        ush_writeln_i18n("partctl: set-boot usage: partctl set-boot <index:1-4> <0|1>",
+                         "partctl: set-boot 用法: partctl set-boot <index:1-4> <0|1>");
         return 0;
     }
 
@@ -287,7 +292,9 @@ static int partctl_cmd_set_boot(const char *index_text, const char *value_text) 
         return 0;
     }
 
-    (void)printf("partctl: partition %llu boot flag=%llu\n", (unsigned long long)index, (unsigned long long)value);
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 分区 (partition) %llu boot flag=%llu\n"
+                                           : "partctl: partition %llu boot flag=%llu\n",
+                 (unsigned long long)index, (unsigned long long)value);
     return 1;
 }
 
@@ -304,37 +311,40 @@ static int partctl_cmd_create(const char *index_text, const char *start_text, co
     u64 i;
 
     if (partctl_parse_u64(index_text, &index) == 0 || index < 1ULL || index > PARTCTL_MBR_ENTRY_COUNT) {
-        (void)fputs("partctl: create invalid index\n", 1);
+        ush_writeln_i18n("partctl: create invalid index", "partctl: create 的索引无效");
         return 0;
     }
 
     if (partctl_parse_u64(start_text, &start_lba) == 0 || partctl_parse_u64(sectors_text, &sectors) == 0 ||
         partctl_parse_u64(type_text, &type) == 0) {
-        (void)fputs("partctl: create invalid number\n", 1);
+        ush_writeln_i18n("partctl: create invalid number", "partctl: create 的数字无效");
         return 0;
     }
 
     if (boot_text != (const char *)0 && boot_text[0] != '\0') {
         if (partctl_parse_u64(boot_text, &boot) == 0 || (boot != 0ULL && boot != 1ULL)) {
-            (void)fputs("partctl: create invalid boot flag (expected 0|1)\n", 1);
+            ush_writeln_i18n("partctl: create invalid boot flag (expected 0|1)",
+                             "partctl: create 的 boot 标志无效（需要 0|1）");
             return 0;
         }
     }
 
     if (start_lba == 0ULL || sectors == 0ULL) {
-        (void)fputs("partctl: start_lba and sectors must be > 0\n", 1);
+        ush_writeln_i18n("partctl: start_lba and sectors must be > 0",
+                         "partctl: start_lba 和 sectors 必须大于 0");
         return 0;
     }
 
     if (type > 0xFFULL || start_lba > 0xFFFFFFFFULL || sectors > 0xFFFFFFFFULL) {
-        (void)fputs("partctl: MBR supports only 32-bit LBA/size and 8-bit type\n", 1);
+        ush_writeln_i18n("partctl: MBR supports only 32-bit LBA/size and 8-bit type",
+                         "partctl: MBR 只支持 32-bit LBA/大小和 8-bit 类型");
         return 0;
     }
 
     disk_sectors = cleonos_sys_disk_sector_count();
     if (start_lba >= disk_sectors || sectors > disk_sectors || (start_lba + sectors) > disk_sectors ||
         (start_lba + sectors) < start_lba) {
-        (void)fputs("partctl: range exceeds disk size\n", 1);
+        ush_writeln_i18n("partctl: range exceeds disk size", "partctl: 范围超过磁盘大小");
         return 0;
     }
 
@@ -343,7 +353,7 @@ static int partctl_cmd_create(const char *index_text, const char *start_text, co
     }
 
     if (partctl_check_overlap(sector, index - 1ULL, start_lba, sectors) == 0) {
-        (void)fputs("partctl: range overlaps an existing partition\n", 1);
+        ush_writeln_i18n("partctl: range overlaps an existing partition", "partctl: 范围与已有分区重叠");
         return 0;
     }
 
@@ -372,9 +382,10 @@ static int partctl_cmd_create(const char *index_text, const char *start_text, co
         return 0;
     }
 
-    (void)printf("partctl: created p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n", (unsigned long long)index,
-                 (unsigned long long)start_lba, (unsigned long long)sectors, (unsigned int)((unsigned char)type),
-                 (unsigned long long)boot);
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已创建 (created) p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n"
+                                           : "partctl: created p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n",
+                 (unsigned long long)index, (unsigned long long)start_lba, (unsigned long long)sectors,
+                 (unsigned int)((unsigned char)type), (unsigned long long)boot);
     return 1;
 }
 
@@ -419,7 +430,7 @@ static int partctl_run(const char *arg) {
         return partctl_cmd_create(tokens[1], tokens[2], tokens[3], tokens[4], (token_count == 6) ? tokens[5] : "");
     }
 
-    (void)fputs("partctl: unknown subcommand\n", 1);
+    ush_writeln_i18n("partctl: unknown subcommand", "partctl: 未知子命令");
     partctl_usage();
     return 0;
 }

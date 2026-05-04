@@ -3,17 +3,17 @@ static int ush_cmd_rm(const ush_state *sh, const char *arg) {
     char path[USH_PATH_MAX];
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("rm: path required");
+        ush_writeln_i18n("rm: path required", "rm: 需要路径");
         return 0;
     }
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("rm: invalid path");
+        ush_writeln_i18n("rm: invalid path", "rm: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_remove(path) == 0ULL) {
-        ush_writeln("rm: failed (directory must be empty)");
+        ush_writeln_i18n("rm: failed (directory must be empty)", "rm: 删除失败（目录必须为空）");
         return 0;
     }
 

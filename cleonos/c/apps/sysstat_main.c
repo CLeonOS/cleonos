@@ -423,20 +423,21 @@ static int ush_cmd_sysstat(const char *arg) {
     u64 to_show;
 
     if (ush_sysstat_parse_args(arg, &show_all, &limit) == 0) {
-        ush_writeln("sysstat: usage sysstat [-a|--all] [-n N]");
+        ush_writeln_i18n("sysstat: usage sysstat [-a|--all] [-n N]",
+                         "sysstat: 用法 sysstat [-a|--all] [-n N]");
         return 0;
     }
 
-    ush_writeln("sysstat:");
-    ush_print_kv_hex("  TIMER_TICKS", cleonos_sys_timer_ticks());
-    ush_print_kv_hex("  TASK_COUNT", cleonos_sys_task_count());
-    ush_print_kv_hex("  CURRENT_TASK", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
-    ush_print_kv_hex("  CONTEXT_SWITCHES", cleonos_sys_context_switches());
-    ush_print_kv_hex("  PROC_COUNT", cleonos_sys_proc_count());
-    ush_print_kv_hex("  EXEC_REQUESTS", cleonos_sys_exec_request_count());
-    ush_print_kv_hex("  EXEC_SUCCESS", cleonos_sys_exec_success_count());
-    ush_print_kv_hex("  SYSCALL_TOTAL", total);
-    ush_print_kv_hex("  SYSCALL_RECENT_WINDOW", recent_window);
+    ush_writeln_i18n("sysstat:", "系统调用统计 (sysstat):");
+    ush_print_kv_hex_i18n("  TIMER_TICKS", "  计时器Ticks", cleonos_sys_timer_ticks());
+    ush_print_kv_hex_i18n("  TASK_COUNT", "  任务数", cleonos_sys_task_count());
+    ush_print_kv_hex_i18n("  CURRENT_TASK", "  当前任务", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
+    ush_print_kv_hex_i18n("  CONTEXT_SWITCHES", "  上下文切换", cleonos_sys_context_switches());
+    ush_print_kv_hex_i18n("  PROC_COUNT", "  进程数", cleonos_sys_proc_count());
+    ush_print_kv_hex_i18n("  EXEC_REQUESTS", "  执行请求", cleonos_sys_exec_request_count());
+    ush_print_kv_hex_i18n("  EXEC_SUCCESS", "  执行成功", cleonos_sys_exec_success_count());
+    ush_print_kv_hex_i18n("  SYSCALL_TOTAL", "  系统调用总数", total);
+    ush_print_kv_hex_i18n("  SYSCALL_RECENT_WINDOW", "  最近窗口", recent_window);
     ush_writeln("");
 
     for (id = 0ULL; id < USH_SYSSTAT_MAX_IDS; id++) {
@@ -455,7 +456,7 @@ static int ush_cmd_sysstat(const char *arg) {
     }
 
     if (entry_count == 0ULL) {
-        ush_writeln("(no syscall activity yet)");
+        ush_writeln_i18n("(no syscall activity yet)", "(还没有系统调用活动)");
         return 1;
     }
 
@@ -480,9 +481,11 @@ static int ush_cmd_sysstat(const char *arg) {
     }
 
     if (show_all == 0 && entry_count > to_show) {
-        ush_write("... truncated, use ");
+        ush_write_i18n_label("... truncated, use", "... 已截断，使用");
+        ush_write(" ");
         ush_write("sysstat -a");
-        ush_writeln(" to show all syscall IDs");
+        ush_write(" ");
+        ush_writeln_i18n("to show all syscall IDs", "显示所有系统调用 ID");
     }
 
     return 1;

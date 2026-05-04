@@ -78,24 +78,26 @@ static void ush_procstat_print_detail(const cleonos_proc_snapshot *snap) {
         return;
     }
 
-    ush_writeln("procstat:");
-    ush_print_kv_hex("  PID", snap->pid);
-    ush_print_kv_hex("  PPID", snap->ppid);
-    ush_write("  STATE: ");
+    ush_writeln_i18n("procstat:", "进程状态 (procstat):");
+    ush_print_kv_hex_i18n("  PID", "  进程号", snap->pid);
+    ush_print_kv_hex_i18n("  PPID", "  父进程号", snap->ppid);
+    ush_write_i18n_label("  STATE", "  状态");
+    ush_write(": ");
     ush_write(ush_procstat_state_name(snap->state));
     ush_write_char('\n');
-    ush_print_kv_hex("  STATE_ID", snap->state);
-    ush_print_kv_hex("  TTY", snap->tty_index);
-    ush_print_kv_hex("  STARTED_TICK", snap->started_tick);
-    ush_print_kv_hex("  EXITED_TICK", snap->exited_tick);
-    ush_print_kv_hex("  RUNTIME_TICKS", snap->runtime_ticks);
-    ush_print_kv_hex("  MEM_BYTES", snap->mem_bytes);
-    ush_print_kv_hex("  EXIT_STATUS", snap->exit_status);
-    ush_print_kv_hex("  LAST_SIGNAL", snap->last_signal);
-    ush_print_kv_hex("  LAST_FAULT_VECTOR", snap->last_fault_vector);
-    ush_print_kv_hex("  LAST_FAULT_ERROR", snap->last_fault_error);
-    ush_print_kv_hex("  LAST_FAULT_RIP", snap->last_fault_rip);
-    ush_write("  PATH: ");
+    ush_print_kv_hex_i18n("  STATE_ID", "  状态ID", snap->state);
+    ush_print_kv_hex_i18n("  TTY", "  终端", snap->tty_index);
+    ush_print_kv_hex_i18n("  STARTED_TICK", "  启动Tick", snap->started_tick);
+    ush_print_kv_hex_i18n("  EXITED_TICK", "  退出Tick", snap->exited_tick);
+    ush_print_kv_hex_i18n("  RUNTIME_TICKS", "  运行Ticks", snap->runtime_ticks);
+    ush_print_kv_hex_i18n("  MEM_BYTES", "  内存字节", snap->mem_bytes);
+    ush_print_kv_hex_i18n("  EXIT_STATUS", "  退出状态", snap->exit_status);
+    ush_print_kv_hex_i18n("  LAST_SIGNAL", "  最后信号", snap->last_signal);
+    ush_print_kv_hex_i18n("  LAST_FAULT_VECTOR", "  最后异常向量", snap->last_fault_vector);
+    ush_print_kv_hex_i18n("  LAST_FAULT_ERROR", "  最后异常错误码", snap->last_fault_error);
+    ush_print_kv_hex_i18n("  LAST_FAULT_RIP", "  最后异常RIP", snap->last_fault_rip);
+    ush_write_i18n_label("  PATH", "  路径");
+    ush_write(": ");
     ush_writeln(snap->path);
 }
 
@@ -148,7 +150,8 @@ static int ush_cmd_procstat(const char *arg) {
     int include_exited = 0;
 
     if (ush_procstat_parse_args(arg, &target_pid, &has_pid, &include_exited) == 0) {
-        ush_writeln("procstat: usage procstat [pid|self] [-a|--all]");
+        ush_writeln_i18n("procstat: usage procstat [pid|self] [-a|--all]",
+                         "procstat: 用法 procstat [pid|self] [-a|--all]");
         return 0;
     }
 
@@ -156,7 +159,7 @@ static int ush_cmd_procstat(const char *arg) {
         cleonos_proc_snapshot snap;
 
         if (cleonos_sys_proc_snapshot(target_pid, &snap, (u64)sizeof(snap)) == 0ULL) {
-            ush_writeln("procstat: pid not found");
+            ush_writeln_i18n("procstat: pid not found", "procstat: 找不到进程");
             return 0;
         }
 
@@ -169,7 +172,7 @@ static int ush_cmd_procstat(const char *arg) {
         u64 i;
         u64 shown = 0ULL;
 
-        ush_writeln("procstat:");
+        ush_writeln_i18n("procstat:", "进程状态 (procstat):");
 
         for (i = 0ULL; i < proc_count; i++) {
             u64 pid = 0ULL;
@@ -192,7 +195,7 @@ static int ush_cmd_procstat(const char *arg) {
         }
 
         if (shown == 0ULL) {
-            ush_writeln("(no process)");
+            ush_writeln_i18n("(no process)", "(没有进程)");
         }
     }
 

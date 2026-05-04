@@ -1,11 +1,11 @@
 #include "cmd_runtime.h"
 static int ush_cmd_kbdstat(void) {
-    ush_writeln("kbdstat:");
-    ush_print_kv_hex("  BUFFERED", cleonos_sys_kbd_buffered());
-    ush_print_kv_hex("  PUSHED", cleonos_sys_kbd_pushed());
-    ush_print_kv_hex("  POPPED", cleonos_sys_kbd_popped());
-    ush_print_kv_hex("  DROPPED", cleonos_sys_kbd_dropped());
-    ush_print_kv_hex("  HOTKEY_SWITCHES", cleonos_sys_kbd_hotkey_switches());
+    ush_writeln_i18n("kbdstat:", "键盘统计 (kbdstat):");
+    ush_print_kv_hex_i18n("  BUFFERED", "  缓冲数量", cleonos_sys_kbd_buffered());
+    ush_print_kv_hex_i18n("  PUSHED", "  推入次数", cleonos_sys_kbd_pushed());
+    ush_print_kv_hex_i18n("  POPPED", "  弹出次数", cleonos_sys_kbd_popped());
+    ush_print_kv_hex_i18n("  DROPPED", "  丢弃次数", cleonos_sys_kbd_dropped());
+    ush_print_kv_hex_i18n("  HOTKEY_SWITCHES", "  热键切换次数", cleonos_sys_kbd_hotkey_switches());
     return 1;
 }
 

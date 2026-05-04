@@ -8,7 +8,7 @@ static int ush_cmd_exit(ush_state *sh, const char *arg) {
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_parse_u64_dec(arg, &code) == 0) {
-            ush_writeln("exit: usage exit [code]");
+            ush_writeln_i18n("exit: usage exit [code]", "exit: 用法 exit [code]");
             return 0;
         }
     }
@@ -16,7 +16,7 @@ static int ush_cmd_exit(ush_state *sh, const char *arg) {
     sh->exit_requested = 1;
     sh->exit_code = code;
     (void)cleonos_sys_exit(code);
-    ush_writeln("exit: shell stopping");
+    ush_writeln_i18n("exit: shell stopping", "exit: shell 正在停止");
     return 1;
 }
 

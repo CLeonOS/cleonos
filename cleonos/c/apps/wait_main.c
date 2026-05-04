@@ -5,34 +5,34 @@ static int ush_cmd_wait(const char *arg) {
     u64 wait_ret;
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("wait: usage wait <pid>");
+        ush_writeln_i18n("wait: usage wait <pid>", "wait: 用法 wait <pid>");
         return 0;
     }
 
     if (ush_parse_u64_dec(arg, &pid) == 0) {
-        ush_writeln("wait: invalid pid");
+        ush_writeln_i18n("wait: invalid pid", "wait: 无效进程号");
         return 0;
     }
 
     wait_ret = cleonos_sys_wait_pid(pid, &status);
 
     if (wait_ret == (u64)-1) {
-        ush_writeln("wait: pid not found");
+        ush_writeln_i18n("wait: pid not found", "wait: 找不到进程");
         return 0;
     }
 
     if (wait_ret == 0ULL) {
-        ush_writeln("wait: still running");
+        ush_writeln_i18n("wait: still running", "wait: 仍在运行");
         return 1;
     }
 
-    ush_writeln("wait: exited");
+    ush_writeln_i18n("wait: exited", "wait: 已退出");
     if ((status & (1ULL << 63)) != 0ULL) {
-        ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-        ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-        ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+        ush_print_kv_hex_i18n("  SIGNAL", "  信号", status & 0xFFULL);
+        ush_print_kv_hex_i18n("  VECTOR", "  向量", (status >> 8) & 0xFFULL);
+        ush_print_kv_hex_i18n("  ERROR", "  错误码", (status >> 16) & 0xFFFFULL);
     } else {
-        ush_print_kv_hex("  STATUS", status);
+        ush_print_kv_hex_i18n("  STATUS", "  状态", status);
     }
     return 1;
 }

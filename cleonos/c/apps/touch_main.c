@@ -4,17 +4,17 @@ static int ush_cmd_touch(const ush_state *sh, const char *arg) {
     char path[USH_PATH_MAX];
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_writeln("touch: file path required");
+        ush_writeln_i18n("touch: file path required", "touch: 需要文件路径");
         return 0;
     }
 
     if (ush_resolve_path(sh, arg, path, (u64)sizeof(path)) == 0) {
-        ush_writeln("touch: invalid path");
+        ush_writeln_i18n("touch: invalid path", "touch: 无效路径");
         return 0;
     }
 
     if (cleonos_sys_fs_write(path, empty_data, 0ULL) == 0ULL) {
-        ush_writeln("touch: failed");
+        ush_writeln_i18n("touch: failed", "touch: 创建/更新时间失败");
         return 0;
     }
 

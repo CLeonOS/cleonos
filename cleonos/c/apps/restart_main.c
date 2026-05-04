@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_restart(void) {
-    ush_writeln("restart: rebooting...");
+    ush_writeln_i18n("restart: rebooting...", "restart: 正在重启...");
     (void)cleonos_sys_restart();
     return 1;
 }

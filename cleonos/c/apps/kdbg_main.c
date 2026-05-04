@@ -121,7 +121,7 @@ static int ush_kdbg_has_more_tokens(const char *cursor) {
 }
 
 static void ush_kdbg_usage(void) {
-    ush_writeln("usage:");
+    ush_writeln_i18n("usage:", "用法:");
     ush_writeln("  kdbg sym <addr>");
     ush_writeln("  kdbg bt <rbp> <rip>");
     ush_writeln("  kdbg regs");
@@ -149,14 +149,14 @@ static int ush_cmd_kdbg(const char *arg) {
         }
 
         if (ush_kdbg_parse_u64(tok0, &value0) == 0) {
-            ush_writeln("kdbg: invalid addr");
+            ush_writeln_i18n("kdbg: invalid addr", "kdbg: 无效地址");
             return 0;
         }
 
         got = cleonos_sys_kdbg_sym(value0, out, (u64)sizeof(out));
 
         if (got == 0ULL) {
-            ush_writeln("kdbg: sym failed");
+            ush_writeln_i18n("kdbg: sym failed", "kdbg: 符号查询失败");
             return 0;
         }
 
@@ -173,14 +173,14 @@ static int ush_cmd_kdbg(const char *arg) {
         }
 
         if (ush_kdbg_parse_u64(tok0, &value0) == 0 || ush_kdbg_parse_u64(tok1, &value1) == 0) {
-            ush_writeln("kdbg: invalid rbp/rip");
+            ush_writeln_i18n("kdbg: invalid rbp/rip", "kdbg: 无效 rbp/rip");
             return 0;
         }
 
         got = cleonos_sys_kdbg_bt(value0, value1, out, (u64)sizeof(out));
 
         if (got == 0ULL) {
-            ush_writeln("kdbg: bt failed");
+            ush_writeln_i18n("kdbg: bt failed", "kdbg: 回溯失败");
             return 0;
         }
 
@@ -204,7 +204,7 @@ static int ush_cmd_kdbg(const char *arg) {
         got = cleonos_sys_kdbg_regs(out, (u64)sizeof(out));
 
         if (got == 0ULL) {
-            ush_writeln("kdbg: regs failed");
+            ush_writeln_i18n("kdbg: regs failed", "kdbg: 寄存器读取失败");
             return 0;
         }
 
