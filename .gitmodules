@@ -34,3 +34,6 @@
 [submodule "cleonos/third-party/zlib"]
 	path = cleonos/third-party/zlib
 	url = https://github.com/CLeonOS/zlib
+[submodule "cleonos/third-party/libpng"]
+	path = cleonos/third-party/libpng
+	url = https://github.com/CLeonOS/libpng.git
