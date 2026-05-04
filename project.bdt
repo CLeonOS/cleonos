@@ -3,7 +3,7 @@ name = CLeonOS
 default = iso
 build_dir = .bdt
 language = zh-CN
-doctor_tools = {CC},{KERNEL_CXX},{LD},{RUSTC},{TAR},{XORRISO}
+doctor_tools = {CC},{KERNEL_CXX},{USER_CXX},{LD},{RUSTC},{TAR},{XORRISO}
 
 [subprojects]
 paths = bdt, clks, cleonos
@@ -15,6 +15,7 @@ archive = {root}/{build_dir}/bdt-cache.tar
 [tools]
 CC = gcc
 KERNEL_CXX = g++
+USER_CXX = g++
 LD = ld
 RUSTC = rustc
 NM = nm
@@ -29,10 +30,12 @@ KERNEL_CXXFLAGS = -std=c++17,-ffreestanding,-fno-stack-protector,-fno-builtin,-U
 KERNEL_ASFLAGS = -ffreestanding,-I{root}/clks/include,-include,{root}/build/bdt-menuconfig/clks_config.h,-m64,-mno-red-zone,-mcmodel=kernel,-fno-pic,-fno-pie,-fno-PIE
 KERNEL_LDFLAGS = -nostdlib,-z,max-page-size=0x1000
 USER_CFLAGS = -std=c11,-ffreestanding,-fno-stack-protector,-fno-builtin,-Wall,-Wextra,-I{root}/cleonos/c/include,-I{root}/cleonos/c/apps
+USER_CXXFLAGS = -std=c++17,-ffreestanding,-fno-stack-protector,-fno-builtin,-fno-exceptions,-fno-rtti,-fno-threadsafe-statics,-fno-use-cxa-atexit,-Wall,-Wextra,-I{root}/cleonos/c/include,-I{root}/cleonos/c/apps,-I{root}/cleonos/third-party/StardustUI,-I{root}/cleonos/third-party/StardustUI/includes,-DSTARDUSTUI_CLEONOS
 USER_TLS_CFLAGS = -I{root}/cleonos/third-party/mbedtls/include,-DMBEDTLS_CONFIG_FILE='<tls/cleonos_mbedtls_config.h>',-DMBEDTLS_HAVE_INT32
 USER_GUMBO_CFLAGS = -I{root}/cleonos/third-party/litehtml/src/gumbo/include,-I{root}/cleonos/third-party/litehtml/src/gumbo/include/gumbo,-I{root}/cleonos/third-party/litehtml/src/gumbo,-DNDEBUG
 USER_DOOM_CFLAGS = -I{root}/cleonos/third-party/doomgeneric/doomgeneric,-I{root}/cleonos/c/apps/doom,-include,{root}/cleonos/c/apps/doom/doom_shim.h,-DNORMALUNIX,-D_DEFAULT_SOURCE
 USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
+USER_STARDUSTUI_SOURCES = {root}/cleonos/c/src/cxx_runtime.cpp,{root}/cleonos/third-party/StardustUI/src/window.cpp,{root}/cleonos/third-party/StardustUI/src/components/base.cpp,{root}/cleonos/third-party/StardustUI/src/components/canvas.cpp,{root}/cleonos/third-party/StardustUI/src/components/flex.cpp,{root}/cleonos/third-party/StardustUI/src/components/lable.cpp,{root}/cleonos/third-party/StardustUI/src/platforms/cleonos.cpp
 USER_LDFLAGS = -nostdlib,-z,max-page-size=0x1000,--gc-sections
 DISK_IMAGE_MB = 128
 DISK_IMAGE_BYTES = 134217728
@@ -134,6 +137,7 @@ cache = false
 deps = setup-tools
 type = c-apps
 tool = {CC}
+cxxflags = {USER_CXXFLAGS}
 main_dir = {root}/cleonos/c/apps
 common_dirs = {root}/cleonos/c/src
 runtime_sources = {root}/cleonos/c/apps/cmd_runtime.c, {root}/cleonos/c/apps/uwm_uilib/uwm_uilib.c
@@ -147,7 +151,7 @@ output_group.default.output = {root}/build/x86_64/user/apps
 output_group.driver.output = {root}/build/x86_64/user/apps/driver
 output_group.driver.apps = ttydrv, serialdrv, fbdrv, pcspeakerdrv, diskdrv, netdrv, kbddrv, mousedrv
 output_group.uwm.output = {root}/build/x86_64/user/apps/uwm
-output_group.uwm.apps = file_explorer, terminal, taskmgr, pkg_gui, uwm_uilib
+output_group.uwm.apps = file_explorer, terminal, taskmgr, pkg_gui, uwm_uilib, stardust_helloworld, stardust_layout
 output_group.system.output = {root}/build/x86_64/user/system
 output_group.system.linker_script = {root}/cleonos/c/kelf.ld
 linker_script = {root}/cleonos/c/user.ld
@@ -163,6 +167,10 @@ app.wget.cflags = {USER_TLS_CFLAGS}
 app.wget.sources = {USER_TLS_SOURCES}
 app.pkg.sources = {root}/cleonos/c/pkg/pkg_state.c,{root}/cleonos/c/pkg/pkg_util.c,{root}/cleonos/c/pkg/pkg_json.c,{root}/cleonos/c/pkg/pkg_fs.c,{root}/cleonos/c/pkg/pkg_sha256.c,{root}/cleonos/c/pkg/pkg_manifest.c,{root}/cleonos/c/pkg/pkg_remote.c,{root}/cleonos/c/pkg/pkg_install.c,{root}/cleonos/c/pkg/pkg_check.c,{root}/cleonos/c/pkg/pkg_commands.c,{root}/cleonos/c/pkg/pkg_client.c
 app.pkg_gui.sources = {root}/cleonos/c/pkg/pkg_state.c,{root}/cleonos/c/pkg/pkg_util.c,{root}/cleonos/c/pkg/pkg_json.c,{root}/cleonos/c/pkg/pkg_fs.c,{root}/cleonos/c/pkg/pkg_sha256.c,{root}/cleonos/c/pkg/pkg_manifest.c,{root}/cleonos/c/pkg/pkg_remote.c,{root}/cleonos/c/pkg/pkg_install.c,{root}/cleonos/c/pkg/pkg_check.c,{root}/cleonos/c/pkg/pkg_commands.c,{root}/cleonos/c/pkg/pkg_client.c
+app.stardust_helloworld.sources = {USER_STARDUSTUI_SOURCES},{root}/cleonos/third-party/StardustUI/examples/helloworld/helloworld.cpp
+app.stardust_helloworld.cflags = -DSTARDUSTUI_CLEONOS
+app.stardust_layout.sources = {USER_STARDUSTUI_SOURCES},{root}/cleonos/third-party/StardustUI/examples/layout/layout.cpp
+app.stardust_layout.cflags = -DSTARDUSTUI_CLEONOS
 app.shell.sources = {root}/cleonos/c/apps/user/cleonos_user.c
 app.install2disk.sources = {root}/cleonos/c/apps/user/cleonos_user.c
 app.fastfetch.sources = {root}/cleonos/c/apps/user/cleonos_user.c

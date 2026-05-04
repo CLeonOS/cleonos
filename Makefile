@@ -4,6 +4,7 @@ MAKEFLAGS += --no-print-directory
 HOST_CC ?= gcc
 CC ?= gcc
 KERNEL_CXX ?= g++
+USER_CXX ?= g++
 LD ?= ld
 RUSTC ?= rustc
 NM ?= nm
@@ -35,7 +36,7 @@ ifneq ($(filter 1 ON on TRUE true YES yes Y y,$(SHOW_COMMANDS) $(V)),)
 BDT_VERBOSE := --verbose
 endif
 
-BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
+BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
 .PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all help list scan graph
 
