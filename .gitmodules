@@ -25,3 +25,6 @@
 [submodule "cleonos/c/pkg"]
 	path = cleonos/c/pkg
 	url = https://github.com/CLeonOS/pkg
+[submodule "cleonos/third-party/StardustUI"]
+	path = cleonos/third-party/StardustUI
+	url = https://github.com/xingji-studio/StardustUI
