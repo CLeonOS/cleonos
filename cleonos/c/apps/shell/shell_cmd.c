@@ -128,6 +128,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  vim [file]         (vim-like editor)");
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
+    ush_writeln("  uname [-a|--sysinfo]");
     ush_writeln("  fastfetch [--plain]");
     ush_writeln("  whoami / passwd [user] / logout");
     ush_writeln("  users / useradd [-a|--admin] <name> / userdel <name> / usermod <admin|user> <name>");
@@ -1995,6 +1996,78 @@ static int ush_cmd_fastfetch(const char *arg) {
     return 1;
 }
 
+static int ush_uname_show_sysinfo(void) {
+    cleonos_sysinfo info;
+
+    (void)memset(&info, 0, sizeof(info));
+    if (cleonos_sys_sysinfo(&info) == 0ULL) {
+        ush_writeln("uname: sysinfo syscall failed");
+        return 0;
+    }
+
+    ush_writeln("sysinfo:");
+    ush_write("  Kernel: ");
+    ush_writeln(info.kernel_name);
+    ush_write("  Version: ");
+    ush_writeln(info.kernel_version);
+    ush_write("  Arch: ");
+    ush_writeln(info.arch);
+    ush_write("  BuildDate: ");
+    ush_writeln(info.build_date);
+    ush_write("  BuildTime: ");
+    ush_writeln(info.build_time);
+    ush_write("  BootMode: ");
+    ush_writeln(info.boot_mode);
+    ush_print_kv_hex("  UPTIME_MS", info.uptime_ms);
+    ush_print_kv_hex("  TIMER_TICKS", info.timer_ticks);
+    ush_print_kv_hex("  TIMER_HZ", info.timer_hz);
+    ush_print_kv_hex("  MANAGED_PAGES", info.managed_pages);
+    ush_print_kv_hex("  FREE_PAGES", info.free_pages);
+    ush_print_kv_hex("  USED_PAGES", info.used_pages);
+    ush_print_kv_hex("  DROPPED_PAGES", info.dropped_pages);
+    ush_print_kv_hex("  HEAP_TOTAL_BYTES", info.heap_total_bytes);
+    ush_print_kv_hex("  HEAP_USED_BYTES", info.heap_used_bytes);
+    ush_print_kv_hex("  HEAP_FREE_BYTES", info.heap_free_bytes);
+    ush_print_kv_hex("  FS_NODES", info.fs_nodes);
+    ush_print_kv_hex("  TASKS", info.task_count);
+    ush_print_kv_hex("  SERVICES", info.service_count);
+    ush_print_kv_hex("  SERVICES_READY", info.service_ready_count);
+    return 1;
+}
+
+static int ush_cmd_uname(const char *arg) {
+    cleonos_sysinfo info;
+
+    if (arg != (const char *)0 && (ush_streq(arg, "--sysinfo") != 0 || ush_streq(arg, "-s") != 0)) {
+        return ush_uname_show_sysinfo();
+    }
+
+    (void)memset(&info, 0, sizeof(info));
+    if (cleonos_sys_sysinfo(&info) == 0ULL) {
+        ush_writeln("uname: sysinfo syscall failed");
+        return 0;
+    }
+
+    ush_write(info.kernel_name);
+    if (arg != (const char *)0 && (ush_streq(arg, "-a") != 0 || ush_streq(arg, "--all") != 0)) {
+        ush_write(" ");
+        ush_write(info.arch);
+        ush_write(" ");
+        ush_write(info.kernel_version);
+        ush_write(" ");
+        ush_write(info.boot_mode);
+        ush_write(" ");
+        ush_write(info.build_date);
+        ush_write(" ");
+        ush_write(info.build_time);
+    } else if (arg != (const char *)0 && arg[0] != '\0') {
+        ush_writeln("usage: uname [-a|--all|--sysinfo]");
+        return 0;
+    }
+    ush_write_char('\n');
+    return 1;
+}
+
 static int ush_cmd_kbdstat(void) {
     ush_writeln("kbdstat:");
     ush_print_kv_hex("  BUFFERED", cleonos_sys_kbd_buffered());
@@ -2834,6 +2907,8 @@ static int ush_execute_single_command(ush_state *sh, const char *cmd, const char
         success = ush_cmd_ansi();
     } else if (ush_streq(cmd, "ansitest") != 0) {
         success = ush_cmd_ansitest();
+    } else if (ush_streq(cmd, "uname") != 0 || ush_streq(cmd, "sysinfo") != 0) {
+        success = ush_cmd_uname(arg);
     } else if (ush_streq(cmd, "fastfetch") != 0) {
         success = ush_cmd_fastfetch(arg);
     } else if (ush_streq(cmd, "memstat") != 0) {

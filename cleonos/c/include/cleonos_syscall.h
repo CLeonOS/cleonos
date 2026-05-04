@@ -12,6 +12,8 @@ typedef unsigned long long usize;
 #define CLEONOS_USER_HOME_MAX 96ULL
 #define CLEONOS_USER_ROLE_USER 0ULL
 #define CLEONOS_USER_ROLE_ADMIN 1ULL
+#define CLEONOS_SYSINFO_TEXT_MAX 32ULL
+#define CLEONOS_SYSINFO_BOOT_MODE_MAX 16ULL
 
 #define CLEONOS_PROC_STATE_UNUSED 0ULL
 #define CLEONOS_PROC_STATE_PENDING 1ULL
@@ -120,6 +122,29 @@ typedef struct cleonos_disk_fsck_result {
 } cleonos_disk_fsck_result;
 
 #define CLEONOS_DISK_FSCK_FLAG_FIX 0x1ULL
+
+typedef struct cleonos_sysinfo {
+    char kernel_name[CLEONOS_SYSINFO_TEXT_MAX];
+    char kernel_version[CLEONOS_SYSINFO_TEXT_MAX];
+    char arch[CLEONOS_SYSINFO_TEXT_MAX];
+    char build_date[CLEONOS_SYSINFO_TEXT_MAX];
+    char build_time[CLEONOS_SYSINFO_TEXT_MAX];
+    char boot_mode[CLEONOS_SYSINFO_BOOT_MODE_MAX];
+    u64 uptime_ms;
+    u64 timer_ticks;
+    u64 timer_hz;
+    u64 managed_pages;
+    u64 free_pages;
+    u64 used_pages;
+    u64 dropped_pages;
+    u64 heap_total_bytes;
+    u64 heap_used_bytes;
+    u64 heap_free_bytes;
+    u64 fs_nodes;
+    u64 task_count;
+    u64 service_count;
+    u64 service_ready_count;
+} cleonos_sysinfo;
 
 #define CLEONOS_WM_EVENT_FOCUS_GAINED 1ULL
 #define CLEONOS_WM_EVENT_FOCUS_LOST 2ULL
@@ -366,6 +391,7 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_USER_REMOVE 140ULL
 #define CLEONOS_SYSCALL_USER_IS_ADMIN 141ULL
 #define CLEONOS_SYSCALL_DISK_FSCK_FAT32 142ULL
+#define CLEONOS_SYSCALL_SYSINFO 143ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -472,6 +498,7 @@ u64 cleonos_sys_disk_mount_path(char *out_path, u64 out_size);
 u64 cleonos_sys_disk_read_sector(u64 lba, void *out_sector);
 u64 cleonos_sys_disk_write_sector(u64 lba, const void *sector_data);
 u64 cleonos_sys_disk_fsck_fat32(u64 flags, cleonos_disk_fsck_result *out_result);
+u64 cleonos_sys_sysinfo(cleonos_sysinfo *out_info);
 u64 cleonos_sys_net_available(void);
 u64 cleonos_sys_net_ipv4_addr(void);
 u64 cleonos_sys_net_netmask(void);

@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~142）
+## 4. Syscall 列表（0~143）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -678,7 +678,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `arg0`: `char *out_version`
 - `arg1`: `u64 out_size`
 - 返回：实际写入字节数（不含终止符），失败返回 `0`
-- 说明：返回 CLKS 内核版本字符串（当前默认 `1.0.0-alpha`），内核会保证输出以 `\0` 结尾。
+- 说明：返回 CLKS 内核版本字符串（当前为 `26.5.1`），内核会保证输出以 `\0` 结尾。
 
 ### 85 `CLEONOS_SYSCALL_DISK_PRESENT`
 
@@ -1212,6 +1212,46 @@ typedef struct cleonos_disk_fsck_result {
 - `FIX` 模式需要管理员权限，并会触发 USC 确认；该 syscall 在 USC 策略中默认视为高风险操作。
 - 用户态工具：`fsckfat32` 只检查，`fsckfat32 --fix` 检查并修复。
 
+### 143 `CLEONOS_SYSCALL_SYSINFO`
+
+- 参数：
+- `arg0`: `cleonos_sysinfo *out_info`
+- `arg1`: `u64 out_size`（用户态封装会传 `sizeof(cleonos_sysinfo)`）
+- 返回：成功 `1`，失败 `0`
+- 说明：一次性读取内核名称、版本、架构、构建时间、启动模式、内存统计、heap 统计、VFS 节点数、任务数和服务状态。
+
+系统信息结构：
+
+```c
+typedef struct cleonos_sysinfo {
+    char kernel_name[CLEONOS_SYSINFO_TEXT_MAX];
+    char kernel_version[CLEONOS_SYSINFO_TEXT_MAX];
+    char arch[CLEONOS_SYSINFO_TEXT_MAX];
+    char build_date[CLEONOS_SYSINFO_TEXT_MAX];
+    char build_time[CLEONOS_SYSINFO_TEXT_MAX];
+    char boot_mode[CLEONOS_SYSINFO_BOOT_MODE_MAX];
+    u64 uptime_ms;
+    u64 timer_ticks;
+    u64 timer_hz;
+    u64 managed_pages;
+    u64 free_pages;
+    u64 used_pages;
+    u64 dropped_pages;
+    u64 heap_total_bytes;
+    u64 heap_used_bytes;
+    u64 heap_free_bytes;
+    u64 fs_nodes;
+    u64 task_count;
+    u64 service_count;
+    u64 service_ready_count;
+} cleonos_sysinfo;
+```
+
+- 文本字段长度：
+- `CLEONOS_SYSINFO_TEXT_MAX` = `32`
+- `CLEONOS_SYSINFO_BOOT_MODE_MAX` = `16`
+- `boot_mode` 当前用于区分 ISO/ramdisk 临时启动、硬盘启动和 Wine 兼容运行模式。
+
 用户态 mmap 兼容层：
 
 - 头文件：`#include <sys/mman.h>`
@@ -1271,6 +1311,7 @@ typedef struct cleonos_disk_fsck_result {
 - `cleonos_sys_disk_present()` / `cleonos_sys_disk_size_bytes()` / `cleonos_sys_disk_sector_count()`
 - `cleonos_sys_disk_formatted()` / `cleonos_sys_disk_format_fat32()` / `cleonos_sys_disk_mount()` / `cleonos_sys_disk_mounted()` / `cleonos_sys_disk_mount_path()`
 - `cleonos_sys_disk_read_sector()` / `cleonos_sys_disk_write_sector()` / `cleonos_sys_disk_fsck_fat32()`
+- `cleonos_sys_sysinfo()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
 - `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
@@ -1278,6 +1319,7 @@ typedef struct cleonos_disk_fsck_result {
 - `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
 - `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()` / `cleonos_sys_wm_set_flags()` / `cleonos_sys_wm_resize()`
 - `cleonos_sys_pty_open()`
+- `cleonos_sys_user_heap_alloc()` / `cleonos_sys_vm_alloc()` / `cleonos_sys_vm_free()`
 - `cleonos_sys_user_current()` / `cleonos_sys_user_login()` / `cleonos_sys_user_logout()`
 - `cleonos_sys_user_count()` / `cleonos_sys_user_at()` / `cleonos_sys_user_add()`
 - `cleonos_sys_user_passwd()` / `cleonos_sys_user_set_role()` / `cleonos_sys_user_remove()` / `cleonos_sys_user_is_admin()`
@@ -1291,8 +1333,7 @@ typedef struct cleonos_disk_fsck_result {
 
 ## 7. Wine 兼容说明
 
-- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..125`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`DRIVER_*`）。
-- `126..142`（`TIMER_HZ`、`TIME_MS`、`SLEEP_MS`、`NET_TCP_LAST_ERROR`、`VM_ALLOC`、`VM_FREE`、`USER_*`、`DISK_FSCK_FAT32`）目前是 CLKS 内核/用户态头文件已定义的 syscall；Wine 常量和 runner 尚未同步覆盖这些 ID。
+- `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..143`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`USER_*`、`DRIVER_*`、`SYSINFO`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
 - `DL_OPEN`：加载 guest ELF 到当前 Unicorn 地址空间，返回稳定 `handle`，并做引用计数。
 - `DL_SYM`：解析 ELF `SYMTAB/DYNSYM` 并返回 guest 可调用地址。
@@ -1303,15 +1344,17 @@ typedef struct cleonos_disk_fsck_result {
 - `FB_BLIT` 实现内核同类参数校验并支持 `scale>=1` 绘制。
 - 配合 Wine 参数 `--fb-window` 可将 framebuffer 实时显示到主机窗口（pygame 后端）；未启用时保持内存缓冲模式。
 - `FB_CLEAR` 支持清屏颜色写入。
-- `KERNEL_VERSION`（`84`）在 Wine 中返回内核版本字符串（当前默认 `1.0.0-alpha`）。
+- `KERNEL_VERSION`（`84`）在 Wine 中返回内核版本字符串（当前为 `26.5.1`）。
 - `DISK_*`（`85..94`）在 Wine 中已实现：
 - 提供虚拟磁盘容量信息与 FAT32 格式化状态查询。
 - `DISK_FORMAT_FAT32` 会初始化/重置 Wine rootfs 下的虚拟磁盘目录。
 - `DISK_MOUNT`/`DISK_MOUNT_PATH` 支持挂载点管理；挂载路径内的 `FS_MKDIR/WRITE/APPEND/REMOVE` 会走磁盘后端。
 - `DISK_READ_SECTOR`/`DISK_WRITE_SECTOR`（`93..94`）在 Wine 中已实现为 512B 原始扇区读写（host 文件后端）。
-- `DISK_FSCK_FAT32`（`142`）当前 Wine 尚未实现；Wine 下 `fsckfat32` 不能作为 FAT32 真实一致性检查依据。
-- `USER_*`（`132..141`）当前 Wine 尚未实现；Wine 下用户系统相关命令可能只能走应用层 fallback 或返回失败。
-- 网络 syscall（`95..106`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
+- `DISK_FSCK_FAT32`（`142`）在 Wine 中为虚拟磁盘目录/原始扇区后端的健康检查兼容实现，会返回结构化结果；它不是物理 FAT32 链修复器，不能替代真实 CLKS 内核下的磁盘一致性检查。
+- `SYSINFO`（`143`）在 Wine 中返回 `kernel_name=CLeonKernelSystem`、`boot_mode=wine` 或 `wine-disk`、timer/heap/fs/tasks/services 等兼容统计。
+- `VM_ALLOC/VM_FREE`（`130..131`）在 Wine 中映射 Unicorn guest 内存，用于兼容用户态大块内存申请。
+- `USER_*`（`132..141`）在 Wine 中为轻量共享状态实现；默认存在 `root/root`，默认当前用户为 `root/admin`。
+- 网络 syscall（`95..106`）和 `NET_TCP_LAST_ERROR`（`129`）在 Wine 当前为兼容占位实现（统一返回 `0`）；即 Wine 运行模式下不会提供真实网络收发。
 - `MOUSE_STATE`（`107`）在 Wine 中为基础兼容实现：可返回指针数据结构；未启用窗口鼠标事件时 `ready` 可能为 `0`。
 - `WM_*`（`108..115`）在 Wine 当前为兼容占位实现（统一返回 `0`）；不会创建真实窗口服务。
 - `PTY_OPEN`（`116`）在 Wine 中创建内存缓冲 FD；写入端通过 `FD_WRITE` 追加，读取端通过 `FD_READ` 消费，用于桌面 Terminal 捕获子进程输出。

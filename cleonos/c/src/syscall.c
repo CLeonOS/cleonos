@@ -428,6 +428,10 @@ u64 cleonos_sys_disk_fsck_fat32(u64 flags, cleonos_disk_fsck_result *out_result)
     return cleonos_syscall(CLEONOS_SYSCALL_DISK_FSCK_FAT32, flags, (u64)out_result, 0ULL);
 }
 
+u64 cleonos_sys_sysinfo(cleonos_sysinfo *out_info) {
+    return cleonos_syscall(CLEONOS_SYSCALL_SYSINFO, (u64)out_info, (u64)sizeof(cleonos_sysinfo), 0ULL);
+}
+
 u64 cleonos_sys_net_available(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_AVAILABLE, 0ULL, 0ULL, 0ULL);
 }
