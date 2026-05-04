@@ -14,6 +14,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  clear");
     ush_writeln("  ansi / ansitest / color");
     ush_writeln("  bmpview <file.bmp> [cols]");
+    ush_writeln("  imgview <file.png> [--ascii]");
     ush_writeln("  qrcode [--ecc <L|M|Q|H>] <text>");
     ush_writeln("  vim [file]         (vim-like editor: normal/insert/:w/:q/:wq)");
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
