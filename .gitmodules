@@ -28,3 +28,6 @@
 [submodule "cleonos/third-party/StardustUI"]
 	path = cleonos/third-party/StardustUI
 	url = https://github.com/xingji-studio/StardustUI
+[submodule "cleonos/third-party/lua"]
+	path = cleonos/third-party/lua
+	url = https://github.com/CLeonOS/lua
