@@ -46,7 +46,7 @@ bdt: $(BDT)
 
 $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > @mkdir -p $(BDT_BUILD_DIR)
-> $(HOST_CC) -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
+> $(HOST_CC) -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
 configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)

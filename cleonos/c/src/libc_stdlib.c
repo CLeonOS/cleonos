@@ -349,6 +349,18 @@ static size_t clib_heap_header_size(void) {
     return clib_align_up(sizeof(clib_heap_block), CLIB_HEAP_ALIGN);
 }
 
+static int clib_heap_blocks_are_adjacent(const clib_heap_block *block, const clib_heap_block *next) {
+    size_t header_size = clib_heap_header_size();
+    const unsigned char *expected;
+
+    if (block == (const clib_heap_block *)0 || next == (const clib_heap_block *)0) {
+        return 0;
+    }
+
+    expected = ((const unsigned char *)(const void *)block) + header_size + block->size;
+    return (expected == (const unsigned char *)(const void *)next) ? 1 : 0;
+}
+
 static void clib_heap_split(clib_heap_block *block, size_t need) {
     size_t header_size = clib_heap_header_size();
     unsigned char *next_addr;
@@ -384,7 +396,8 @@ static void clib_heap_merge_next(clib_heap_block *block) {
     }
 
     next = block->next;
-    if (next == (clib_heap_block *)0 || next->magic != CLIB_HEAP_MAGIC || next->used != 0U) {
+    if (next == (clib_heap_block *)0 || next->magic != CLIB_HEAP_MAGIC || next->used != 0U ||
+        clib_heap_blocks_are_adjacent(block, next) == 0) {
         return;
     }
 

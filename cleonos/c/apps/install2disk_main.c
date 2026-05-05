@@ -32,10 +32,12 @@
 #define INSTALL_REPAIR_NAME_MAX 96U
 #define INSTALL_SHA256_HEX_LEN 64U
 #define INSTALL_MANIFEST_MAX_BYTES 32768ULL
-#define INSTALL_UPDATE_MAX_ENTRIES 512U
+#define INSTALL_UPDATE_MAX_ENTRIES 192U
 #define INSTALL_UPDATE_VERIFY_SAMPLE_MAX 5U
 
 typedef unsigned char install_u8;
+
+#define INSTALL_PTR_LOW_GUARD 0x10000ULL
 
 typedef struct install_sha256_ctx {
     install_u8 data[64];
@@ -286,11 +288,19 @@ static unsigned int install_sha256_rotr(unsigned int value, unsigned int count) 
 }
 
 static unsigned int install_sha256_load_be32(const install_u8 *data) {
+    if (data == (const install_u8 *)0 || (u64)(usize)data < INSTALL_PTR_LOW_GUARD) {
+        return 0U;
+    }
+
     return ((unsigned int)data[0] << 24U) | ((unsigned int)data[1] << 16U) | ((unsigned int)data[2] << 8U) |
            (unsigned int)data[3];
 }
 
 static void install_sha256_store_be32(unsigned int value, install_u8 *out) {
+    if (out == (install_u8 *)0 || (u64)(usize)out < INSTALL_PTR_LOW_GUARD) {
+        return;
+    }
+
     out[0] = (install_u8)((value >> 24U) & 0xFFU);
     out[1] = (install_u8)((value >> 16U) & 0xFFU);
     out[2] = (install_u8)((value >> 8U) & 0xFFU);
@@ -317,6 +327,11 @@ static void install_sha256_transform(install_sha256_ctx *ctx, const install_u8 d
     unsigned int g;
     unsigned int h;
     unsigned int i;
+
+    if (ctx == (install_sha256_ctx *)0 || data == (const install_u8 *)0 ||
+        (u64)(usize)ctx < INSTALL_PTR_LOW_GUARD || (u64)(usize)data < INSTALL_PTR_LOW_GUARD) {
+        return;
+    }
 
     for (i = 0U; i < 16U; i++) {
         m[i] = install_sha256_load_be32(data + (i * 4U));
@@ -366,6 +381,10 @@ static void install_sha256_transform(install_sha256_ctx *ctx, const install_u8 d
 }
 
 static void install_sha256_init(install_sha256_ctx *ctx) {
+    if (ctx == (install_sha256_ctx *)0 || (u64)(usize)ctx < INSTALL_PTR_LOW_GUARD) {
+        return;
+    }
+
     ctx->datalen = 0U;
     ctx->bitlen = 0ULL;
     ctx->state[0] = 0x6A09E667U;
@@ -381,7 +400,17 @@ static void install_sha256_init(install_sha256_ctx *ctx) {
 static void install_sha256_update(install_sha256_ctx *ctx, const install_u8 *data, u64 len) {
     u64 i;
 
+    if (ctx == (install_sha256_ctx *)0 || data == (const install_u8 *)0 ||
+        (u64)(usize)ctx < INSTALL_PTR_LOW_GUARD || (u64)(usize)data < INSTALL_PTR_LOW_GUARD) {
+        return;
+    }
+
     for (i = 0ULL; i < len; i++) {
+        if (ctx->datalen >= 64U) {
+            install_sha256_transform(ctx, ctx->data);
+            ctx->bitlen += 512ULL;
+            ctx->datalen = 0U;
+        }
         ctx->data[ctx->datalen] = data[i];
         ctx->datalen++;
         if (ctx->datalen == 64U) {
@@ -393,8 +422,18 @@ static void install_sha256_update(install_sha256_ctx *ctx, const install_u8 *dat
 }
 
 static void install_sha256_final(install_sha256_ctx *ctx, install_u8 hash[32]) {
-    unsigned int i = ctx->datalen;
+    unsigned int i;
     u64 bitlen;
+
+    if (ctx == (install_sha256_ctx *)0 || hash == (install_u8 *)0 ||
+        (u64)(usize)ctx < INSTALL_PTR_LOW_GUARD || (u64)(usize)hash < INSTALL_PTR_LOW_GUARD) {
+        return;
+    }
+
+    if (ctx->datalen > 64U) {
+        ctx->datalen = 0U;
+    }
+    i = ctx->datalen;
 
     if (ctx->datalen < 56U) {
         ctx->data[i++] = 0x80U;
@@ -1245,6 +1284,10 @@ static int install_manifest_path_included(const char *logical_path) {
 
 static int install_update_shell_path_included(const char *logical_path) {
     if (logical_path == (const char *)0 || logical_path[0] != '/') {
+        return 0;
+    }
+
+    if (strcmp(logical_path, "/shell/install2disk.elf") == 0) {
         return 0;
     }
 

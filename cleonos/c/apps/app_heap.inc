@@ -38,6 +38,19 @@ static size_t cleonos_app_heap_header_size(void) {
     return cleonos_app_heap_align_up(sizeof(cleonos_app_heap_block), CLEONOS_APP_HEAP_ALIGN);
 }
 
+static int cleonos_app_heap_blocks_are_adjacent(const cleonos_app_heap_block *block,
+                                                const cleonos_app_heap_block *next) {
+    size_t header_size = cleonos_app_heap_header_size();
+    const unsigned char *expected;
+
+    if (block == (const cleonos_app_heap_block *)0 || next == (const cleonos_app_heap_block *)0) {
+        return 0;
+    }
+
+    expected = ((const unsigned char *)(const void *)block) + header_size + block->size;
+    return (expected == (const unsigned char *)(const void *)next) ? 1 : 0;
+}
+
 static void cleonos_app_heap_split(cleonos_app_heap_block *block, size_t need) {
     size_t header_size = cleonos_app_heap_header_size();
     unsigned char *next_addr;
@@ -73,7 +86,8 @@ static void cleonos_app_heap_merge_next(cleonos_app_heap_block *block) {
     }
 
     next = block->next;
-    if (next == (cleonos_app_heap_block *)0 || next->magic != CLEONOS_APP_HEAP_MAGIC || next->used != 0U) {
+    if (next == (cleonos_app_heap_block *)0 || next->magic != CLEONOS_APP_HEAP_MAGIC || next->used != 0U ||
+        cleonos_app_heap_blocks_are_adjacent(block, next) == 0) {
         return;
     }
 

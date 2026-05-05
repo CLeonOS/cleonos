@@ -17,7 +17,8 @@ static const char *const ush_linenoise_commands[] = {
     "wait",       "fg",         "kill",      "jobs",      "ps",        "procstat", "top",
     "sysstat",    "kdbg",       "sleep",     "yield",     "shutdown",  "restart",  "exit",
     "lua",        "calc",       "browser",   "wget",      "httpget",   "chat",     "imgview",
-    "pngtest",    "zlibtest",   "benchmark", "install2disk", "fsckfat32", "locale", "chinese",
+    "pngtest",    "zlibtest",   "zip",       "unzip",     "benchmark", "install2disk", "fsckfat32",
+    "locale",     "chinese",
     (const char *)0,
 };
 
