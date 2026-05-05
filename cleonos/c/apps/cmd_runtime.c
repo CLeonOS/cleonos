@@ -321,9 +321,6 @@ void ush_write_i18n_label(const char *en, const char *zh) {
         }
 
         ush_write(zh_label);
-        ush_write(" (");
-        ush_write(en_label);
-        ush_write(")");
         return;
     }
 

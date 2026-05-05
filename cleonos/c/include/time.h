@@ -4,6 +4,8 @@
 typedef long time_t;
 typedef long clock_t;
 
+typedef unsigned long size_t;
+
 #define CLOCKS_PER_SEC 1000L
 
 struct tm {
@@ -20,5 +22,8 @@ struct tm {
 
 time_t time(time_t *out_time);
 clock_t clock(void);
+struct tm *gmtime(const time_t *timer);
+struct tm *gmtime_r(const time_t *timer, struct tm *out_tm);
+size_t strftime(char *out, size_t out_size, const char *format, const struct tm *tm_value);
 
 #endif
