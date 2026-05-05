@@ -133,7 +133,7 @@ static int ush_cmd_ping(const char *arg) {
     }
 
     (void)puts("");
-    (void)printf((zh != 0) ? "ping 统计 (ping stats): tx=%llu rx=%llu loss=%llu\n"
+    (void)printf((zh != 0) ? "ping 统计: tx=%llu rx=%llu loss=%llu\n"
                            : "ping stats: tx=%llu rx=%llu loss=%llu\n",
                  (unsigned long long)count, (unsigned long long)received, (unsigned long long)(count - received));
 

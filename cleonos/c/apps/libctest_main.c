@@ -239,22 +239,22 @@ static void test_stdio_lib(void) {
 }
 
 int cleonos_app_main(void) {
-    ush_writeln_i18n("[libctest] start", "[libctest] 开始 (start)");
+    ush_writeln_i18n("[libctest] start", "[libctest] 开始");
 
     test_string_lib();
     test_ctype_lib();
     test_stdlib_lib();
     test_stdio_lib();
 
-    (void)printf((ush_locale_is_zh() != 0) ? "[libctest] 总数 (total)=%d 失败 (failed)=%d\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "[libctest] 总数=%d 失败=%d\n"
                                            : "[libctest] total=%d failed=%d\n",
                  g_total, g_failed);
 
     if (g_failed == 0) {
-        ush_writeln_i18n("[libctest] PASS", "[libctest] 通过 (PASS)");
+        ush_writeln_i18n("[libctest] PASS", "[libctest] 通过");
         return 0;
     }
 
-    ush_writeln_i18n("[libctest] FAIL", "[libctest] 失败 (FAIL)");
+    ush_writeln_i18n("[libctest] FAIL", "[libctest] 失败");
     return 1;
 }

@@ -428,7 +428,7 @@ static int ush_cmd_sysstat(const char *arg) {
         return 0;
     }
 
-    ush_writeln_i18n("sysstat:", "系统调用统计 (sysstat):");
+    ush_writeln_i18n("sysstat:", "系统调用统计:");
     ush_print_kv_hex_i18n("  TIMER_TICKS", "  计时器Ticks", cleonos_sys_timer_ticks());
     ush_print_kv_hex_i18n("  TASK_COUNT", "  任务数", cleonos_sys_task_count());
     ush_print_kv_hex_i18n("  CURRENT_TASK", "  当前任务", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));

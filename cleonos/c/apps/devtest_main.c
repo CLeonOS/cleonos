@@ -8,14 +8,14 @@ static int devtest_read_once(const char *path) {
 
     fd = cleonos_sys_fd_open(path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
-        (void)printf((ush_locale_is_zh() != 0) ? "%s: 打开失败 (open failed)\n" : "%s: open failed\n", path);
+        (void)printf((ush_locale_is_zh() != 0) ? "%s: 打开失败\n" : "%s: open failed\n", path);
         return 0;
     }
 
     got = cleonos_sys_fd_read(fd, buf, (u64)(sizeof(buf) - 1U));
     if (got == (u64)-1) {
         (void)cleonos_sys_fd_close(fd);
-        (void)printf((ush_locale_is_zh() != 0) ? "%s: 读取失败 (read failed)\n" : "%s: read failed\n", path);
+        (void)printf((ush_locale_is_zh() != 0) ? "%s: 读取失败\n" : "%s: read failed\n", path);
         return 0;
     }
 

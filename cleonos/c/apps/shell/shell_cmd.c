@@ -2729,12 +2729,6 @@ static int ush_cmd_logout(ush_state *sh) {
     return ush_login_if_needed(sh);
 }
 
-static volatile int ush_builtin_fallback_enabled = 0;
-
-static int ush_builtin_fallback_is_enabled(void) {
-    return ush_builtin_fallback_enabled;
-}
-
 static void ush_report_external_not_found(const char *cmd) {
     ush_write("command not found (external ELF required): ");
 
@@ -2768,74 +2762,6 @@ static int ush_execute_single_command(ush_state *sh, const char *cmd, const char
 
     (void)allow_external;
 
-    /*
-     * Keep cd as a hard builtin so cwd updates never depend on
-     * external command context files.
-     */
-    if (ush_streq(cmd, "cd") != 0) {
-        success = ush_cmd_cd(sh, arg);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "whoami") != 0) {
-        success = ush_cmd_whoami(sh);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "passwd") != 0) {
-        success = ush_cmd_passwd(sh, arg);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "logout") != 0) {
-        success = ush_cmd_logout(sh);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "users") != 0) {
-        success = ush_cmd_users(sh);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "useradd") != 0) {
-        success = ush_cmd_useradd(sh, arg);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "userdel") != 0) {
-        success = ush_cmd_userdel(sh, arg);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
-    if (ush_streq(cmd, "usermod") != 0) {
-        success = ush_cmd_usermod(sh, arg);
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-        return 1;
-    }
-
     if (ush_try_exec_external(sh, cmd, arg, &success) != 0) {
         if (out_success != (int *)0) {
             *out_success = success;
@@ -2843,113 +2769,9 @@ static int ush_execute_single_command(ush_state *sh, const char *cmd, const char
         return 1;
     }
 
-    if (ush_builtin_fallback_is_enabled() == 0) {
-        known = 0;
-        success = 0;
-        ush_report_external_not_found(cmd);
-
-        if (out_known != (int *)0) {
-            *out_known = known;
-        }
-
-        if (out_success != (int *)0) {
-            *out_success = success;
-        }
-
-        return 1;
-    }
-
-    if (ush_streq(cmd, "help") != 0) {
-        success = ush_cmd_help();
-    } else if (ush_streq(cmd, "ls") != 0 || ush_streq(cmd, "dir") != 0) {
-        success = ush_cmd_ls(sh, arg);
-    } else if (ush_streq(cmd, "cat") != 0) {
-        success = ush_cmd_cat(sh, arg);
-    } else if (ush_streq(cmd, "grep") != 0) {
-        success = ush_cmd_grep(sh, arg);
-    } else if (ush_streq(cmd, "head") != 0) {
-        success = ush_cmd_head(sh, arg);
-    } else if (ush_streq(cmd, "tail") != 0) {
-        success = ush_cmd_tail(sh, arg);
-    } else if (ush_streq(cmd, "wc") != 0) {
-        success = ush_cmd_wc(sh, arg);
-    } else if (ush_streq(cmd, "cut") != 0) {
-        success = ush_cmd_cut(sh, arg);
-    } else if (ush_streq(cmd, "uniq") != 0) {
-        success = ush_cmd_uniq(sh, arg);
-    } else if (ush_streq(cmd, "sort") != 0) {
-        success = ush_cmd_sort(sh, arg);
-    } else if (ush_streq(cmd, "pwd") != 0) {
-        success = ush_cmd_pwd(sh);
-    } else if (ush_streq(cmd, "cd") != 0) {
-        success = ush_cmd_cd(sh, arg);
-    } else if (ush_streq(cmd, "exec") != 0 || ush_streq(cmd, "run") != 0) {
-        success = ush_cmd_exec(sh, arg);
-    } else if (ush_streq(cmd, "pid") != 0) {
-        success = ush_cmd_pid();
-    } else if (ush_streq(cmd, "spawn") != 0) {
-        success = ush_cmd_spawn(sh, arg);
-    } else if (ush_streq(cmd, "wait") != 0) {
-        success = ush_cmd_wait(arg);
-    } else if (ush_streq(cmd, "sleep") != 0) {
-        success = ush_cmd_sleep(arg);
-    } else if (ush_streq(cmd, "yield") != 0) {
-        success = ush_cmd_yield();
-    } else if (ush_streq(cmd, "shutdown") != 0 || ush_streq(cmd, "poweroff") != 0) {
-        success = ush_cmd_shutdown();
-    } else if (ush_streq(cmd, "restart") != 0 || ush_streq(cmd, "reboot") != 0) {
-        success = ush_cmd_restart();
-    } else if (ush_streq(cmd, "exit") != 0) {
-        success = ush_cmd_exit(sh, arg);
-    } else if (ush_streq(cmd, "clear") != 0 || ush_streq(cmd, "cls") != 0) {
-        success = ush_cmd_clear();
-    } else if (ush_streq(cmd, "ansi") != 0 || ush_streq(cmd, "color") != 0) {
-        success = ush_cmd_ansi();
-    } else if (ush_streq(cmd, "ansitest") != 0) {
-        success = ush_cmd_ansitest();
-    } else if (ush_streq(cmd, "uname") != 0 || ush_streq(cmd, "sysinfo") != 0) {
-        success = ush_cmd_uname(arg);
-    } else if (ush_streq(cmd, "fastfetch") != 0) {
-        success = ush_cmd_fastfetch(arg);
-    } else if (ush_streq(cmd, "memstat") != 0) {
-        success = ush_cmd_memstat();
-    } else if (ush_streq(cmd, "fsstat") != 0) {
-        success = ush_cmd_fsstat();
-    } else if (ush_streq(cmd, "taskstat") != 0) {
-        success = ush_cmd_taskstat();
-    } else if (ush_streq(cmd, "userstat") != 0) {
-        success = ush_cmd_userstat();
-    } else if (ush_streq(cmd, "shstat") != 0) {
-        success = ush_cmd_shstat(sh);
-    } else if (ush_streq(cmd, "stats") != 0) {
-        success = ush_cmd_stats(sh);
-    } else if (ush_streq(cmd, "tty") != 0) {
-        success = ush_cmd_tty(arg);
-    } else if (ush_streq(cmd, "dmesg") != 0) {
-        success = ush_cmd_dmesg(arg);
-    } else if (ush_streq(cmd, "kbdstat") != 0) {
-        success = ush_cmd_kbdstat();
-    } else if (ush_streq(cmd, "mkdir") != 0) {
-        success = ush_cmd_mkdir(sh, arg);
-    } else if (ush_streq(cmd, "touch") != 0) {
-        success = ush_cmd_touch(sh, arg);
-    } else if (ush_streq(cmd, "write") != 0) {
-        success = ush_cmd_write(sh, arg);
-    } else if (ush_streq(cmd, "append") != 0) {
-        success = ush_cmd_append(sh, arg);
-    } else if (ush_streq(cmd, "cp") != 0) {
-        success = ush_cmd_cp(sh, arg);
-    } else if (ush_streq(cmd, "mv") != 0) {
-        success = ush_cmd_mv(sh, arg);
-    } else if (ush_streq(cmd, "rm") != 0) {
-        success = ush_cmd_rm(sh, arg);
-    } else if (ush_streq(cmd, "rusttest") != 0 || ush_streq(cmd, "panic") != 0 || ush_streq(cmd, "elfloader") != 0) {
-        success = ush_cmd_not_supported(cmd, "this command is kernel-shell only");
-    } else {
-        known = 0;
-        success = 0;
-        ush_writeln("unknown command; type 'help'");
-    }
+    known = 0;
+    success = 0;
+    ush_report_external_not_found(cmd);
 
     if (out_known != (int *)0) {
         *out_known = known;
@@ -3263,7 +3085,7 @@ static int ush_execute_pipeline(ush_state *sh, const char *line, int *out_known,
         return 0;
     }
 
-    if (ush_builtin_fallback_is_enabled() == 0) {
+    {
         const char *pipe_input_path_external = (const char *)0;
         int pipe_output_toggle_external = 0;
 
@@ -3365,94 +3187,6 @@ static int ush_execute_pipeline(ush_state *sh, const char *line, int *out_known,
         return 1;
     }
 
-    for (i = 0ULL; i < stage_count; i++) {
-        int stage_known = 1;
-        int stage_success = 0;
-        int use_fd_output = 0;
-        u64 stage_fd = (u64)-1;
-        const char *stage_pipe_out = (const char *)0;
-
-        if (i + 1ULL < stage_count && stages[i].redirect_mode != 0) {
-            ush_writeln("pipe: redirection is only supported on final stage");
-            known = 1;
-            success = 0;
-            break;
-        }
-
-        if (pipe_input_path != (const char *)0) {
-            if (ush_pipeline_read_path_into_buffer(pipe_input_path, pipe_input_buffer, (u64)USH_PIPE_CAPTURE_MAX + 1ULL,
-                                                   &pipe_input_len) == 0) {
-                ush_writeln("pipe: failed to read stage input");
-                success = 0;
-                break;
-            }
-
-            ush_pipeline_set_stdin(pipe_input_buffer, pipe_input_len);
-        } else {
-            ush_pipeline_set_stdin((const char *)0, 0ULL);
-        }
-
-        if (i + 1ULL < stage_count) {
-            stage_pipe_out = (pipe_output_toggle == 0) ? USH_PIPE_TMP_A : USH_PIPE_TMP_B;
-
-            if (ush_pipeline_open_write_fd(stage_pipe_out, CLEONOS_O_WRONLY | CLEONOS_O_CREAT | CLEONOS_O_TRUNC,
-                                           &stage_fd) == 0) {
-                ush_writeln("pipe: failed to open temp stream");
-                success = 0;
-                break;
-            }
-
-            use_fd_output = 1;
-        } else if (stages[i].redirect_mode != 0) {
-            if (ush_pipeline_open_redirect_fd(sh, &stages[i], &stage_fd) == 0) {
-                success = 0;
-                break;
-            }
-
-            use_fd_output = 1;
-        }
-
-        if (use_fd_output != 0) {
-            ush_output_fd_begin(stage_fd, 0);
-        }
-
-        (void)ush_execute_single_command(sh, stages[i].cmd, stages[i].arg, 0, &stage_known, &stage_success);
-
-        if (use_fd_output != 0) {
-            ush_output_fd_end();
-            (void)cleonos_sys_fd_close(stage_fd);
-        }
-
-        if (stage_known == 0) {
-            known = 0;
-        }
-
-        if (stage_success == 0) {
-            success = 0;
-            break;
-        }
-
-        if (i + 1ULL < stage_count) {
-            pipe_input_path = stage_pipe_out;
-            pipe_input_buffer =
-                (pipe_input_buffer == ush_pipeline_capture_a) ? ush_pipeline_capture_b : ush_pipeline_capture_a;
-            pipe_output_toggle = (pipe_output_toggle == 0) ? 1 : 0;
-        }
-    }
-
-    ush_pipeline_set_stdin((const char *)0, 0ULL);
-    (void)cleonos_sys_fs_remove(USH_PIPE_TMP_A);
-    (void)cleonos_sys_fs_remove(USH_PIPE_TMP_B);
-
-    if (out_known != (int *)0) {
-        *out_known = known;
-    }
-
-    if (out_success != (int *)0) {
-        *out_success = success;
-    }
-
-    return 1;
 }
 
 void ush_execute_line(ush_state *sh, const char *line) {

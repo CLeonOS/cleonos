@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_memstat(void) {
-    ush_writeln_i18n("memstat (user ABI limited):", "内存/服务统计 (memstat, user ABI limited):");
+    ush_writeln_i18n("memstat (user ABI limited):", "内存/服务统计:");
     ush_print_kv_hex_i18n("  SERVICE_COUNT", "  服务数", cleonos_sys_service_count());
     ush_print_kv_hex_i18n("  SERVICE_READY_COUNT", "  就绪服务数",
                           cleonos_sys_service_ready_count());

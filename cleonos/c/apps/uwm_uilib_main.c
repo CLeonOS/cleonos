@@ -7,6 +7,6 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)argv;
     (void)envp;
     ush_writeln_i18n("uwm_uilib: UI component library image ready",
-                     "uwm_uilib: UI 组件库镜像就绪 (UI component library image ready)");
+                     "uwm_uilib: UI 组件库镜像就绪");
     return 0;
 }

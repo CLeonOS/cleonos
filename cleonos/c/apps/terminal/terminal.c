@@ -1331,6 +1331,7 @@ static void term_exec_external(term_app *app, const char *cmd, const char *arg) 
     term_append_to(env_line, (u64)sizeof(env_line), app->cwd);
     term_append_to(env_line, (u64)sizeof(env_line), ";CMD=");
     term_append_to(env_line, (u64)sizeof(env_line), canonical);
+    term_append_to(env_line, (u64)sizeof(env_line), ";LAUNCHER=/shell/uwm/terminal.elf");
 
     (void)term_render_present(app);
     status = cleonos_sys_exec_pathv_io(path, arg, env_line, (stdin_fd == (u64)-1) ? CLEONOS_FD_INHERIT : stdin_fd,

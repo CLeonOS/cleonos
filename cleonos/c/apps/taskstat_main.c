@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_taskstat(void) {
-    ush_writeln_i18n("taskstat:", "任务统计 (taskstat):");
+    ush_writeln_i18n("taskstat:", "任务统计:");
     ush_print_kv_hex_i18n("  TASK_COUNT", "  任务数", cleonos_sys_task_count());
     ush_print_kv_hex_i18n("  CURRENT_TASK", "  当前任务", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
     ush_print_kv_hex_i18n("  TIMER_TICKS", "  计时器滴答", cleonos_sys_timer_ticks());

@@ -21,7 +21,7 @@ int cleonos_app_main(void) {
 
     ush_init_state(&sh);
     shell_writeln_i18n("\x1B[92m[USER][SHELL]\x1B[0m interactive framework online",
-                       "\x1B[92m[USER][SHELL]\x1B[0m 交互框架在线 (interactive framework online)");
+                       "\x1B[92m[USER][SHELL]\x1B[0m 交互框架在线");
 
     if (ush_login_if_needed(&sh) == 0) {
         return 1;
@@ -30,7 +30,7 @@ int cleonos_app_main(void) {
     if (ush_run_script_file(&sh, "/shell/init.cmd") == 0 && ush_run_script_file(&sh, "/shell/INIT.CMD") == 0 &&
         ush_run_script_file(&sh, "/SHELL/INIT.CMD") == 0) {
         shell_writeln_i18n("\x1B[33m[USER][SHELL]\x1B[0m init script not found, continue interactive mode",
-                           "\x1B[33m[USER][SHELL]\x1B[0m 未找到初始化脚本，继续交互模式 (init script not found)");
+                           "\x1B[33m[USER][SHELL]\x1B[0m 未找到初始化脚本，继续交互模式");
     }
 
     for (;;) {

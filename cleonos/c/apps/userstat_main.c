@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_userstat(void) {
-    ush_writeln_i18n("userstat:", "用户态统计 (userstat):");
+    ush_writeln_i18n("userstat:", "用户态统计:");
     ush_print_kv_hex_i18n("  USER_SHELL_READY", "  用户外壳就绪",
                           cleonos_sys_user_shell_ready());
     ush_print_kv_hex_i18n("  USER_EXEC_REQUESTED", "  用户执行请求",

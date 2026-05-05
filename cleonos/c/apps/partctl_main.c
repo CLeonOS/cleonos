@@ -248,7 +248,7 @@ static int partctl_cmd_delete(const char *index_text) {
         return 0;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已删除分区 (deleted partition) %llu\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已删除分区 %llu\n"
                                            : "partctl: deleted partition %llu\n",
                  (unsigned long long)index);
     return 1;
@@ -292,7 +292,7 @@ static int partctl_cmd_set_boot(const char *index_text, const char *value_text) 
         return 0;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 分区 (partition) %llu boot flag=%llu\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 分区 %llu boot flag=%llu\n"
                                            : "partctl: partition %llu boot flag=%llu\n",
                  (unsigned long long)index, (unsigned long long)value);
     return 1;
@@ -382,7 +382,7 @@ static int partctl_cmd_create(const char *index_text, const char *start_text, co
         return 0;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已创建 (created) p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "partctl: 已创建 p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n"
                                            : "partctl: created p%llu start=%llu sectors=%llu type=0x%02X boot=%llu\n",
                  (unsigned long long)index, (unsigned long long)start_lba, (unsigned long long)sectors,
                  (unsigned int)((unsigned char)type), (unsigned long long)boot);

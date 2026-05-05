@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_kbdstat(void) {
-    ush_writeln_i18n("kbdstat:", "键盘统计 (kbdstat):");
+    ush_writeln_i18n("kbdstat:", "键盘统计:");
     ush_print_kv_hex_i18n("  BUFFERED", "  缓冲数量", cleonos_sys_kbd_buffered());
     ush_print_kv_hex_i18n("  PUSHED", "  推入次数", cleonos_sys_kbd_pushed());
     ush_print_kv_hex_i18n("  POPPED", "  弹出次数", cleonos_sys_kbd_popped());

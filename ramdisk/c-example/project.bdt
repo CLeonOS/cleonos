@@ -1,0 +1,16 @@
+[project]
+name = c-example
+default = build
+build_dir = /temp/c-example-bdt
+language = zh-CN
+
+[target.build]
+type = command
+command = /shell/tcc.elf /c-example/main.c -o /temp/c-example.elf
+cache = false
+
+[target.run]
+deps = build
+type = command
+command = /temp/c-example.elf
+cache = false

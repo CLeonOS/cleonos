@@ -74,7 +74,7 @@ static int ush_cmd_mkfsfat32(const char *arg) {
         char line[USH_LINE_MAX];
 
         (void)snprintf(line, (unsigned long)sizeof(line),
-                       (ush_locale_is_zh() != 0) ? "mkfsfat32: 已格式化 (label=%s)" : "mkfsfat32: formatted (label=%s)",
+                       (ush_locale_is_zh() != 0) ? "mkfsfat32: 已格式化，卷标=%s" : "mkfsfat32: formatted (label=%s)",
                        label);
         ush_writeln(line);
     } else {

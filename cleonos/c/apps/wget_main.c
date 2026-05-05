@@ -73,7 +73,7 @@ static const char *ush_wget_tcp_error_text(u64 error_code) {
 
 static void ush_wget_print_tcp_connect_failed(void) {
     u64 err = cleonos_sys_net_tcp_last_error();
-    (void)printf((ush_locale_is_zh() != 0) ? "wget: TCP 连接失败 (tcp connect failed): %s (%llu)\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "wget: TCP 连接失败: %s (%llu)\n"
                                            : "wget: tcp connect failed: %s (%llu)\n",
                  ush_wget_tcp_error_text(err), (unsigned long long)err);
 }
@@ -919,7 +919,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
 
     if (ush_wget_parse_ipv4_be(url.host, &dst_ipv4_be) == 0) {
         if (ush_wget_dns_resolve_ipv4(url.host, &dst_ipv4_be) == 0) {
-            (void)printf((ush_locale_is_zh() != 0) ? "wget: DNS 解析失败 (DNS resolve failed) for %s\n"
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: DNS 解析失败 for %s\n"
                                                     : "wget: DNS resolve failed for %s\n",
                          url.host);
             return 0;
@@ -948,7 +948,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
                                          ush_wget_deadline_after_timeout()) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 连接失败 (tls connect failed): %s\n"
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 连接失败: %s\n"
                                                     : "wget: tls connect failed: %s\n",
                          tls_error);
             goto done;
@@ -989,7 +989,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 发送失败 (tls send failed): %s\n"
+            (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 发送失败: %s\n"
                                                     : "wget: tls send failed: %s\n",
                          tls_error);
             goto done;
@@ -1015,7 +1015,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             if (tls_got < 0) {
                 char tls_error[96];
                 cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-                (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 接收失败 (tls recv failed): %s\n"
+                (void)printf((ush_locale_is_zh() != 0) ? "wget: TLS 接收失败: %s\n"
                                                         : "wget: tls recv failed: %s\n",
                              tls_error);
                 goto done;
@@ -1066,7 +1066,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
             header_done = 1;
             status = ush_wget_status_code(header, header_used);
             if (status >= 400) {
-                (void)printf((ush_locale_is_zh() != 0) ? "wget: HTTP 状态 (HTTP status) %d\n"
+                (void)printf((ush_locale_is_zh() != 0) ? "wget: HTTP 状态 %d\n"
                                                         : "wget: HTTP status %d\n",
                              status);
                 goto done;
@@ -1146,7 +1146,7 @@ static int ush_cmd_wget(const ush_state *sh, const char *arg) {
         goto done;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "wget: 已保存 (saved) %llu bytes to %s\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "wget: 已保存 %llu bytes to %s\n"
                                            : "wget: saved %llu bytes to %s\n",
                  (unsigned long long)saved, output_abs);
     ok = 1;

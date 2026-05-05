@@ -101,83 +101,83 @@ static int install_update_last_failure_was_verify;
 
 static const char *install_stage_label(const char *name) {
     if (name == (const char *)0) {
-        return INSTALL_TEXT("stage", "阶段 (stage)");
+        return INSTALL_TEXT("stage", "阶段");
     }
     if (strcmp(name, "verify hard disk install") == 0) {
-        return INSTALL_TEXT("verify hard disk install", "验证硬盘安装 (verify hard disk install)");
+        return INSTALL_TEXT("verify hard disk install", "验证硬盘安装");
     }
     if (strcmp(name, "setup root account") == 0) {
-        return INSTALL_TEXT("setup root account", "设置 root 账户 (setup root account)");
+        return INSTALL_TEXT("setup root account", "设置 root 账户");
     }
     if (strcmp(name, "repair component") == 0) {
-        return INSTALL_TEXT("repair component", "修复组件 (repair component)");
+        return INSTALL_TEXT("repair component", "修复组件");
     }
     if (strcmp(name, "plan shell update") == 0) {
-        return INSTALL_TEXT("plan shell update", "规划外壳更新 (plan shell update)");
+        return INSTALL_TEXT("plan shell update", "规划外壳更新");
     }
     if (strcmp(name, "update shell") == 0) {
-        return INSTALL_TEXT("update shell", "更新外壳 (update shell)");
+        return INSTALL_TEXT("update shell", "更新外壳");
     }
     if (strcmp(name, "refresh install manifest") == 0) {
-        return INSTALL_TEXT("refresh install manifest", "刷新安装清单 (refresh install manifest)");
+        return INSTALL_TEXT("refresh install manifest", "刷新安装清单");
     }
     if (strcmp(name, "update kernel and shell") == 0) {
-        return INSTALL_TEXT("update kernel and shell", "更新内核和外壳 (update kernel and shell)");
+        return INSTALL_TEXT("update kernel and shell", "更新内核和外壳");
     }
     if (strcmp(name, "update kernel") == 0) {
-        return INSTALL_TEXT("update kernel", "更新内核 (update kernel)");
+        return INSTALL_TEXT("update kernel", "更新内核");
     }
     if (strcmp(name, "scan root filesystem") == 0) {
-        return INSTALL_TEXT("scan root filesystem", "扫描根文件系统 (scan root filesystem)");
+        return INSTALL_TEXT("scan root filesystem", "扫描根文件系统");
     }
     if (strcmp(name, "format FAT32") == 0) {
-        return INSTALL_TEXT("format FAT32", "格式化 FAT32 (format FAT32)");
+        return INSTALL_TEXT("format FAT32", "格式化 FAT32");
     }
     if (strcmp(name, "mount target disk") == 0) {
-        return INSTALL_TEXT("mount target disk", "挂载目标硬盘 (mount target disk)");
+        return INSTALL_TEXT("mount target disk", "挂载目标硬盘");
     }
     if (strcmp(name, "copy root filesystem") == 0) {
-        return INSTALL_TEXT("copy root filesystem", "复制根文件系统 (copy root filesystem)");
+        return INSTALL_TEXT("copy root filesystem", "复制根文件系统");
     }
     if (strcmp(name, "install kernel and Limine files") == 0) {
-        return INSTALL_TEXT("install kernel and Limine files", "安装内核和 Limine 文件 (install kernel and Limine files)");
+        return INSTALL_TEXT("install kernel and Limine files", "安装内核和 Limine 文件");
     }
     if (strcmp(name, "write Limine BIOS boot stages") == 0) {
-        return INSTALL_TEXT("write Limine BIOS boot stages", "写入 Limine BIOS 启动阶段 (write Limine BIOS boot stages)");
+        return INSTALL_TEXT("write Limine BIOS boot stages", "写入 Limine BIOS 启动阶段");
     }
     if (strcmp(name, "generate install manifest") == 0) {
-        return INSTALL_TEXT("generate install manifest", "生成安装清单 (generate install manifest)");
+        return INSTALL_TEXT("generate install manifest", "生成安装清单");
     }
     return name;
 }
 
 static const char *install_progress_label(const char *label) {
     if (label == (const char *)0) {
-        return INSTALL_TEXT("progress", "进度 (progress)");
+        return INSTALL_TEXT("progress", "进度");
     }
     if (strcmp(label, "repair file") == 0) {
-        return INSTALL_TEXT("repair file", "修复文件 (repair file)");
+        return INSTALL_TEXT("repair file", "修复文件");
     }
     if (strcmp(label, "repair limine config") == 0) {
-        return INSTALL_TEXT("repair limine config", "修复 Limine 配置 (repair limine config)");
+        return INSTALL_TEXT("repair limine config", "修复 Limine 配置");
     }
     if (strcmp(label, "repair limine sys") == 0) {
-        return INSTALL_TEXT("repair limine sys", "修复 Limine sys 文件 (repair limine sys)");
+        return INSTALL_TEXT("repair limine sys", "修复 Limine sys 文件");
     }
     if (strcmp(label, "repair bootloader") == 0) {
-        return INSTALL_TEXT("repair bootloader", "修复引导器 (repair bootloader)");
+        return INSTALL_TEXT("repair bootloader", "修复引导器");
     }
     if (strcmp(label, "plan shell files") == 0) {
-        return INSTALL_TEXT("plan shell files", "规划外壳文件 (plan shell files)");
+        return INSTALL_TEXT("plan shell files", "规划外壳文件");
     }
     if (strcmp(label, "update shell files") == 0) {
-        return INSTALL_TEXT("update shell files", "更新外壳文件 (update shell files)");
+        return INSTALL_TEXT("update shell files", "更新外壳文件");
     }
     if (strcmp(label, "update kernel") == 0) {
-        return INSTALL_TEXT("update kernel", "更新内核 (update kernel)");
+        return INSTALL_TEXT("update kernel", "更新内核");
     }
     if (strcmp(label, "copy root filesystem") == 0) {
-        return INSTALL_TEXT("copy root filesystem", "复制根文件系统 (copy root filesystem)");
+        return INSTALL_TEXT("copy root filesystem", "复制根文件系统");
     }
     return label;
 }
@@ -237,7 +237,7 @@ static void install_progress_print(install_progress *progress, int force) {
     bar[INSTALL_PROGRESS_BAR_WIDTH] = '\0';
 
     (void)printf(INSTALL_TEXT("install2disk: %s [%s] %3llu%% %llu/%llu items %llu/%llu bytes\n",
-                              "install2disk: %s [%s] %3llu%% %llu/%llu 项 (items) %llu/%llu 字节 (bytes)\n"),
+                              "install2disk: %s [%s] %3llu%% %llu/%llu 项 %llu/%llu 字节\n"),
                  install_progress_label(progress->label), bar, (unsigned long long)percent,
                  (unsigned long long)progress->done_items, (unsigned long long)progress->total_items,
                  (unsigned long long)progress->done_bytes, (unsigned long long)progress->total_bytes);
@@ -557,7 +557,7 @@ static int install_mkdir(const char *path) {
 
     if (cleonos_sys_fs_mkdir(path) == 0ULL) {
         (void)printf(INSTALL_TEXT("install2disk: mkdir failed: %s\n",
-                                  "install2disk: 创建目录失败 (mkdir failed): %s\n"),
+                                  "install2disk: 创建目录失败: %s\n"),
                      path);
         return 0;
     }
@@ -606,7 +606,7 @@ static int install_mount_existing_disk(void);
 static int install_update_kernel(void);
 
 static void install_print_usage(void) {
-    install_puts_i18n("usage:", "用法 (usage):");
+    install_puts_i18n("usage:", "用法:");
     (void)puts("  install2disk");
     (void)puts("  install2disk update");
     (void)puts("  install2disk update-shell");
@@ -793,7 +793,7 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
     size = cleonos_sys_fs_stat_size(src);
     if (size == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: stat failed: %s\n",
-                                  "install2disk: 获取文件信息失败 (stat failed): %s\n"),
+                                  "install2disk: 获取文件信息失败: %s\n"),
                      src);
         return 0;
     }
@@ -801,13 +801,13 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
     dst_type = cleonos_sys_fs_stat_type(dst);
     if (dst_type == 2ULL) {
         (void)printf(INSTALL_TEXT("install2disk: target is directory: %s\n",
-                                  "install2disk: 目标是目录 (target is directory): %s\n"),
+                                  "install2disk: 目标是目录: %s\n"),
                      dst);
         return 0;
     }
     if (dst_type == 1ULL && cleonos_sys_fs_remove(dst) == 0ULL) {
         (void)printf(INSTALL_TEXT("install2disk: remove old target failed: %s\n",
-                                  "install2disk: 删除旧目标失败 (remove old target failed): %s\n"),
+                                  "install2disk: 删除旧目标失败: %s\n"),
                      dst);
         return 0;
     }
@@ -815,14 +815,14 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
     if (size == 0ULL) {
         if (cleonos_sys_fs_write(dst, "", 0ULL) == 0ULL) {
             (void)printf(INSTALL_TEXT("install2disk: create failed: %s\n",
-                                      "install2disk: 创建失败 (create failed): %s\n"),
+                                      "install2disk: 创建失败: %s\n"),
                          dst);
             return 0;
         }
 
         if (cleonos_sys_fs_stat_size(dst) != 0ULL) {
             (void)printf(INSTALL_TEXT("install2disk: verify failed: %s\n",
-                                      "install2disk: 验证失败 (verify failed): %s\n"),
+                                      "install2disk: 验证失败: %s\n"),
                          dst);
             return 0;
         }
@@ -842,7 +842,7 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
             if (src_fd == (u64)-1) {
                 free(whole);
                 (void)printf(INSTALL_TEXT("install2disk: open read failed: %s\n",
-                                          "install2disk: 打开读取失败 (open read failed): %s\n"),
+                                          "install2disk: 打开读取失败: %s\n"),
                              src);
                 return 0;
             }
@@ -859,10 +859,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
                     (void)cleonos_sys_fd_close(src_fd);
                     free(whole);
                     (void)printf(INSTALL_TEXT("install2disk: read failed: %s\n",
-                                              "install2disk: 读取失败 (read failed): %s\n"),
+                                              "install2disk: 读取失败: %s\n"),
                                  src);
                     (void)printf(INSTALL_TEXT("install2disk: src=%s mode=whole offset=%llu want=%llu got=%llu size=%llu\n",
-                                              "install2disk: 源 (src)=%s 模式 (mode)=whole 偏移 (offset)=%llu 期望 (want)=%llu 得到 (got)=%llu 大小 (size)=%llu\n"),
+                                              "install2disk: 源=%s 模式=whole 偏移=%llu 期望=%llu 得到=%llu 大小=%llu\n"),
                                  src,
                                  (unsigned long long)file_offset, (unsigned long long)want,
                                  (unsigned long long)got, (unsigned long long)size);
@@ -878,10 +878,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
 
             if (wrote != size) {
                 (void)printf(INSTALL_TEXT("install2disk: write failed: %s\n",
-                                          "install2disk: 写入失败 (write failed): %s\n"),
+                                          "install2disk: 写入失败: %s\n"),
                              dst);
                 (void)printf(INSTALL_TEXT("install2disk: src=%s mode=whole size=%llu wrote=%llu\n",
-                                          "install2disk: 源 (src)=%s 模式 (mode)=whole 大小 (size)=%llu 写入 (wrote)=%llu\n"),
+                                          "install2disk: 源=%s 模式=whole 大小=%llu 写入=%llu\n"),
                              src,
                              (unsigned long long)size, (unsigned long long)wrote);
                 return 0;
@@ -897,10 +897,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
             install_progress_finish_item(progress);
             if (cleonos_sys_fs_stat_size(dst) != size) {
                 (void)printf(INSTALL_TEXT("install2disk: verify failed: %s\n",
-                                          "install2disk: 验证失败 (verify failed): %s\n"),
+                                          "install2disk: 验证失败: %s\n"),
                              dst);
                 (void)printf(INSTALL_TEXT("install2disk: expected=%llu actual=%llu\n",
-                                          "install2disk: 期望 (expected)=%llu 实际 (actual)=%llu\n"),
+                                          "install2disk: 期望=%llu 实际=%llu\n"),
                              (unsigned long long)size,
                              (unsigned long long)cleonos_sys_fs_stat_size(dst));
                 return 0;
@@ -909,14 +909,14 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
         }
 
         (void)printf(INSTALL_TEXT("install2disk: whole-file buffer unavailable, falling back: %s\n",
-                                  "install2disk: 整文件缓冲不可用，回退流式复制 (falling back): %s\n"),
+                                  "install2disk: 整文件缓冲不可用，回退流式复制: %s\n"),
                      src);
     }
 
     src_fd = cleonos_sys_fd_open(src, CLEONOS_O_RDONLY, 0ULL);
     if (src_fd == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: open read failed: %s\n",
-                                  "install2disk: 打开读取失败 (open read failed): %s\n"),
+                                  "install2disk: 打开读取失败: %s\n"),
                      src);
         return 0;
     }
@@ -924,7 +924,7 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
     if (cleonos_sys_fs_write(dst, "", 0ULL) == 0ULL) {
         (void)cleonos_sys_fd_close(src_fd);
         (void)printf(INSTALL_TEXT("install2disk: create failed: %s\n",
-                                  "install2disk: 创建失败 (create failed): %s\n"),
+                                  "install2disk: 创建失败: %s\n"),
                      dst);
         return 0;
     }
@@ -934,10 +934,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
         if (got == (u64)-1) {
             (void)cleonos_sys_fd_close(src_fd);
             (void)printf(INSTALL_TEXT("install2disk: read failed: %s\n",
-                                      "install2disk: 读取失败 (read failed): %s\n"),
+                                      "install2disk: 读取失败: %s\n"),
                          src);
             (void)printf(INSTALL_TEXT("install2disk: src=%s mode=stream offset=%llu want=%llu got=%llu size=%llu\n",
-                                      "install2disk: 源 (src)=%s 模式 (mode)=stream 偏移 (offset)=%llu 期望 (want)=%llu 得到 (got)=%llu 大小 (size)=%llu\n"),
+                                      "install2disk: 源=%s 模式=stream 偏移=%llu 期望=%llu 得到=%llu 大小=%llu\n"),
                          src,
                          (unsigned long long)file_offset, (unsigned long long)sizeof(buffer),
                          (unsigned long long)got, (unsigned long long)size);
@@ -952,10 +952,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
         if (wrote != got) {
             (void)cleonos_sys_fd_close(src_fd);
             (void)printf(INSTALL_TEXT("install2disk: write failed: %s\n",
-                                      "install2disk: 写入失败 (write failed): %s\n"),
+                                      "install2disk: 写入失败: %s\n"),
                          dst);
             (void)printf(INSTALL_TEXT("install2disk: src=%s offset=%llu chunk=%llu wrote=%llu size=%llu\n",
-                                      "install2disk: 源 (src)=%s 偏移 (offset)=%llu 块 (chunk)=%llu 写入 (wrote)=%llu 大小 (size)=%llu\n"),
+                                      "install2disk: 源=%s 偏移=%llu 块=%llu 写入=%llu 大小=%llu\n"),
                          src,
                          (unsigned long long)file_offset, (unsigned long long)got, (unsigned long long)wrote,
                          (unsigned long long)size);
@@ -978,10 +978,10 @@ static int install_copy_file(const char *src, const char *dst, u64 *copied_files
 
     if (cleonos_sys_fs_stat_size(dst) != size) {
         (void)printf(INSTALL_TEXT("install2disk: verify failed: %s\n",
-                                  "install2disk: 验证失败 (verify failed): %s\n"),
+                                  "install2disk: 验证失败: %s\n"),
                      dst);
         (void)printf(INSTALL_TEXT("install2disk: expected=%llu actual=%llu\n",
-                                  "install2disk: 期望 (expected)=%llu 实际 (actual)=%llu\n"),
+                                  "install2disk: 期望=%llu 实际=%llu\n"),
                      (unsigned long long)size,
                      (unsigned long long)cleonos_sys_fs_stat_size(dst));
         return 0;
@@ -1002,7 +1002,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
     size = cleonos_sys_fs_stat_size(src);
     if (size == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: stat failed: %s\n",
-                                  "install2disk: 获取文件信息失败 (stat failed): %s\n"),
+                                  "install2disk: 获取文件信息失败: %s\n"),
                      src);
         return 0;
     }
@@ -1010,7 +1010,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
     dst_type = cleonos_sys_fs_stat_type(dst);
     if (dst_type == 2ULL) {
         (void)printf(INSTALL_TEXT("install2disk: target is directory: %s\n",
-                                  "install2disk: 目标是目录 (target is directory): %s\n"),
+                                  "install2disk: 目标是目录: %s\n"),
                      dst);
         return 0;
     }
@@ -1019,7 +1019,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
         wrote = cleonos_sys_fs_write(dst, "", 0ULL);
         if (wrote != 0ULL || cleonos_sys_fs_stat_size(dst) != 0ULL) {
             (void)printf(INSTALL_TEXT("install2disk: overwrite failed: %s\n",
-                                      "install2disk: 覆盖失败 (overwrite failed): %s\n"),
+                                      "install2disk: 覆盖失败: %s\n"),
                          dst);
             return 0;
         }
@@ -1034,7 +1034,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
     data = (char *)malloc((size_t)size);
     if (data == (char *)0) {
         (void)printf(INSTALL_TEXT("install2disk: overwrite buffer allocation failed: %s\n",
-                                  "install2disk: 覆盖缓冲区分配失败 (overwrite buffer allocation failed): %s\n"),
+                                  "install2disk: 覆盖缓冲区分配失败: %s\n"),
                      src);
         return 0;
     }
@@ -1043,7 +1043,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
     if (fd == (u64)-1) {
         free(data);
         (void)printf(INSTALL_TEXT("install2disk: open read failed: %s\n",
-                                  "install2disk: 打开读取失败 (open read failed): %s\n"),
+                                  "install2disk: 打开读取失败: %s\n"),
                      src);
         return 0;
     }
@@ -1054,7 +1054,7 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
             (void)cleonos_sys_fd_close(fd);
             free(data);
             (void)printf(INSTALL_TEXT("install2disk: read failed: %s\n",
-                                      "install2disk: 读取失败 (read failed): %s\n"),
+                                      "install2disk: 读取失败: %s\n"),
                          src);
             return 0;
         }
@@ -1066,10 +1066,10 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
     free(data);
     if (wrote != size) {
         (void)printf(INSTALL_TEXT("install2disk: overwrite failed: %s\n",
-                                  "install2disk: 覆盖失败 (overwrite failed): %s\n"),
+                                  "install2disk: 覆盖失败: %s\n"),
                      dst);
         (void)printf(INSTALL_TEXT("install2disk: src=%s size=%llu wrote=%llu\n",
-                                  "install2disk: 源 (src)=%s 大小 (size)=%llu 写入 (wrote)=%llu\n"),
+                                  "install2disk: 源=%s 大小=%llu 写入=%llu\n"),
                      src, (unsigned long long)size,
                      (unsigned long long)wrote);
         return 0;
@@ -1077,10 +1077,10 @@ static int install_overwrite_file_whole(const char *src, const char *dst, u64 *c
 
     if (cleonos_sys_fs_stat_size(dst) != size) {
         (void)printf(INSTALL_TEXT("install2disk: verify failed: %s\n",
-                                  "install2disk: 验证失败 (verify failed): %s\n"),
+                                  "install2disk: 验证失败: %s\n"),
                      dst);
         (void)printf(INSTALL_TEXT("install2disk: expected=%llu actual=%llu\n",
-                                  "install2disk: 期望 (expected)=%llu 实际 (actual)=%llu\n"),
+                                  "install2disk: 期望=%llu 实际=%llu\n"),
                      (unsigned long long)size,
                      (unsigned long long)cleonos_sys_fs_stat_size(dst));
         return 0;
@@ -1108,7 +1108,7 @@ static int install_scan_tree(const char *src, u64 depth, install_progress *progr
 
     if (depth > 32ULL) {
         (void)printf(INSTALL_TEXT("install2disk: directory depth too large while scanning: %s\n",
-                                  "install2disk: 扫描时目录深度过大 (directory depth too large): %s\n"),
+                                  "install2disk: 扫描时目录深度过大: %s\n"),
                      src);
         return 0;
     }
@@ -1153,7 +1153,7 @@ static int install_scan_tree(const char *src, u64 depth, install_progress *progr
 
         if (install_path_join(child_src, (u64)sizeof(child_src), src, name) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: path too long while scanning near %s\n",
-                                      "install2disk: 扫描时路径过长 (path too long) near %s\n"),
+                                      "install2disk: 扫描时路径过长 near %s\n"),
                          name);
             return 0;
         }
@@ -1174,7 +1174,7 @@ static int install_copy_tree(const char *src, const char *dst, u64 depth, u64 *c
 
     if (depth > 32ULL) {
         (void)printf(INSTALL_TEXT("install2disk: directory depth too large: %s\n",
-                                  "install2disk: 目录深度过大 (directory depth too large): %s\n"),
+                                  "install2disk: 目录深度过大: %s\n"),
                      src);
         return 0;
     }
@@ -1224,7 +1224,7 @@ static int install_copy_tree(const char *src, const char *dst, u64 depth, u64 *c
         if (install_path_join(child_src, (u64)sizeof(child_src), src, name) == 0 ||
             install_path_join(child_dst, (u64)sizeof(child_dst), dst, name) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: path too long near %s\n",
-                                      "install2disk: 路径过长 (path too long) near %s\n"),
+                                      "install2disk: 路径过长 near %s\n"),
                          name);
             return 0;
         }
@@ -1318,14 +1318,14 @@ static int install_manifest_append_entry(const char *manifest_path, const char *
     size = cleonos_sys_fs_stat_size(real_path);
     if (size == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: manifest stat failed: %s\n",
-                                  "install2disk: manifest 获取文件信息失败 (manifest stat failed): %s\n"),
+                                  "install2disk: manifest 获取文件信息失败: %s\n"),
                      logical_path);
         return 0;
     }
 
     if (install_sha256_file_hex(real_path, hash) == 0) {
         (void)printf(INSTALL_TEXT("install2disk: manifest hash failed: %s\n",
-                                  "install2disk: manifest 计算哈希失败 (manifest hash failed): %s\n"),
+                                  "install2disk: manifest 计算哈希失败: %s\n"),
                      logical_path);
         return 0;
     }
@@ -1333,20 +1333,20 @@ static int install_manifest_append_entry(const char *manifest_path, const char *
     if ((u64)snprintf(line, (unsigned long)sizeof(line), "%s|%llu|%s\n", logical_path, (unsigned long long)size,
                       hash) >= (u64)sizeof(line)) {
         (void)printf(INSTALL_TEXT("install2disk: manifest line too long: %s\n",
-                                  "install2disk: manifest 行过长 (line too long): %s\n"),
+                                  "install2disk: manifest 行过长: %s\n"),
                      logical_path);
         return 0;
     }
 
     line_len = (u64)strlen(line);
     if (writer->manifest_bytes + line_len > INSTALL_MANIFEST_MAX_BYTES) {
-        install_puts_i18n("install2disk: manifest too large", "install2disk: manifest 过大 (manifest too large)");
+        install_puts_i18n("install2disk: manifest too large", "install2disk: manifest 过大");
         return 0;
     }
 
     if (cleonos_sys_fs_append(manifest_path, line, line_len) != line_len) {
         (void)printf(INSTALL_TEXT("install2disk: manifest append failed: %s\n",
-                                  "install2disk: manifest 追加失败 (append failed): %s\n"),
+                                  "install2disk: manifest 追加失败: %s\n"),
                      logical_path);
         return 0;
     }
@@ -1372,7 +1372,7 @@ static int install_manifest_scan_tree_filtered(const char *real_path, const char
 
     if (depth > 32ULL) {
         (void)printf(INSTALL_TEXT("install2disk: manifest directory depth too large: %s\n",
-                                  "install2disk: manifest 目录深度过大 (directory depth too large): %s\n"),
+                                  "install2disk: manifest 目录深度过大: %s\n"),
                      logical_path);
         return 0;
     }
@@ -1400,7 +1400,7 @@ static int install_manifest_scan_tree_filtered(const char *real_path, const char
     count = cleonos_sys_fs_child_count(real_path);
     if (count == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: manifest list failed: %s\n",
-                                  "install2disk: manifest 列目录失败 (list failed): %s\n"),
+                                  "install2disk: manifest 列目录失败: %s\n"),
                      logical_path);
         return 0;
     }
@@ -1421,7 +1421,7 @@ static int install_manifest_scan_tree_filtered(const char *real_path, const char
         if (install_path_join(child_real, (u64)sizeof(child_real), real_path, name) == 0 ||
             install_path_join(child_logical, (u64)sizeof(child_logical), logical_path, name) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: manifest path too long near %s\n",
-                                      "install2disk: manifest 路径过长 (path too long) near %s\n"),
+                                      "install2disk: manifest 路径过长 near %s\n"),
                          name);
             return 0;
         }
@@ -1447,7 +1447,7 @@ static int install_generate_manifest_to(const char *root_path, const char *manif
 
     if (install_root_join(system_path, (u64)sizeof(system_path), root_path, "/system") == 0) {
         install_puts_i18n("install2disk: manifest path too long",
-                          "install2disk: manifest 路径过长 (manifest path too long)");
+                          "install2disk: manifest 路径过长");
         return 0;
     }
 
@@ -1457,13 +1457,13 @@ static int install_generate_manifest_to(const char *root_path, const char *manif
 
     if (cleonos_sys_fs_stat_type(manifest_path) == 1ULL && cleonos_sys_fs_remove(manifest_path) == 0ULL) {
         install_puts_i18n("install2disk: remove old manifest failed",
-                          "install2disk: 删除旧 manifest 失败 (remove old manifest failed)");
+                          "install2disk: 删除旧 manifest 失败");
         return 0;
     }
 
     if (cleonos_sys_fs_write(manifest_path, "", 0ULL) == 0ULL) {
         install_puts_i18n("install2disk: create manifest failed",
-                          "install2disk: 创建 manifest 失败 (create manifest failed)");
+                          "install2disk: 创建 manifest 失败");
         return 0;
     }
 
@@ -1474,12 +1474,12 @@ static int install_generate_manifest_to(const char *root_path, const char *manif
 
     if (writer.files == 0ULL) {
         install_puts_i18n("install2disk: manifest has no files",
-                          "install2disk: manifest 没有文件 (manifest has no files)");
+                          "install2disk: manifest 没有文件");
         return 0;
     }
 
     (void)printf(INSTALL_TEXT("install2disk: manifest generated: %llu files, %llu bytes, %llu manifest bytes\n",
-                              "install2disk: manifest 已生成 (generated): %llu 文件 (files), %llu 字节 (bytes), %llu manifest 字节 (manifest bytes)\n"),
+                              "install2disk: manifest 已生成: %llu 文件, %llu 字节, %llu manifest 字节\n"),
                  (unsigned long long)writer.files, (unsigned long long)writer.file_bytes,
                  (unsigned long long)writer.manifest_bytes);
     return 1;
@@ -1490,7 +1490,7 @@ static int install_generate_manifest(const char *root_path) {
 
     if (install_root_join(manifest_path, (u64)sizeof(manifest_path), root_path, INSTALL_MANIFEST_SOURCE) == 0) {
         install_puts_i18n("install2disk: manifest path too long",
-                          "install2disk: manifest 路径过长 (manifest path too long)");
+                          "install2disk: manifest 路径过长");
         return 0;
     }
 
@@ -1577,14 +1577,14 @@ static u64 install_manifest_load(const char *manifest_path, install_manifest_ent
             return 0ULL;
         }
         (void)printf(INSTALL_TEXT("install2disk: manifest missing: %s\n",
-                                  "install2disk: manifest 缺失 (missing): %s\n"),
+                                  "install2disk: manifest 缺失: %s\n"),
                      manifest_path);
         return (u64)-1;
     }
 
     if (size > INSTALL_MANIFEST_MAX_BYTES) {
         (void)printf(INSTALL_TEXT("install2disk: manifest too large: %s\n",
-                                  "install2disk: manifest 过大 (too large): %s\n"),
+                                  "install2disk: manifest 过大: %s\n"),
                      manifest_path);
         return (u64)-1;
     }
@@ -1592,7 +1592,7 @@ static u64 install_manifest_load(const char *manifest_path, install_manifest_ent
     buffer = (char *)malloc((size_t)size + 1U);
     if (buffer == (char *)0) {
         install_puts_i18n("install2disk: manifest buffer allocation failed",
-                          "install2disk: manifest 缓冲区分配失败 (buffer allocation failed)");
+                          "install2disk: manifest 缓冲区分配失败");
         return (u64)-1;
     }
 
@@ -1600,7 +1600,7 @@ static u64 install_manifest_load(const char *manifest_path, install_manifest_ent
     if (fd == (u64)-1) {
         free(buffer);
         (void)printf(INSTALL_TEXT("install2disk: manifest open failed: %s\n",
-                                  "install2disk: manifest 打开失败 (open failed): %s\n"),
+                                  "install2disk: manifest 打开失败: %s\n"),
                      manifest_path);
         return (u64)-1;
     }
@@ -1611,7 +1611,7 @@ static u64 install_manifest_load(const char *manifest_path, install_manifest_ent
             (void)cleonos_sys_fd_close(fd);
             free(buffer);
             (void)printf(INSTALL_TEXT("install2disk: manifest read failed: %s\n",
-                                      "install2disk: manifest 读取失败 (read failed): %s\n"),
+                                      "install2disk: manifest 读取失败: %s\n"),
                          manifest_path);
             return (u64)-1;
         }
@@ -1631,13 +1631,13 @@ static u64 install_manifest_load(const char *manifest_path, install_manifest_ent
                 if (count >= max_entries) {
                     free(buffer);
                     install_puts_i18n("install2disk: manifest entry limit exceeded",
-                                      "install2disk: manifest 条目数量超限 (entry limit exceeded)");
+                                      "install2disk: manifest 条目数量超限");
                     return (u64)-1;
                 }
                 if (install_manifest_parse_line(line, entries + count) == 0) {
                     free(buffer);
                     (void)printf(INSTALL_TEXT("install2disk: invalid manifest entry: %s\n",
-                                              "install2disk: 无效 manifest 条目 (invalid manifest entry): %s\n"),
+                                              "install2disk: 无效 manifest 条目: %s\n"),
                                  line);
                     return (u64)-1;
                 }
@@ -1687,7 +1687,7 @@ static int install_verify_file_required(install_verify_result *result, const cha
     result->required_checked++;
     if (install_root_join(real_path, (u64)sizeof(real_path), result->root_path, logical_path) == 0) {
         (void)printf(INSTALL_TEXT("install2disk verify: path too long: %s\n",
-                                  "install2disk verify: 路径过长 (path too long): %s\n"),
+                                  "install2disk verify: 路径过长: %s\n"),
                      logical_path);
         result->corrupt++;
         return 0;
@@ -1696,7 +1696,7 @@ static int install_verify_file_required(install_verify_result *result, const cha
     type = cleonos_sys_fs_stat_type(real_path);
     if (type != 1ULL) {
         (void)printf(INSTALL_TEXT("install2disk verify: missing required file: %s\n",
-                                  "install2disk verify: 缺少必需文件 (missing required file): %s\n"),
+                                  "install2disk verify: 缺少必需文件: %s\n"),
                      logical_path);
         result->missing++;
         return 0;
@@ -1705,7 +1705,7 @@ static int install_verify_file_required(install_verify_result *result, const cha
     size = cleonos_sys_fs_stat_size(real_path);
     if (size == (u64)-1 || size == 0ULL) {
         (void)printf(INSTALL_TEXT("install2disk verify: invalid required file size: %s\n",
-                                  "install2disk verify: 必需文件大小无效 (invalid required file size): %s\n"),
+                                  "install2disk verify: 必需文件大小无效: %s\n"),
                      logical_path);
         result->mismatches++;
         return 0;
@@ -1727,14 +1727,14 @@ static int install_verify_boot_sectors(install_verify_result *result) {
 
     if (cleonos_sys_disk_read_sector(0ULL, sector) == 0ULL) {
         install_puts_i18n("install2disk verify: cannot read MBR sector",
-                          "install2disk verify: 无法读取 MBR 扇区 (cannot read MBR sector)");
+                          "install2disk verify: 无法读取 MBR 扇区");
         result->boot_errors++;
         return 0;
     }
 
     if (sector[510U] != 0x55U || sector[511U] != 0xAAU) {
         install_puts_i18n("install2disk verify: MBR signature missing",
-                          "install2disk verify: MBR 签名缺失 (MBR signature missing)");
+                          "install2disk verify: MBR 签名缺失");
         result->boot_errors++;
         ok = 0;
     }
@@ -1746,7 +1746,7 @@ static int install_verify_boot_sectors(install_verify_result *result) {
 
     if (stage2_loc != INSTALL_STAGE2_LBA * INSTALL_SECTOR_SIZE) {
         (void)printf(INSTALL_TEXT("install2disk verify: unexpected Limine stage2 pointer: %llu\n",
-                                  "install2disk verify: Limine stage2 指针异常 (unexpected pointer): %llu\n"),
+                                  "install2disk verify: Limine stage2 指针异常: %llu\n"),
                      (unsigned long long)stage2_loc);
         result->boot_errors++;
         ok = 0;
@@ -1754,7 +1754,7 @@ static int install_verify_boot_sectors(install_verify_result *result) {
 
     if (cleonos_sys_disk_read_sector(INSTALL_STAGE2_LBA, sector) == 0ULL) {
         install_puts_i18n("install2disk verify: cannot read Limine stage2 sector",
-                          "install2disk verify: 无法读取 Limine stage2 扇区 (cannot read Limine stage2 sector)");
+                          "install2disk verify: 无法读取 Limine stage2 扇区");
         result->boot_errors++;
         return 0;
     }
@@ -1768,7 +1768,7 @@ static int install_verify_boot_sectors(install_verify_result *result) {
 
     if (nonzero == 0) {
         install_puts_i18n("install2disk verify: Limine stage2 sector is blank",
-                          "install2disk verify: Limine stage2 扇区为空 (sector is blank)");
+                          "install2disk verify: Limine stage2 扇区为空");
         result->boot_errors++;
         ok = 0;
     }
@@ -1792,7 +1792,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
     size_field = strchr(line, '|');
     if (size_field == (char *)0) {
         (void)printf(INSTALL_TEXT("install2disk verify: invalid manifest line: %s\n",
-                                  "install2disk verify: 无效 manifest 行 (invalid manifest line): %s\n"),
+                                  "install2disk verify: 无效 manifest 行: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1803,7 +1803,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
     hash_field = strchr(size_field, '|');
     if (hash_field == (char *)0) {
         (void)printf(INSTALL_TEXT("install2disk verify: invalid manifest line: %s\n",
-                                  "install2disk verify: 无效 manifest 行 (invalid manifest line): %s\n"),
+                                  "install2disk verify: 无效 manifest 行: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1813,7 +1813,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
 
     if (line[0] != '/' || install_manifest_sha_hex_valid(hash_field) == 0) {
         (void)printf(INSTALL_TEXT("install2disk verify: invalid manifest entry: %s\n",
-                                  "install2disk verify: 无效 manifest 条目 (invalid manifest entry): %s\n"),
+                                  "install2disk verify: 无效 manifest 条目: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1823,7 +1823,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
     expected_size = (u64)strtoull(size_field, &end_ptr, 10);
     if (end_ptr == size_field || end_ptr == (char *)0 || *end_ptr != '\0') {
         (void)printf(INSTALL_TEXT("install2disk verify: invalid manifest size: %s\n",
-                                  "install2disk verify: 无效 manifest 大小 (invalid manifest size): %s\n"),
+                                  "install2disk verify: 无效 manifest 大小: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1832,7 +1832,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
     result->manifest_entries++;
     if (install_root_join(real_path, (u64)sizeof(real_path), result->root_path, line) == 0) {
         (void)printf(INSTALL_TEXT("install2disk verify: path too long: %s\n",
-                                  "install2disk verify: 路径过长 (path too long): %s\n"),
+                                  "install2disk verify: 路径过长: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1840,7 +1840,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
 
     if (cleonos_sys_fs_stat_type(real_path) != 1ULL) {
         (void)printf(INSTALL_TEXT("install2disk verify: missing manifest file: %s\n",
-                                  "install2disk verify: 缺少 manifest 文件 (missing manifest file): %s\n"),
+                                  "install2disk verify: 缺少 manifest 文件: %s\n"),
                      line);
         result->missing++;
         return 0;
@@ -1849,7 +1849,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
     actual_size = cleonos_sys_fs_stat_size(real_path);
     if (actual_size != expected_size) {
         (void)printf(INSTALL_TEXT("install2disk verify: size mismatch: %s expected=%llu actual=%llu\n",
-                                  "install2disk verify: 大小不匹配 (size mismatch): %s expected=%llu actual=%llu\n"),
+                                  "install2disk verify: 大小不匹配: %s expected=%llu actual=%llu\n"),
                      line,
                      (unsigned long long)expected_size, (unsigned long long)actual_size);
         result->mismatches++;
@@ -1858,7 +1858,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
 
     if (install_sha256_file_hex(real_path, actual_hash) == 0) {
         (void)printf(INSTALL_TEXT("install2disk verify: hash read failed: %s\n",
-                                  "install2disk verify: 哈希读取失败 (hash read failed): %s\n"),
+                                  "install2disk verify: 哈希读取失败: %s\n"),
                      line);
         result->corrupt++;
         return 0;
@@ -1866,7 +1866,7 @@ static int install_verify_manifest_entry(install_verify_result *result, char *li
 
     if (strcmp(actual_hash, hash_field) != 0) {
         (void)printf(INSTALL_TEXT("install2disk verify: sha256 mismatch: %s\n",
-                                  "install2disk verify: SHA-256 不匹配 (sha256 mismatch): %s\n"),
+                                  "install2disk verify: SHA-256 不匹配: %s\n"),
                      line);
         result->mismatches++;
         return 0;
@@ -1894,7 +1894,7 @@ static int install_verify_manifest(install_verify_result *result) {
     if (install_root_join(manifest_path, (u64)sizeof(manifest_path), result->root_path, INSTALL_MANIFEST_SOURCE) ==
         0) {
         install_puts_i18n("install2disk verify: manifest path too long",
-                          "install2disk verify: manifest 路径过长 (manifest path too long)");
+                          "install2disk verify: manifest 路径过长");
         result->corrupt++;
         return 0;
     }
@@ -1902,14 +1902,14 @@ static int install_verify_manifest(install_verify_result *result) {
     size = cleonos_sys_fs_stat_size(manifest_path);
     if (size == (u64)-1) {
         install_puts_i18n("install2disk verify: missing /system/install_manifest.db",
-                          "install2disk verify: 缺少 /system/install_manifest.db (missing)");
+                          "install2disk verify: 缺少 /system/install_manifest.db");
         result->missing++;
         return 0;
     }
 
     if (size > INSTALL_MANIFEST_MAX_BYTES) {
         install_puts_i18n("install2disk verify: manifest too large",
-                          "install2disk verify: manifest 过大 (manifest too large)");
+                          "install2disk verify: manifest 过大");
         result->corrupt++;
         return 0;
     }
@@ -1917,7 +1917,7 @@ static int install_verify_manifest(install_verify_result *result) {
     buffer = (char *)malloc((size_t)size + 1U);
     if (buffer == (char *)0) {
         install_puts_i18n("install2disk verify: manifest buffer allocation failed",
-                          "install2disk verify: manifest 缓冲区分配失败 (buffer allocation failed)");
+                          "install2disk verify: manifest 缓冲区分配失败");
         result->corrupt++;
         return 0;
     }
@@ -1926,7 +1926,7 @@ static int install_verify_manifest(install_verify_result *result) {
     if (fd == (u64)-1) {
         free(buffer);
         install_puts_i18n("install2disk verify: manifest open failed",
-                          "install2disk verify: manifest 打开失败 (open failed)");
+                          "install2disk verify: manifest 打开失败");
         result->corrupt++;
         return 0;
     }
@@ -1937,7 +1937,7 @@ static int install_verify_manifest(install_verify_result *result) {
             (void)cleonos_sys_fd_close(fd);
             free(buffer);
             install_puts_i18n("install2disk verify: manifest read failed",
-                              "install2disk verify: manifest 读取失败 (read failed)");
+                              "install2disk verify: manifest 读取失败");
             result->corrupt++;
             return 0;
         }
@@ -1983,7 +1983,7 @@ static int install_verify_run(void) {
 
     if (cleonos_sys_disk_present() == 0ULL) {
         install_puts_i18n("install2disk verify: disk not present",
-                          "install2disk verify: 未检测到硬盘 (disk not present)");
+                          "install2disk verify: 未检测到硬盘");
         return 0;
     }
 
@@ -1995,12 +1995,12 @@ static int install_verify_run(void) {
         result.root_path = (strcmp(mount_path, "/") == 0) ? "/" : mount_path;
     } else if (install_mount_existing_disk() == 0) {
         install_puts_i18n("install2disk verify: mount target disk failed",
-                          "install2disk verify: 挂载目标硬盘失败 (mount target disk failed)");
+                          "install2disk verify: 挂载目标硬盘失败");
         return 0;
     }
 
     install_stage("verify hard disk install");
-    (void)printf(INSTALL_TEXT("install2disk verify: root=%s\n", "install2disk verify: 根目录 (root)=%s\n"),
+    (void)printf(INSTALL_TEXT("install2disk verify: root=%s\n", "install2disk verify: 根目录=%s\n"),
                  result.root_path);
 
     (void)install_verify_boot_sectors(&result);
@@ -2013,25 +2013,25 @@ static int install_verify_run(void) {
 
     if (result.manifest_entries == 0ULL) {
         install_puts_i18n("install2disk verify: manifest has no entries",
-                          "install2disk verify: manifest 没有条目 (manifest has no entries)");
+                          "install2disk verify: manifest 没有条目");
         result.corrupt++;
     }
 
     (void)printf(INSTALL_TEXT("install2disk verify: required=%llu manifest_entries=%llu files_checked=%llu bytes_checked=%llu\n",
-                              "install2disk verify: 必需项 (required)=%llu manifest 条目 (manifest_entries)=%llu 已检查文件 (files_checked)=%llu 已检查字节 (bytes_checked)=%llu\n"),
+                              "install2disk verify: 必需项=%llu manifest 条目=%llu 已检查文件=%llu 已检查字节=%llu\n"),
                  (unsigned long long)result.required_checked, (unsigned long long)result.manifest_entries,
                  (unsigned long long)result.files_checked, (unsigned long long)result.bytes_checked);
     (void)printf(INSTALL_TEXT("install2disk verify: missing=%llu mismatches=%llu corrupt=%llu boot_errors=%llu\n",
-                              "install2disk verify: 缺失 (missing)=%llu 不匹配 (mismatches)=%llu 损坏 (corrupt)=%llu 启动错误 (boot_errors)=%llu\n"),
+                              "install2disk verify: 缺失=%llu 不匹配=%llu 损坏=%llu 启动错误=%llu\n"),
                  (unsigned long long)result.missing, (unsigned long long)result.mismatches,
                  (unsigned long long)result.corrupt, (unsigned long long)result.boot_errors);
 
     if (result.missing == 0ULL && result.mismatches == 0ULL && result.corrupt == 0ULL && result.boot_errors == 0ULL) {
-        install_puts_i18n("install2disk verify: OK", "install2disk verify: 正常 (OK)");
+        install_puts_i18n("install2disk verify: OK", "install2disk verify: 正常");
         return 1;
     }
 
-    install_puts_i18n("install2disk verify: FAILED", "install2disk verify: 失败 (FAILED)");
+    install_puts_i18n("install2disk verify: FAILED", "install2disk verify: 失败");
     return 0;
 }
 
@@ -2048,7 +2048,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
     fd = cleonos_sys_fd_open(src_path, CLEONOS_O_RDONLY, 0ULL);
     if (fd == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: open boot blob failed: %s\n",
-                                  "install2disk: 打开启动 blob 失败 (open boot blob failed): %s\n"),
+                                  "install2disk: 打开启动 blob 失败: %s\n"),
                      src_path);
         return 0;
     }
@@ -2067,7 +2067,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
         if (cleonos_sys_disk_read_sector(sector_lba, sector) == 0ULL) {
             (void)cleonos_sys_fd_close(fd);
             (void)printf(INSTALL_TEXT("install2disk: read sector failed: %llu\n",
-                                      "install2disk: 读取扇区失败 (read sector failed): %llu\n"),
+                                      "install2disk: 读取扇区失败: %llu\n"),
                          (unsigned long long)sector_lba);
             return 0;
         }
@@ -2078,7 +2078,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
                 if (p < file_pos) {
                     (void)cleonos_sys_fd_close(fd);
                     install_puts_i18n("install2disk: non-sequential boot blob read",
-                                      "install2disk: 启动 blob 非顺序读取 (non-sequential boot blob read)");
+                                      "install2disk: 启动 blob 非顺序读取");
                     return 0;
                 }
 
@@ -2092,7 +2092,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
                     if (got == (u64)-1 || got == 0ULL) {
                         (void)cleonos_sys_fd_close(fd);
                         install_puts_i18n("install2disk: boot blob seek failed",
-                                          "install2disk: 启动 blob seek 失败 (boot blob seek failed)");
+                                          "install2disk: 启动 blob seek 失败");
                         return 0;
                     }
                     file_pos += got;
@@ -2103,7 +2103,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
                 if (cached_len == (u64)-1 || cached_len == 0ULL) {
                     (void)cleonos_sys_fd_close(fd);
                     install_puts_i18n("install2disk: boot blob read failed",
-                                      "install2disk: 启动 blob 读取失败 (boot blob read failed)");
+                                      "install2disk: 启动 blob 读取失败");
                     return 0;
                 }
                 file_pos += cached_len;
@@ -2115,7 +2115,7 @@ static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 star
         if (cleonos_sys_disk_write_sector(sector_lba, sector) == 0ULL) {
             (void)cleonos_sys_fd_close(fd);
             (void)printf(INSTALL_TEXT("install2disk: write sector failed: %llu\n",
-                                      "install2disk: 写入扇区失败 (write sector failed): %llu\n"),
+                                      "install2disk: 写入扇区失败: %llu\n"),
                          (unsigned long long)sector_lba);
             return 0;
         }
@@ -2143,7 +2143,7 @@ static int install_limine_bios(install_progress *progress) {
     stage2_size = cleonos_sys_fs_stat_size(INSTALL_LIMINE_SYS_SOURCE);
     if (hdd_size == (u64)-1 || hdd_size < INSTALL_SECTOR_SIZE || stage2_size == (u64)-1 || stage2_size == 0ULL) {
         install_puts_i18n("install2disk: missing Limine install blobs",
-                          "install2disk: 缺少 Limine 安装 blob (missing Limine install blobs)");
+                          "install2disk: 缺少 Limine 安装 blob");
         return 0;
     }
 
@@ -2172,7 +2172,7 @@ static int install_limine_bios(install_progress *progress) {
     sector_count = cleonos_sys_disk_sector_count();
     if (sector_count <= partition_lba || sector_count > 0xFFFFFFFFULL) {
         (void)printf(INSTALL_TEXT("install2disk: invalid disk sector count: %llu\n",
-                                  "install2disk: 硬盘扇区数量无效 (invalid disk sector count): %llu\n"),
+                                  "install2disk: 硬盘扇区数量无效: %llu\n"),
                      (unsigned long long)sector_count);
         return 0;
     }
@@ -2287,21 +2287,21 @@ static int install_setup_root_account(void) {
 
     for (;;) {
         install_read_secret_line(INSTALL_TEXT("install2disk: set root password: ",
-                                              "install2disk: 设置 root 密码 (set root password): "),
+                                              "install2disk: 设置 root 密码: "),
                                  password, (u64)sizeof(password));
         install_read_secret_line(INSTALL_TEXT("install2disk: confirm root password: ",
-                                              "install2disk: 确认 root 密码 (confirm root password): "),
+                                              "install2disk: 确认 root 密码: "),
                                  confirm, (u64)sizeof(confirm));
 
         if (password[0] == '\0') {
             install_puts_i18n("install2disk: root password cannot be empty",
-                              "install2disk: root 密码不能为空 (root password cannot be empty)");
+                              "install2disk: root 密码不能为空");
             continue;
         }
 
         if (strcmp(password, confirm) != 0) {
             install_puts_i18n("install2disk: passwords do not match",
-                              "install2disk: 两次密码不一致 (passwords do not match)");
+                              "install2disk: 两次密码不一致");
             continue;
         }
 
@@ -2313,11 +2313,11 @@ static int install_setup_root_account(void) {
 
     if (cleonos_sys_fs_write(INSTALL_USER_DB_TARGET, record, (u64)strlen(record)) == 0ULL) {
         install_puts_i18n("install2disk: failed to create root account database",
-                          "install2disk: 创建 root 账户数据库失败 (failed to create root account database)");
+                          "install2disk: 创建 root 账户数据库失败");
         return 0;
     }
 
-    install_puts_i18n("install2disk: root account created", "install2disk: root 账户已创建 (root account created)");
+    install_puts_i18n("install2disk: root account created", "install2disk: root 账户已创建");
     return 1;
 }
 
@@ -2327,20 +2327,20 @@ static int install_repair_copy_path(const char *src_path, u64 *copied_files, u64
 
     if (src_path == (const char *)0 || src_path[0] != '/') {
         install_puts_i18n("install2disk: repair path must be absolute",
-                          "install2disk: 修复路径必须是绝对路径 (repair path must be absolute)");
+                          "install2disk: 修复路径必须是绝对路径");
         return 0;
     }
 
     if (install_build_target_path(dst_path, (u64)sizeof(dst_path), src_path) == 0) {
         (void)printf(INSTALL_TEXT("install2disk: invalid repair path: %s\n",
-                                  "install2disk: 无效修复路径 (invalid repair path): %s\n"),
+                                  "install2disk: 无效修复路径: %s\n"),
                      src_path);
         return 0;
     }
 
     if (cleonos_sys_fs_stat_type(src_path) != 1ULL) {
         (void)printf(INSTALL_TEXT("install2disk: source file missing in ISO/rootfs: %s\n",
-                                  "install2disk: ISO/rootfs 中缺少源文件 (source file missing): %s\n"),
+                                  "install2disk: ISO/rootfs 中缺少源文件: %s\n"),
                      src_path);
         return 0;
     }
@@ -2358,7 +2358,7 @@ static int install_repair_copy_path(const char *src_path, u64 *copied_files, u64
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
     (void)printf(INSTALL_TEXT("install2disk: repaired %s -> %s\n",
-                              "install2disk: 已修复 (repaired) %s -> %s\n"),
+                              "install2disk: 已修复 %s -> %s\n"),
                  src_path, dst_path);
     return 1;
 }
@@ -2390,7 +2390,7 @@ static int install_repair_limine_conf(u64 *copied_files, u64 *copied_bytes) {
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
     install_puts_i18n("install2disk: Limine config repaired",
-                      "install2disk: Limine 配置已修复 (Limine config repaired)");
+                      "install2disk: Limine 配置已修复");
     return 1;
 }
 
@@ -2399,7 +2399,7 @@ static int install_repair_manifest(void) {
         return 0;
     }
 
-    install_puts_i18n("install2disk: manifest repaired", "install2disk: manifest 已修复 (manifest repaired)");
+    install_puts_i18n("install2disk: manifest repaired", "install2disk: manifest 已修复");
     return 1;
 }
 
@@ -2430,7 +2430,7 @@ static int install_repair_limine_sys(u64 *copied_files, u64 *copied_bytes) {
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
     install_puts_i18n("install2disk: Limine sys repaired",
-                      "install2disk: Limine sys 已修复 (Limine sys repaired)");
+                      "install2disk: Limine sys 已修复");
     return 1;
 }
 
@@ -2451,7 +2451,7 @@ static int install_repair_bootloader(void) {
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
     install_puts_i18n("install2disk: BIOS bootloader repaired",
-                      "install2disk: BIOS 引导器已修复 (BIOS bootloader repaired)");
+                      "install2disk: BIOS 引导器已修复");
     return 1;
 }
 
@@ -2469,7 +2469,7 @@ static int install_repair_limine_full(u64 *copied_files, u64 *copied_bytes) {
     }
 
     install_puts_i18n("install2disk: full Limine BIOS chain repaired",
-                      "install2disk: 完整 Limine BIOS 链已修复 (full Limine BIOS chain repaired)");
+                      "install2disk: 完整 Limine BIOS 链已修复");
     return 1;
 }
 
@@ -2484,9 +2484,9 @@ static int install_repair_component(const char *kind, const char *name) {
 
     if (strcmp(kind, "kernel") == 0) {
         install_puts_i18n("install2disk: kernel update is not a repair target",
-                          "install2disk: 内核更新不是 repair 目标 (kernel update is not a repair target)");
+                          "install2disk: 内核更新不是 repair 目标");
         install_puts_i18n("install2disk: use install2disk update-kernel",
-                          "install2disk: 请使用 install2disk update-kernel (use update-kernel)");
+                          "install2disk: 请使用 install2disk update-kernel");
         return 0;
     }
 
@@ -2494,7 +2494,7 @@ static int install_repair_component(const char *kind, const char *name) {
 
     if (install_mount_existing_disk() == 0) {
         install_puts_i18n("install2disk: mount existing disk failed",
-                          "install2disk: 挂载已有硬盘失败 (mount existing disk failed)");
+                          "install2disk: 挂载已有硬盘失败");
         return 0;
     }
 
@@ -2530,7 +2530,7 @@ static int install_repair_component(const char *kind, const char *name) {
     if (strcmp(kind, "path") == 0) {
         if (name == (const char *)0 || name[0] != '/') {
             install_puts_i18n("install2disk: repair path requires an absolute path",
-                              "install2disk: repair path 需要绝对路径 (requires an absolute path)");
+                              "install2disk: repair path 需要绝对路径");
             return 0;
         }
         if (install_repair_copy_path(name, &copied_files, &copied_bytes) == 0) {
@@ -2541,14 +2541,14 @@ static int install_repair_component(const char *kind, const char *name) {
 
     if (name == (const char *)0 || name[0] == '\0') {
         install_puts_i18n("install2disk: repair component requires a name",
-                          "install2disk: repair 组件需要名称 (requires a name)");
+                          "install2disk: repair 组件需要名称");
         return 0;
     }
 
     if (strcmp(kind, "shell") == 0 || strcmp(kind, "app") == 0) {
         if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell", name) == 0) {
             install_puts_i18n("install2disk: invalid shell component name",
-                              "install2disk: 无效 shell 组件名 (invalid shell component name)");
+                              "install2disk: 无效 shell 组件名");
             return 0;
         }
         if (install_repair_copy_path(src_path, &copied_files, &copied_bytes) == 0) {
@@ -2560,7 +2560,7 @@ static int install_repair_component(const char *kind, const char *name) {
     if (strcmp(kind, "uwm") == 0) {
         if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell/uwm", name) == 0) {
             install_puts_i18n("install2disk: invalid uwm component name",
-                              "install2disk: 无效 uwm 组件名 (invalid uwm component name)");
+                              "install2disk: 无效 uwm 组件名");
             return 0;
         }
         if (install_repair_copy_path(src_path, &copied_files, &copied_bytes) == 0) {
@@ -2572,7 +2572,7 @@ static int install_repair_component(const char *kind, const char *name) {
     if (strcmp(kind, "driver") == 0 || strcmp(kind, "drv") == 0) {
         if (install_build_component_path(src_path, (u64)sizeof(src_path), "/driver", name) == 0) {
             install_puts_i18n("install2disk: invalid driver component name",
-                              "install2disk: 无效 driver 组件名 (invalid driver component name)");
+                              "install2disk: 无效 driver 组件名");
             return 0;
         }
         if (install_repair_copy_path(src_path, &copied_files, &copied_bytes) == 0) {
@@ -2584,7 +2584,7 @@ static int install_repair_component(const char *kind, const char *name) {
     if (strcmp(kind, "system") == 0) {
         if (install_build_component_path(src_path, (u64)sizeof(src_path), "/system", name) == 0) {
             install_puts_i18n("install2disk: invalid system component name",
-                              "install2disk: 无效 system 组件名 (invalid system component name)");
+                              "install2disk: 无效 system 组件名");
             return 0;
         }
         if (install_repair_copy_path(src_path, &copied_files, &copied_bytes) == 0) {
@@ -2594,7 +2594,7 @@ static int install_repair_component(const char *kind, const char *name) {
     }
 
     (void)printf(INSTALL_TEXT("install2disk: unknown repair component: %s\n",
-                              "install2disk: 未知 repair 组件 (unknown repair component): %s\n"),
+                              "install2disk: 未知 repair 组件: %s\n"),
                  kind);
     install_print_usage();
     return 0;
@@ -2604,25 +2604,25 @@ static int install_repair_interactive(void) {
     int choice;
     char name[INSTALL_REPAIR_NAME_MAX];
 
-    install_puts_i18n("install2disk: repair components:", "install2disk: 修复组件 (repair components):");
+    install_puts_i18n("install2disk: repair components:", "install2disk: 修复组件:");
     install_puts_i18n("  [l] full Limine BIOS chain (recommended)",
-                      "  [l] 完整 Limine BIOS 链 (full Limine BIOS chain, recommended)");
+                      "  [l] 完整 Limine BIOS 链");
     install_puts_i18n("  [b] bootloader MBR/stage2 sectors",
-                      "  [b] 引导器 MBR/stage2 扇区 (bootloader MBR/stage2 sectors)");
-    install_puts_i18n("  [m] install manifest", "  [m] 安装清单 (install manifest)");
-    install_puts_i18n("  [c] Limine config files", "  [c] Limine 配置文件 (config files)");
-    install_puts_i18n("  [s] Limine sys file", "  [s] Limine sys 文件 (sys file)");
-    install_puts_i18n("  [a] /shell app ELF", "  [a] /shell 应用 ELF (app ELF)");
-    install_puts_i18n("  [u] /shell/uwm app ELF", "  [u] /shell/uwm 应用 ELF (app ELF)");
+                      "  [b] 引导器 MBR/stage2 扇区");
+    install_puts_i18n("  [m] install manifest", "  [m] 安装清单");
+    install_puts_i18n("  [c] Limine config files", "  [c] Limine 配置文件");
+    install_puts_i18n("  [s] Limine sys file", "  [s] Limine sys 文件");
+    install_puts_i18n("  [a] /shell app ELF", "  [a] /shell 应用 ELF");
+    install_puts_i18n("  [u] /shell/uwm app ELF", "  [u] /shell/uwm 应用 ELF");
     install_puts_i18n("  [d] /driver ELF", "  [d] /driver ELF");
     install_puts_i18n("  [y] /system ELF", "  [y] /system ELF");
-    install_puts_i18n("  [p] absolute path", "  [p] 绝对路径 (absolute path)");
+    install_puts_i18n("  [p] absolute path", "  [p] 绝对路径");
     choice = install_prompt_choice(INSTALL_TEXT("install2disk: choose repair target [l/b/m/c/s/a/u/d/y/p, q cancel]: ",
-                                                "install2disk: 选择修复目标 (choose repair target) [l/b/m/c/s/a/u/d/y/p, q 取消]: "),
+                                                "install2disk: 选择修复目标 [l/b/m/c/s/a/u/d/y/p, q 取消]: "),
                                    "lbmcsaudypq", 'q');
 
     if (choice == 'q') {
-        install_puts_i18n("install2disk: cancelled", "install2disk: 已取消 (cancelled)");
+        install_puts_i18n("install2disk: cancelled", "install2disk: 已取消");
         return 0;
     }
 
@@ -2644,13 +2644,13 @@ static int install_repair_interactive(void) {
 
     if (choice == 'p') {
         install_read_line(INSTALL_TEXT("install2disk: absolute source path from ISO/rootfs: ",
-                                       "install2disk: ISO/rootfs 中的绝对源路径 (absolute source path): "),
+                                       "install2disk: ISO/rootfs 中的绝对源路径: "),
                           name, (u64)sizeof(name));
         return install_repair_component("path", name);
     }
 
     install_read_line(INSTALL_TEXT("install2disk: component name: ",
-                                   "install2disk: 组件名称 (component name): "),
+                                   "install2disk: 组件名称: "),
                       name, (u64)sizeof(name));
     if (choice == 'a') {
         return install_repair_component("shell", name);
@@ -2718,7 +2718,7 @@ static void install_update_print_verify_summary(const install_update_result *res
     }
 
     (void)printf(INSTALL_TEXT("install2disk: update completed with %llu verify failure(s)\n",
-                              "install2disk: 更新完成，但有 %llu 个验证失败 (verify failure)\n"),
+                              "install2disk: 更新完成，但有 %llu 个验证失败\n"),
                  (unsigned long long)result->verify_failed);
 
     shown = result->verify_failed;
@@ -2731,13 +2731,13 @@ static void install_update_print_verify_summary(const install_update_result *res
             continue;
         }
         (void)printf(INSTALL_TEXT("install2disk: verify failed item: %s\n",
-                                  "install2disk: 验证失败项目 (verify failed item): %s\n"),
+                                  "install2disk: 验证失败项目: %s\n"),
                      result->verify_failed_paths[i]);
     }
 
     if (result->verify_failed > shown) {
         (void)printf(INSTALL_TEXT("install2disk: verify failed item: ... %llu more\n",
-                                  "install2disk: 验证失败项目 (verify failed item): ... 还有 %llu 个\n"),
+                                  "install2disk: 验证失败项目: ... 还有 %llu 个\n"),
                      (unsigned long long)(result->verify_failed - shown));
     }
 }
@@ -2778,7 +2778,7 @@ static int install_update_overwrite_checked(const char *src, const char *dst, co
     if (expected_size == (u64)-1 || actual_size != expected_size ||
         (expected_hash[0] != '\0' && strcmp(expected_hash, actual_hash) != 0)) {
         (void)printf(INSTALL_TEXT("install2disk: update verify failed: %s\n",
-                                  "install2disk: 更新验证失败 (update verify failed): %s\n"),
+                                  "install2disk: 更新验证失败: %s\n"),
                      (logical_path != (const char *)0) ? logical_path : dst);
         install_update_note_verify_failed(result, (logical_path != (const char *)0) ? logical_path : dst);
     }
@@ -2799,7 +2799,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
     size = cleonos_sys_fs_stat_size(src);
     if (size == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: stat failed: %s\n",
-                                  "install2disk: 获取文件信息失败 (stat failed): %s\n"),
+                                  "install2disk: 获取文件信息失败: %s\n"),
                      src);
         return 0;
     }
@@ -2807,13 +2807,13 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
     dst_type = cleonos_sys_fs_stat_type(dst);
     if (dst_type == 2ULL) {
         (void)printf(INSTALL_TEXT("install2disk: target is directory: %s\n",
-                                  "install2disk: 目标是目录 (target is directory): %s\n"),
+                                  "install2disk: 目标是目录: %s\n"),
                      dst);
         return 0;
     }
     if (dst_type == 1ULL && cleonos_sys_fs_remove(dst) == 0ULL) {
         (void)printf(INSTALL_TEXT("install2disk: remove old target failed: %s\n",
-                                  "install2disk: 删除旧目标失败 (remove old target failed): %s\n"),
+                                  "install2disk: 删除旧目标失败: %s\n"),
                      dst);
         return 0;
     }
@@ -2821,7 +2821,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
     if (size == 0ULL) {
         if (cleonos_sys_fs_write(dst, "", 0ULL) == 0ULL) {
             (void)printf(INSTALL_TEXT("install2disk: create failed: %s\n",
-                                      "install2disk: 创建失败 (create failed): %s\n"),
+                                      "install2disk: 创建失败: %s\n"),
                          dst);
             return 0;
         }
@@ -2840,7 +2840,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
             if (src_fd == (u64)-1) {
                 free(whole);
                 (void)printf(INSTALL_TEXT("install2disk: open read failed: %s\n",
-                                          "install2disk: 打开读取失败 (open read failed): %s\n"),
+                                          "install2disk: 打开读取失败: %s\n"),
                              src);
                 return 0;
             }
@@ -2857,7 +2857,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
                     (void)cleonos_sys_fd_close(src_fd);
                     free(whole);
                     (void)printf(INSTALL_TEXT("install2disk: read failed: %s\n",
-                                              "install2disk: 读取失败 (read failed): %s\n"),
+                                              "install2disk: 读取失败: %s\n"),
                                  src);
                     return 0;
                 }
@@ -2871,7 +2871,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
 
             if (wrote != size) {
                 (void)printf(INSTALL_TEXT("install2disk: write failed: %s\n",
-                                          "install2disk: 写入失败 (write failed): %s\n"),
+                                          "install2disk: 写入失败: %s\n"),
                              dst);
                 return 0;
             }
@@ -2891,7 +2891,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
     src_fd = cleonos_sys_fd_open(src, CLEONOS_O_RDONLY, 0ULL);
     if (src_fd == (u64)-1) {
         (void)printf(INSTALL_TEXT("install2disk: open read failed: %s\n",
-                                  "install2disk: 打开读取失败 (open read failed): %s\n"),
+                                  "install2disk: 打开读取失败: %s\n"),
                      src);
         return 0;
     }
@@ -2899,7 +2899,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
     if (cleonos_sys_fs_write(dst, "", 0ULL) == 0ULL) {
         (void)cleonos_sys_fd_close(src_fd);
         (void)printf(INSTALL_TEXT("install2disk: create failed: %s\n",
-                                  "install2disk: 创建失败 (create failed): %s\n"),
+                                  "install2disk: 创建失败: %s\n"),
                      dst);
         return 0;
     }
@@ -2909,7 +2909,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
         if (got == (u64)-1) {
             (void)cleonos_sys_fd_close(src_fd);
             (void)printf(INSTALL_TEXT("install2disk: read failed: %s\n",
-                                      "install2disk: 读取失败 (read failed): %s\n"),
+                                      "install2disk: 读取失败: %s\n"),
                          src);
             return 0;
         }
@@ -2922,7 +2922,7 @@ static int install_update_copy_file_unverified(const char *src, const char *dst,
         if (wrote != got) {
             (void)cleonos_sys_fd_close(src_fd);
             (void)printf(INSTALL_TEXT("install2disk: write failed: %s\n",
-                                      "install2disk: 写入失败 (write failed): %s\n"),
+                                      "install2disk: 写入失败: %s\n"),
                          dst);
             return 0;
         }
@@ -3000,14 +3000,14 @@ static int install_update_shell_copy_entry(const install_manifest_entry *entry, 
     if (install_root_join(source_path, (u64)sizeof(source_path), "/", entry->path) == 0 ||
         install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, entry->path) == 0) {
         (void)printf(INSTALL_TEXT("install2disk: update path too long: %s\n",
-                                  "install2disk: 更新路径过长 (update path too long): %s\n"),
+                                  "install2disk: 更新路径过长: %s\n"),
                      entry->path);
         return 0;
     }
 
     if (install_mkdir_parents_for_file(target_path) == 0) {
         (void)printf(INSTALL_TEXT("install2disk: update mkdir parents failed: %s\n",
-                                  "install2disk: 更新时创建父目录失败 (update mkdir parents failed): %s\n"),
+                                  "install2disk: 更新时创建父目录失败: %s\n"),
                      target_path);
         return 0;
     }
@@ -3019,7 +3019,7 @@ static int install_update_shell_copy_entry(const install_manifest_entry *entry, 
 
     if (install_update_shell_target_matches(entry) == 0) {
         (void)printf(INSTALL_TEXT("install2disk: update verify failed: %s\n",
-                                  "install2disk: 更新验证失败 (update verify failed): %s\n"),
+                                  "install2disk: 更新验证失败: %s\n"),
                      entry->path);
         install_update_note_verify_failed(result, entry->path);
         return 1;
@@ -3052,7 +3052,7 @@ static int install_update_shell_delete_obsolete(install_manifest_entry *old_entr
 
         if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, old_entries[i].path) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: obsolete path too long: %s\n",
-                                      "install2disk: 过期文件路径过长 (obsolete path too long): %s\n"),
+                                      "install2disk: 过期文件路径过长: %s\n"),
                          old_entries[i].path);
             return 0;
         }
@@ -3064,22 +3064,22 @@ static int install_update_shell_delete_obsolete(install_manifest_entry *old_entr
 
         if (type != 1ULL) {
             (void)printf(INSTALL_TEXT("install2disk: obsolete path is not a file, skipped: %s\n",
-                                      "install2disk: 过期路径不是文件，已跳过 (not a file, skipped): %s\n"),
+                                      "install2disk: 过期路径不是文件，已跳过: %s\n"),
                          old_entries[i].path);
             continue;
         }
 
         if (dry_run == 0 && cleonos_sys_fs_remove(target_path) == 0ULL) {
             (void)printf(INSTALL_TEXT("install2disk: remove obsolete file failed: %s\n",
-                                      "install2disk: 删除过期文件失败 (remove obsolete file failed): %s\n"),
+                                      "install2disk: 删除过期文件失败: %s\n"),
                          target_path);
             return 0;
         }
 
         result->deleted++;
-        (void)printf(INSTALL_TEXT("install2disk: obsolete %s%s\n", "install2disk: 过期文件 (obsolete) %s%s\n"),
-                     dry_run != 0 ? INSTALL_TEXT("would remove: ", "将删除 (would remove): ")
-                                  : INSTALL_TEXT("removed: ", "已删除 (removed): "),
+        (void)printf(INSTALL_TEXT("install2disk: obsolete %s%s\n", "install2disk: 过期文件 %s%s\n"),
+                     dry_run != 0 ? INSTALL_TEXT("would remove: ", "将删除: ")
+                                  : INSTALL_TEXT("removed: ", "已删除: "),
                      old_entries[i].path);
     }
 
@@ -3098,7 +3098,7 @@ static int install_update_shell_write_state_files(void) {
     if (cleonos_sys_fs_write(INSTALL_UPDATE_STATE_TARGET, state_text, (u64)strlen(state_text)) !=
         (u64)strlen(state_text)) {
         install_puts_i18n("install2disk: write update state failed",
-                          "install2disk: 写入更新状态失败 (write update state failed)");
+                          "install2disk: 写入更新状态失败");
         return 0;
     }
 
@@ -3128,13 +3128,13 @@ static int install_update_shell_refresh_manifest(install_manifest_entry *old_ent
     if (cleonos_sys_fs_stat_type(INSTALL_MANIFEST_TARGET) == 1ULL &&
         cleonos_sys_fs_remove(INSTALL_MANIFEST_TARGET) == 0ULL) {
         install_puts_i18n("install2disk: remove old manifest failed",
-                          "install2disk: 删除旧 manifest 失败 (remove old manifest failed)");
+                          "install2disk: 删除旧 manifest 失败");
         return 0;
     }
 
     if (cleonos_sys_fs_write(INSTALL_MANIFEST_TARGET, "", 0ULL) == 0ULL) {
         install_puts_i18n("install2disk: create manifest failed",
-                          "install2disk: 创建 manifest 失败 (create manifest failed)");
+                          "install2disk: 创建 manifest 失败");
         return 0;
     }
 
@@ -3150,7 +3150,7 @@ static int install_update_shell_refresh_manifest(install_manifest_entry *old_ent
 
         if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, old_entries[i].path) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: manifest path too long: %s\n",
-                                      "install2disk: manifest 路径过长 (path too long): %s\n"),
+                                      "install2disk: manifest 路径过长: %s\n"),
                          old_entries[i].path);
             return 0;
         }
@@ -3169,7 +3169,7 @@ static int install_update_shell_refresh_manifest(install_manifest_entry *old_ent
 
         if (install_root_join(target_path, (u64)sizeof(target_path), INSTALL_MOUNT_PATH, new_entries[i].path) == 0) {
             (void)printf(INSTALL_TEXT("install2disk: manifest path too long: %s\n",
-                                      "install2disk: manifest 路径过长 (path too long): %s\n"),
+                                      "install2disk: manifest 路径过长: %s\n"),
                          new_entries[i].path);
             return 0;
         }
@@ -3181,12 +3181,12 @@ static int install_update_shell_refresh_manifest(install_manifest_entry *old_ent
 
     if (writer.files == 0ULL) {
         install_puts_i18n("install2disk: refreshed manifest has no files",
-                          "install2disk: 刷新后的 manifest 没有文件 (has no files)");
+                          "install2disk: 刷新后的 manifest 没有文件");
         return 0;
     }
 
     (void)printf(INSTALL_TEXT("install2disk: manifest refreshed: %llu files, %llu bytes, %llu manifest bytes\n",
-                              "install2disk: manifest 已刷新 (refreshed): %llu 文件 (files), %llu 字节 (bytes), %llu manifest 字节 (manifest bytes)\n"),
+                              "install2disk: manifest 已刷新: %llu 文件, %llu 字节, %llu manifest 字节\n"),
                  (unsigned long long)writer.files, (unsigned long long)writer.file_bytes,
                  (unsigned long long)writer.manifest_bytes);
     return 1;
@@ -3215,21 +3215,21 @@ static int install_update_shell(int dry_run) {
     install_update_last_failure_was_verify = 0;
 
     if (cleonos_sys_disk_present() == 0ULL) {
-        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘 (disk not present)");
+        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘");
         return 0;
     }
 
     if (install_running_from_disk_boot() != 0) {
         install_puts_i18n("install2disk: refused: current system is booted from disk",
-                          "install2disk: 已拒绝：当前系统从硬盘启动 (booted from disk)");
+                          "install2disk: 已拒绝：当前系统从硬盘启动");
         install_puts_i18n("install2disk: boot the ISO installer before updating the disk shell",
-                          "install2disk: 更新硬盘外壳前请先启动 ISO 安装器 (boot ISO installer)");
+                          "install2disk: 更新硬盘外壳前请先启动 ISO 安装器");
         return 0;
     }
 
     if (install_mount_existing_disk() == 0) {
         install_puts_i18n("install2disk: mount existing disk failed",
-                          "install2disk: 挂载已有硬盘失败 (mount existing disk failed)");
+                          "install2disk: 挂载已有硬盘失败");
         return 0;
     }
 
@@ -3247,7 +3247,7 @@ static int install_update_shell(int dry_run) {
                                       (u64)INSTALL_UPDATE_MAX_ENTRIES, 0);
     if (new_count == (u64)-1 || new_count == 0ULL) {
         install_puts_i18n("install2disk: no shell update entries found",
-                          "install2disk: 未找到外壳更新条目 (no shell update entries found)");
+                          "install2disk: 未找到外壳更新条目");
         return 0;
     }
 
@@ -3274,7 +3274,7 @@ static int install_update_shell(int dry_run) {
             if (install_root_join(source_path, (u64)sizeof(source_path), "/", install_update_new_entries[i].path) ==
                 0) {
                 (void)printf(INSTALL_TEXT("install2disk: update source path too long: %s\n",
-                                          "install2disk: 更新源路径过长 (update source path too long): %s\n"),
+                                          "install2disk: 更新源路径过长: %s\n"),
                              install_update_new_entries[i].path);
                 return 0;
             }
@@ -3288,7 +3288,7 @@ static int install_update_shell(int dry_run) {
     }
 
     (void)printf(INSTALL_TEXT("install2disk: shell update plan: added=%llu updated=%llu unchanged=%llu removed=%llu\n",
-                              "install2disk: 外壳更新计划 (shell update plan): 新增 (added)=%llu 更新 (updated)=%llu 不变 (unchanged)=%llu 删除 (removed)=%llu\n"),
+                              "install2disk: 外壳更新计划: 新增=%llu 更新=%llu 不变=%llu 删除=%llu\n"),
                  (unsigned long long)result.added, (unsigned long long)result.updated,
                  (unsigned long long)result.unchanged, (unsigned long long)result.deleted);
 
@@ -3326,7 +3326,7 @@ static int install_update_shell(int dry_run) {
         install_update_shell_cleanup_state();
         install_update_print_verify_summary(&result);
         install_puts_i18n("install2disk: manifest not refreshed because some updated files failed verification",
-                          "install2disk: 部分更新文件验证失败，未刷新 manifest (manifest not refreshed)");
+                          "install2disk: 部分更新文件验证失败，未刷新 manifest");
         install_update_last_failure_was_verify = 1;
         return 0;
     }
@@ -3339,11 +3339,11 @@ static int install_update_shell(int dry_run) {
 
     install_update_shell_cleanup_state();
     (void)printf(INSTALL_TEXT("install2disk: shell updated: copied=%llu files %llu bytes, removed=%llu\n",
-                              "install2disk: 外壳已更新 (shell updated): 已复制 (copied)=%llu 文件 (files) %llu 字节 (bytes), 已删除 (removed)=%llu\n"),
+                              "install2disk: 外壳已更新: 已复制=%llu 文件 %llu 字节, 已删除=%llu\n"),
                  (unsigned long long)result.copied_files, (unsigned long long)result.copied_bytes,
                  (unsigned long long)result.deleted);
     install_puts_i18n("install2disk: preserved /home, /system/users.db, /system/pkg and untracked files",
-                      "install2disk: 已保留 /home、/system/users.db、/system/pkg 和未跟踪文件 (preserved)");
+                      "install2disk: 已保留 /home、/system/users.db、/system/pkg 和未跟踪文件");
     return 1;
 }
 
@@ -3381,21 +3381,21 @@ static int install_update_kernel(void) {
     install_update_last_failure_was_verify = 0;
 
     if (cleonos_sys_disk_present() == 0ULL) {
-        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘 (disk not present)");
+        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘");
         return 0;
     }
 
     if (install_running_from_disk_boot() != 0) {
         install_puts_i18n("install2disk: refused: current system is booted from disk",
-                          "install2disk: 已拒绝：当前系统从硬盘启动 (booted from disk)");
+                          "install2disk: 已拒绝：当前系统从硬盘启动");
         install_puts_i18n("install2disk: boot the ISO installer before updating the disk kernel",
-                          "install2disk: 更新硬盘内核前请先启动 ISO 安装器 (boot ISO installer)");
+                          "install2disk: 更新硬盘内核前请先启动 ISO 安装器");
         return 0;
     }
 
     if (install_mount_existing_disk() == 0) {
         install_puts_i18n("install2disk: mount existing disk failed",
-                          "install2disk: 挂载已有硬盘失败 (mount existing disk failed)");
+                          "install2disk: 挂载已有硬盘失败");
         return 0;
     }
 
@@ -3431,7 +3431,7 @@ static int install_update_kernel(void) {
     install_progress_print(&progress, 1);
 
     (void)printf(INSTALL_TEXT("install2disk: kernel updated: %llu files, %llu bytes\n",
-                              "install2disk: 内核已更新 (kernel updated): %llu 文件 (files), %llu 字节 (bytes)\n"),
+                              "install2disk: 内核已更新: %llu 文件, %llu 字节\n"),
                  (unsigned long long)copied_files, (unsigned long long)copied_bytes);
     if (result.verify_failed != 0ULL) {
         install_update_print_verify_summary(&result);
@@ -3439,9 +3439,9 @@ static int install_update_kernel(void) {
         return 0;
     }
     install_puts_i18n("install2disk: install manifest not regenerated for kernel-only update",
-                      "install2disk: 仅更新内核不会重新生成安装清单 (manifest not regenerated)");
+                      "install2disk: 仅更新内核不会重新生成安装清单");
     install_puts_i18n("install2disk: done. Reboot or use make run-hardboot.",
-                      "install2disk: 完成。重启或使用 make run-hardboot (done)");
+                      "install2disk: 完成。重启或使用 make run-hardboot");
     return 1;
 }
 
@@ -3454,15 +3454,15 @@ static int install2disk_run(void) {
     root_progress.label = "copy root filesystem";
 
     if (cleonos_sys_disk_present() == 0ULL) {
-        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘 (disk not present)");
+        install_puts_i18n("install2disk: disk not present", "install2disk: 未检测到硬盘");
         return 0;
     }
 
     if (install_running_from_disk_boot() != 0) {
         install_puts_i18n("install2disk: refused: current system is booted from disk",
-                          "install2disk: 已拒绝：当前系统从硬盘启动 (booted from disk)");
+                          "install2disk: 已拒绝：当前系统从硬盘启动");
         install_puts_i18n("install2disk: boot the ISO installer before updating or reinstalling this disk",
-                          "install2disk: 更新或重装硬盘前请先启动 ISO 安装器 (boot ISO installer)");
+                          "install2disk: 更新或重装硬盘前请先启动 ISO 安装器");
         return 0;
     }
 
@@ -3471,11 +3471,11 @@ static int install2disk_run(void) {
 
         choice = install_prompt_choice(
             INSTALL_TEXT("install2disk: choose [a]update kernel+shell, [u]kernel only, [s]shell only, [r]epair, [f]ormat full install, [c]ancel (default: a): ",
-                         "install2disk: 选择 (choose) [a]更新内核+外壳, [u]仅内核, [s]仅外壳, [r]修复, [f]格式化完整安装, [c]取消 (默认 a): "),
+                         "install2disk: 选择 [a]更新内核+外壳, [u]仅内核, [s]仅外壳, [r]修复, [f]格式化完整安装, [c]取消 (默认 a): "),
             "ausrfc", 'a');
 
         if (choice == 'c') {
-            install_puts_i18n("install2disk: cancelled", "install2disk: 已取消 (cancelled)");
+            install_puts_i18n("install2disk: cancelled", "install2disk: 已取消");
             return 0;
         }
 
@@ -3501,18 +3501,18 @@ static int install2disk_run(void) {
         return 0;
     }
     (void)printf(INSTALL_TEXT("install2disk: rootfs plan %llu items, %llu bytes\n",
-                              "install2disk: rootfs 计划 (plan) %llu 项 (items), %llu 字节 (bytes)\n"),
+                              "install2disk: rootfs 计划 %llu 项, %llu 字节\n"),
                  (unsigned long long)root_progress.total_items, (unsigned long long)root_progress.total_bytes);
 
     install_stage("format FAT32");
     if (cleonos_sys_disk_format_fat32("CLEONOS") == 0ULL) {
-        install_puts_i18n("install2disk: format failed", "install2disk: 格式化失败 (format failed)");
+        install_puts_i18n("install2disk: format failed", "install2disk: 格式化失败");
         return 0;
     }
 
     install_stage("mount target disk");
     if (cleonos_sys_disk_mount(INSTALL_MOUNT_PATH) == 0ULL) {
-        install_puts_i18n("install2disk: mount failed", "install2disk: 挂载失败 (mount failed)");
+        install_puts_i18n("install2disk: mount failed", "install2disk: 挂载失败");
         return 0;
     }
 
@@ -3549,11 +3549,11 @@ static int install2disk_run(void) {
     }
 
     (void)printf(INSTALL_TEXT("install2disk: installed %llu files, %llu bytes\n",
-                              "install2disk: 已安装 (installed) %llu 文件 (files), %llu 字节 (bytes)\n"),
+                              "install2disk: 已安装 %llu 文件, %llu 字节\n"),
                  (unsigned long long)copied_files,
                  (unsigned long long)copied_bytes);
     install_puts_i18n("install2disk: done. Use make run-hardboot to boot from disk.",
-                      "install2disk: 完成。使用 make run-hardboot 从硬盘启动 (done)");
+                      "install2disk: 完成。使用 make run-hardboot 从硬盘启动");
     return 1;
 }
 

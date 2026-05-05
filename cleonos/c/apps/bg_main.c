@@ -61,7 +61,7 @@ static int ush_cmd_bg(const ush_state *sh, const char *arg) {
 
     if (ush_path_is_under_system(path) != 0) {
         ush_writeln_i18n("bg: /system/*.elf is kernel-mode (KELF), not user-exec",
-                         "bg: /system/*.elf 是内核态程序 (KELF)，不能作为用户态程序执行");
+                         "bg: /system/*.elf 是内核态程序，不能作为用户态程序执行");
         return 0;
     }
 

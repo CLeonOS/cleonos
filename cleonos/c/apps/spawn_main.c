@@ -29,7 +29,7 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
 
     if (ush_path_is_under_system(path) != 0) {
         ush_writeln_i18n("spawn: /system/*.elf is kernel-mode (KELF), not user-exec",
-                         "spawn: /system/*.elf 是内核态程序 (KELF)，不能作为用户态程序执行");
+                         "spawn: /system/*.elf 是内核态程序，不能作为用户态程序执行");
         return 0;
     }
 

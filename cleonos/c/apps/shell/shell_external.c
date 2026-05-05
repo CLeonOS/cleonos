@@ -64,6 +64,36 @@ static const char *ush_alias_command(const char *cmd) {
     return cmd;
 }
 
+static void ush_sync_user_state_after_external(ush_state *sh, u64 stdin_fd, u64 stdout_fd, u64 stderr_fd) {
+    cleonos_user_info info;
+
+    if (sh == (ush_state *)0) {
+        return;
+    }
+
+    if (stdin_fd != CLEONOS_FD_INHERIT || stdout_fd != CLEONOS_FD_INHERIT || stderr_fd != CLEONOS_FD_INHERIT) {
+        return;
+    }
+
+    ush_zero(&info, (u64)sizeof(info));
+    if (cleonos_sys_user_current(&info) != 0ULL) {
+        sh->disk_login_required = (info.disk_login_required != 0ULL) ? 1 : 0;
+        if (info.logged_in != 0ULL) {
+            ush_copy(sh->username, (u64)sizeof(sh->username), info.name);
+            ush_copy(sh->home, (u64)sizeof(sh->home), info.home);
+            sh->user_role = info.role;
+            sh->logged_in = 1;
+            return;
+        }
+    }
+
+    sh->username[0] = '\0';
+    sh->home[0] = '\0';
+    sh->user_role = CLEONOS_USER_ROLE_USER;
+    sh->logged_in = 0;
+    (void)ush_login_if_needed(sh);
+}
+
 static int ush_cmd_ret_apply(ush_state *sh, const ush_cmd_ret *ret) {
     if (sh == (ush_state *)0 || ret == (const ush_cmd_ret *)0) {
         return 0;
@@ -179,6 +209,7 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
     ush_append_text(env_line, (u64)sizeof(env_line), sh->cwd);
     ush_append_text(env_line, (u64)sizeof(env_line), ";CMD=");
     ush_append_text(env_line, (u64)sizeof(env_line), canonical);
+    ush_append_text(env_line, (u64)sizeof(env_line), ";LAUNCHER=/shell/shell.elf");
     ush_append_text(env_line, (u64)sizeof(env_line), ";USER=");
     ush_append_text(env_line, (u64)sizeof(env_line), sh->username);
     ush_append_text(env_line, (u64)sizeof(env_line), ";HOME=");
@@ -202,6 +233,8 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
     if (ush_command_ret_read(&ret) != 0) {
         (void)ush_cmd_ret_apply(sh, &ret);
     }
+
+    ush_sync_user_state_after_external(sh, stdin_fd, stdout_fd, stderr_fd);
 
     (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
     (void)cleonos_sys_fs_remove(USH_CMD_RET_PATH);

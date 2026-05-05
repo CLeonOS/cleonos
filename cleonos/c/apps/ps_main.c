@@ -116,7 +116,7 @@ static int ush_cmd_ps(const char *arg) {
     }
 
     proc_count = cleonos_sys_proc_count();
-    ush_writeln_i18n("ps:", "进程 (ps):");
+    ush_writeln_i18n("ps:", "进程:");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;

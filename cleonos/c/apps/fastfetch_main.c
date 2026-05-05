@@ -1,6 +1,83 @@
 #include "cmd_runtime.h"
 #include "user/cleonos_user.h"
 #include <cleonos_version.h>
+
+static int ush_fastfetch_env_value(const char *name, const char *fallback, char *out, u64 out_size) {
+    u64 envc;
+    u64 i;
+    u64 name_len;
+    char entry[160];
+
+    if (out == (char *)0 || out_size == 0ULL) {
+        return 0;
+    }
+
+    out[0] = '\0';
+    if (name == (const char *)0 || name[0] == '\0') {
+        if (fallback != (const char *)0) {
+            ush_copy(out, out_size, fallback);
+        }
+        return 0;
+    }
+
+    name_len = ush_strlen(name);
+    envc = cleonos_sys_proc_envc();
+    for (i = 0ULL; i < envc; i++) {
+        entry[0] = '\0';
+        if (cleonos_sys_proc_env(i, entry, (u64)sizeof(entry)) == 0ULL) {
+            continue;
+        }
+        if (ush_strlen(entry) <= name_len || entry[name_len] != '=') {
+            continue;
+        }
+        if (memcmp(entry, name, (size_t)name_len) != 0) {
+            continue;
+        }
+        ush_copy(out, out_size, entry + name_len + 1ULL);
+        return 1;
+    }
+
+    if (fallback != (const char *)0) {
+        ush_copy(out, out_size, fallback);
+    }
+    return 0;
+}
+
+static void ush_fastfetch_uptime_text(char *out, u64 out_size, u64 uptime_ms, int zh) {
+    u64 total_seconds;
+    u64 days;
+    u64 hours;
+    u64 minutes;
+    u64 seconds;
+
+    if (out == (char *)0 || out_size == 0ULL) {
+        return;
+    }
+
+    total_seconds = uptime_ms / 1000ULL;
+    days = total_seconds / 86400ULL;
+    total_seconds %= 86400ULL;
+    hours = total_seconds / 3600ULL;
+    total_seconds %= 3600ULL;
+    minutes = total_seconds / 60ULL;
+    seconds = total_seconds % 60ULL;
+
+    if (days != 0ULL) {
+        (void)snprintf(out, (unsigned long)out_size, (zh != 0) ? "%llud %lluh %llum %llus"
+                                                                : "%llud %lluh %llum %llus",
+                       (unsigned long long)days, (unsigned long long)hours, (unsigned long long)minutes,
+                       (unsigned long long)seconds);
+    } else if (hours != 0ULL) {
+        (void)snprintf(out, (unsigned long)out_size, (zh != 0) ? "%lluh %llum %llus" : "%lluh %llum %llus",
+                       (unsigned long long)hours, (unsigned long long)minutes, (unsigned long long)seconds);
+    } else if (minutes != 0ULL) {
+        (void)snprintf(out, (unsigned long)out_size, (zh != 0) ? "%llum %llus" : "%llum %llus",
+                       (unsigned long long)minutes, (unsigned long long)seconds);
+    } else {
+        (void)snprintf(out, (unsigned long)out_size, (zh != 0) ? "%llus" : "%llus",
+                       (unsigned long long)seconds);
+    }
+}
 static u64 ush_fastfetch_u64_to_dec(char *out, u64 out_size, u64 value) {
     char rev[32];
     u64 digits = 0ULL;
@@ -112,6 +189,7 @@ static void ush_fastfetch_print_palette(int plain) {
 }
 
 static int ush_cmd_fastfetch(const char *arg) {
+    cleonos_sysinfo info;
     int plain = 0;
     int zh;
     u64 tty_active;
@@ -119,12 +197,22 @@ static int ush_cmd_fastfetch(const char *arg) {
     u64 exec_req;
     u64 exec_ok;
     u64 disk_mounted;
-    char kernel_version[32];
+    char os_text[96];
+    char shell_text[96];
+    char uptime_text[64];
+    char build_text[96];
+    char locale_text[CLEONOS_LOCALE_TEXT_MAX];
+    char launcher_text[64];
     char disk_mount[USH_PATH_MAX];
     cleonos_user_record current_user;
-    const char *boot_mode = "ISO temporary";
+    const char *boot_mode;
 
     zh = ush_locale_is_zh();
+    (void)memset(&info, 0, sizeof(info));
+    if (cleonos_sys_sysinfo(&info) == 0ULL) {
+        ush_writeln_i18n("fastfetch: sysinfo syscall failed", "fastfetch: sysinfo 系统调用失败");
+        return 0;
+    }
 
     if (arg != (const char *)0 && arg[0] != '\0') {
         if (ush_streq(arg, "--plain") != 0) {
@@ -144,54 +232,77 @@ static int ush_cmd_fastfetch(const char *arg) {
     exec_ok = cleonos_sys_exec_success_count();
     disk_mounted = cleonos_sys_disk_mounted();
     disk_mount[0] = '\0';
-    if (disk_mounted != 0ULL && cleonos_sys_disk_mount_path(disk_mount, (u64)sizeof(disk_mount)) != 0ULL) {
-        if (ush_streq(disk_mount, "/") != 0) {
-            boot_mode = (zh != 0) ? "磁盘启动 (Disk boot)" : "Disk boot";
-        } else if (zh != 0) {
-            boot_mode = "ISO 临时系统 (ISO temporary)";
-        }
-    } else if (zh != 0) {
-        boot_mode = "ISO 临时系统 (ISO temporary)";
+    boot_mode = (zh != 0) ? "ISO 临时系统" : "ISO temporary";
+    if (disk_mounted != 0ULL) {
+        (void)cleonos_sys_disk_mount_path(disk_mount, (u64)sizeof(disk_mount));
     }
-    if (cleonos_sys_kernel_version(kernel_version, (u64)sizeof(kernel_version)) == 0ULL) {
-        ush_copy(kernel_version, (u64)sizeof(kernel_version), (zh != 0) ? "未知 (unknown)" : "unknown");
+    if (ush_streq(info.boot_mode, "disk") != 0) {
+        boot_mode = (zh != 0) ? "磁盘启动" : "Disk boot";
+    } else if (ush_streq(info.boot_mode, "iso") != 0) {
+        boot_mode = (zh != 0) ? "ISO 临时系统" : "ISO temporary";
+    } else if (info.boot_mode[0] != '\0') {
+        boot_mode = info.boot_mode;
+    }
+    (void)snprintf(os_text, (unsigned long)sizeof(os_text), "CLeonOS %s", info.arch[0] != '\0' ? info.arch : "unknown");
+    (void)ush_fastfetch_env_value("LAUNCHER", "/shell/shell.elf", launcher_text, (u64)sizeof(launcher_text));
+    (void)snprintf(shell_text, (unsigned long)sizeof(shell_text), "%s", launcher_text);
+    ush_fastfetch_uptime_text(uptime_text, (u64)sizeof(uptime_text), info.uptime_ms, zh);
+    if (info.build_date[0] != '\0' || info.build_time[0] != '\0') {
+        (void)snprintf(build_text, (unsigned long)sizeof(build_text), "%s %s", info.build_date, info.build_time);
+    } else {
+        ush_copy(build_text, (u64)sizeof(build_text), (zh != 0) ? "未知" : "unknown");
+    }
+    locale_text[0] = '\0';
+    if (cleonos_sys_locale_get(locale_text, (u64)sizeof(locale_text)) == 0ULL) {
+        ush_copy(locale_text, (u64)sizeof(locale_text), (zh != 0) ? "未知" : "unknown");
     }
 
     ush_fastfetch_print_logo(plain);
     ush_write_char('\n');
 
-    ush_fastfetch_print_text_i18n(plain, "OS", "操作系统", "CLeonOS x86_64");
-    ush_fastfetch_print_text_i18n(plain, "Shell", "外壳", "User Shell (/shell/shell.elf)");
+    ush_fastfetch_print_text_i18n(plain, "OS", "操作系统", os_text);
+    ush_fastfetch_print_text_i18n(plain, "Shell", "外壳", shell_text);
     ush_fastfetch_print_text_i18n(plain, "BootMode", "启动模式", boot_mode);
     if (cleonos_user_session_read(&current_user) != 0) {
         ush_fastfetch_print_text_i18n(plain, "User", "用户", current_user.name);
         ush_fastfetch_print_text_i18n(plain, "UserRole", "用户角色",
                                       (current_user.role == CLEONOS_USER_ROLE_ADMIN)
-                                          ? ((zh != 0) ? "管理员 (admin)" : "admin")
-                                          : ((zh != 0) ? "普通用户 (user)" : "user"));
+                                          ? ((zh != 0) ? "管理员" : "admin")
+                                          : ((zh != 0) ? "普通用户" : "user"));
     } else {
         ush_fastfetch_print_text_i18n(
             plain, "User", "用户",
-            (disk_mounted != 0ULL) ? ((zh != 0) ? "未登录 (not logged in)" : "not logged in")
-                                   : ((zh != 0) ? "临时用户 (temporary)" : "temporary"));
+            (disk_mounted != 0ULL) ? ((zh != 0) ? "未登录" : "not logged in")
+                                   : ((zh != 0) ? "临时用户" : "temporary"));
     }
     if (disk_mount[0] != '\0') {
         ush_fastfetch_print_text_i18n(plain, "DiskMount", "磁盘挂载点", disk_mount);
     } else {
-        ush_fastfetch_print_text_i18n(plain, "DiskMount", "磁盘挂载点", (zh != 0) ? "无 (none)" : "none");
+        ush_fastfetch_print_text_i18n(plain, "DiskMount", "磁盘挂载点", (zh != 0) ? "无" : "none");
     }
     ush_fastfetch_print_text_i18n(plain, "CLeonOSVersion", "CLeonOS 版本", CLEONOS_VERSION_STRING);
-    ush_fastfetch_print_text_i18n(plain, "CLKSVersion", "CLKS 版本", kernel_version);
+    ush_fastfetch_print_text_i18n(plain, "Kernel", "内核", info.kernel_name[0] != '\0' ? info.kernel_name : "unknown");
+    ush_fastfetch_print_text_i18n(plain, "CLKSVersion", "CLKS 版本",
+                                  info.kernel_version[0] != '\0' ? info.kernel_version : "unknown");
+    ush_fastfetch_print_text_i18n(plain, "Locale", "语言环境", locale_text);
+    ush_fastfetch_print_text_i18n(plain, "Build", "构建时间", build_text);
     ush_fastfetch_print_u64_i18n(plain, "PID", "进程号", cleonos_sys_getpid());
-    ush_fastfetch_print_u64_i18n(plain, "UptimeTicks", "运行滴答", cleonos_sys_timer_ticks());
-    ush_fastfetch_print_u64_i18n(plain, "Tasks", "任务数", cleonos_sys_task_count());
-    ush_fastfetch_print_u64_i18n(plain, "Services", "服务数", cleonos_sys_service_count());
-    ush_fastfetch_print_u64_i18n(plain, "SvcReady", "就绪服务", cleonos_sys_service_ready_count());
+    ush_fastfetch_print_text_i18n(plain, "Uptime", "运行时长", uptime_text);
+    ush_fastfetch_print_u64_i18n(plain, "UptimeMs", "运行毫秒", info.uptime_ms);
+    ush_fastfetch_print_u64_i18n(plain, "Tasks", "任务数", info.task_count);
+    ush_fastfetch_print_u64_i18n(plain, "Services", "服务数", info.service_count);
+    ush_fastfetch_print_u64_i18n(plain, "SvcReady", "就绪服务", info.service_ready_count);
     ush_fastfetch_print_u64_i18n(plain, "CtxSwitches", "上下文切换", cleonos_sys_context_switches());
     ush_fastfetch_print_u64_i18n(plain, "KELFApps", "KELF 应用", cleonos_sys_kelf_count());
     ush_fastfetch_print_u64_i18n(plain, "KELFRuns", "KELF 运行次数", cleonos_sys_kelf_runs());
-    ush_fastfetch_print_u64_i18n(plain, "FSNodes", "文件系统节点", cleonos_sys_fs_node_count());
+    ush_fastfetch_print_u64_i18n(plain, "FSNodes", "文件系统节点", info.fs_nodes);
     ush_fastfetch_print_u64_i18n(plain, "RootChildren", "根目录子项", cleonos_sys_fs_child_count("/"));
+    ush_fastfetch_print_u64_i18n(plain, "ManagedPages", "托管页数", info.managed_pages);
+    ush_fastfetch_print_u64_i18n(plain, "FreePages", "空闲页数", info.free_pages);
+    ush_fastfetch_print_u64_i18n(plain, "UsedPages", "已用页数", info.used_pages);
+    ush_fastfetch_print_u64_i18n(plain, "HeapTotal", "堆总字节", info.heap_total_bytes);
+    ush_fastfetch_print_u64_i18n(plain, "HeapUsed", "堆已用字节", info.heap_used_bytes);
+    ush_fastfetch_print_u64_i18n(plain, "HeapFree", "堆空闲字节", info.heap_free_bytes);
 
     ush_fastfetch_write_key_i18n(plain, "TTY", "终端");
     ush_fastfetch_write_u64_dec(tty_active);

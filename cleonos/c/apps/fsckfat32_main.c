@@ -4,7 +4,7 @@
 #include <string.h>
 
 static void fsck_print_result(const cleonos_disk_fsck_result *result) {
-    (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 状态 (status): %s\n" : "fsckfat32: status: %s\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 状态: %s\n" : "fsckfat32: status: %s\n",
                  (result->status == 0ULL) ? "clean" : "issues-found");
     (void)printf("fsckfat32: checked_clusters: %llu\n", (unsigned long long)result->checked_clusters);
     (void)printf("fsckfat32: free_clusters: %llu\n", (unsigned long long)result->free_clusters);
@@ -35,7 +35,7 @@ static int fsckfat32_run(int argc, char **argv) {
             flags |= CLEONOS_DISK_FSCK_FLAG_FIX;
             continue;
         }
-        (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 未知选项 (unknown option): %s\n"
+        (void)printf((ush_locale_is_zh() != 0) ? "fsckfat32: 未知选项: %s\n"
                                                 : "fsckfat32: unknown option: %s\n",
                      arg);
         ush_writeln_i18n("usage: fsckfat32 [--fix]", "用法: fsckfat32 [--fix]");

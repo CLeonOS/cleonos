@@ -147,7 +147,7 @@ static void ush_top_render_frame(u64 frame_index, u64 delay_ticks) {
     }
 
     ush_writeln("");
-    ush_writeln_i18n("press q to quit", "按 q 退出 (press q to quit)");
+    ush_writeln_i18n("press q to quit", "按 q 退出");
 }
 
 static int ush_top_sleep_or_quit(u64 delay_ticks) {

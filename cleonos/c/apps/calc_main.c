@@ -867,15 +867,15 @@ static void calc_help(void) {
     (void)puts("  calc plot \"sin(x)\" [-10 10 -2 2]");
     (void)puts("");
     ush_writeln_i18n("operators: + - * / % ^  parentheses supported",
-                     "运算符 (operators): + - * / % ^，支持括号");
-    ush_writeln_i18n("constants: pi e tau  variable: x", "常量 (constants): pi e tau，变量 (variable): x");
-    ush_writeln_i18n("functions:", "函数 (functions):");
+                     "运算符: + - * / % ^，支持括号");
+    ush_writeln_i18n("constants: pi e tau  variable: x", "常量: pi e tau，变量: x");
+    ush_writeln_i18n("functions:", "函数:");
     (void)puts("  sin cos tan asin acos atan sqrt abs exp ln log log10");
     (void)puts("  floor ceil round sign min max pow clamp");
     ush_writeln_i18n("plot: framebuffer pixel plot first, TTY ASCII fallback otherwise",
-                     "绘图 (plot): 优先使用 framebuffer 像素绘图，否则回退到 TTY ASCII");
+                     "绘图: 优先使用 framebuffer 像素绘图，否则回退到 TTY ASCII");
     (void)puts("");
-    ush_writeln_i18n("interactive commands:", "交互命令 (interactive commands):");
+    ush_writeln_i18n("interactive commands:", "交互命令:");
     (void)puts("  plot <expr> [xmin xmax ymin ymax]");
     (void)puts("  help");
     (void)puts("  quit");
@@ -1388,7 +1388,7 @@ static int calc_interactive_plot(const char *line) {
 static int calc_interactive(void) {
     char line[CALC_EXPR_MAX];
 
-    ush_writeln_i18n("CLeonOS universal calculator", "CLeonOS 万能计算器 (universal calculator)");
+    ush_writeln_i18n("CLeonOS universal calculator", "CLeonOS 万能计算器");
     ush_writeln_i18n("type 'help' for usage, 'quit' to exit", "输入 help 查看用法，输入 quit 退出");
 
     for (;;) {

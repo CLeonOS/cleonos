@@ -51,7 +51,7 @@ static int ush_cmd_jobs(const char *arg) {
     }
 
     proc_count = cleonos_sys_proc_count();
-    ush_writeln_i18n("jobs:", "任务 (jobs):");
+    ush_writeln_i18n("jobs:", "任务:");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;

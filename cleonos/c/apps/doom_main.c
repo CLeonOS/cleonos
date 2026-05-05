@@ -31,7 +31,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)envp;
 
     if (argc <= 0 || argv == (char **)0 || argv[0] == (char *)0) {
-        ush_writeln_i18n("doom: invalid argv", "doom: 无效参数 (invalid argv)");
+        ush_writeln_i18n("doom: invalid argv", "doom: 无效参数");
         return 1;
     }
 
@@ -71,12 +71,12 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     run_argv[run_argc] = (char *)0;
 
     if (has_iwad == 0 && auto_wad == (const char *)0 && (argc <= 1 || argv[1] == (char *)0 || argv[1][0] == '-')) {
-        ush_writeln_i18n("doom: no WAD provided", "doom: 未提供 WAD 文件 (no WAD provided)");
-        ush_writeln_i18n("doom: usage: doom /doom1.wad", "doom: 用法 (usage): doom /doom1.wad");
-        ush_writeln_i18n("doom: or:    doom -iwad /doom1.wad", "doom: 或 (or): doom -iwad /doom1.wad");
+        ush_writeln_i18n("doom: no WAD provided", "doom: 未提供 WAD 文件");
+        ush_writeln_i18n("doom: usage: doom /doom1.wad", "doom: 用法: doom /doom1.wad");
+        ush_writeln_i18n("doom: or:    doom -iwad /doom1.wad", "doom: 或: doom -iwad /doom1.wad");
         return 1;
     }
 
-    ush_writeln_i18n("doom: launching doomgeneric", "doom: 正在启动 doomgeneric (launching)");
+    ush_writeln_i18n("doom: launching doomgeneric", "doom: 正在启动 doomgeneric");
     return cl_doom_run_main(run_argc, run_argv);
 }

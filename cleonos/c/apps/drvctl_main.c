@@ -64,7 +64,7 @@ static int drvctl_list(void) {
     u64 count = cleonos_sys_driver_count();
     u64 i;
 
-    (void)printf((ush_locale_is_zh() != 0) ? "drivers (驱动数): %llu\n" : "drivers: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "驱动数: %llu\n" : "drivers: %llu\n",
                  (unsigned long long)count);
 
     for (i = 0ULL; i < count; i++) {
@@ -99,7 +99,7 @@ static int drvctl_load(const char *path) {
         return 0;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已加载 (loaded) id=%llu\n" : "drvctl: loaded id=%llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已加载 id=%llu\n" : "drvctl: loaded id=%llu\n",
                  (unsigned long long)id);
     return 1;
 }
@@ -121,7 +121,7 @@ static int drvctl_unload(const char *name_or_path) {
 
 static int drvctl_reload(void) {
     u64 loaded = cleonos_sys_driver_reload();
-    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已重新加载 (reloaded) %llu driver(s)\n"
+    (void)printf((ush_locale_is_zh() != 0) ? "drvctl: 已重新加载 %llu 个驱动\n"
                                            : "drvctl: reloaded %llu driver(s)\n",
                  (unsigned long long)loaded);
     return 1;

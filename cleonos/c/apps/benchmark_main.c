@@ -335,7 +335,7 @@ static int ush_cmd_benchmark(const char *arg) {
         return 1;
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "CLeonOS benchmark 测速 (%s)\n" : "CLeonOS benchmark (%s)\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "CLeonOS benchmark 测速 %s\n" : "CLeonOS benchmark (%s)\n",
                  mode.name);
     ush_writeln_i18n("test     work         unit     elapsed   throughput      checksum",
                      "test     work         unit     elapsed   throughput      checksum");
@@ -354,7 +354,7 @@ static int ush_cmd_benchmark(const char *arg) {
     bench_print_result(&file);
 
     puts("------------------------------------------------------------------");
-    (void)printf((ush_locale_is_zh() != 0) ? "total (总计): %llu ticks\n" : "total: %llu ticks\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "总计: %llu ticks\n" : "total: %llu ticks\n",
                  (unsigned long long)total_ticks);
     return 1;
 }

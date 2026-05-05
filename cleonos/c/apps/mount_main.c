@@ -62,7 +62,7 @@ static int ush_cmd_mount(ush_state *sh, const char *arg) {
         current_path[0] = '\0';
         (void)cleonos_sys_disk_mount_path(current_path, (u64)sizeof(current_path));
         if (current_path[0] == '\0') {
-            ush_writeln_i18n("disk0 on (unknown) type fat32", "disk0 挂载在 (unknown)，类型 fat32");
+            ush_writeln_i18n("disk0 on (unknown) type fat32", "disk0 挂载在，类型 fat32");
         } else {
             (void)printf((ush_locale_is_zh() != 0) ? "disk0 挂载在 %s，类型 fat32\n"
                                                    : "disk0 on %s type fat32\n",

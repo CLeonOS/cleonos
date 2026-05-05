@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_memstat(void) {
-    ush_writeln_i18n("memstat (user ABI limited):", "内存/服务统计 (memstat, user ABI limited):");
+    ush_writeln_i18n("memstat (user ABI limited):", "内存/服务统计:");
     ush_print_kv_hex_i18n("  SERVICE_COUNT", "  服务数", cleonos_sys_service_count());
     ush_print_kv_hex_i18n("  SERVICE_READY_COUNT", "  就绪服务数", cleonos_sys_service_ready_count());
     ush_print_kv_hex_i18n("  KELF_COUNT", "  KELF 数量", cleonos_sys_kelf_count());
@@ -9,7 +9,7 @@ static int ush_cmd_memstat(void) {
 }
 
 static int ush_cmd_fsstat(void) {
-    ush_writeln_i18n("fsstat:", "文件系统统计 (fsstat):");
+    ush_writeln_i18n("fsstat:", "文件系统统计:");
     ush_print_kv_hex_i18n("  NODE_COUNT", "  节点数", cleonos_sys_fs_node_count());
     ush_print_kv_hex_i18n("  ROOT_CHILDREN", "  根目录子项", cleonos_sys_fs_child_count("/"));
     ush_print_kv_hex_i18n("  SYSTEM_CHILDREN", "  系统目录子项", cleonos_sys_fs_child_count("/system"));
@@ -21,7 +21,7 @@ static int ush_cmd_fsstat(void) {
 }
 
 static int ush_cmd_taskstat(void) {
-    ush_writeln_i18n("taskstat:", "任务统计 (taskstat):");
+    ush_writeln_i18n("taskstat:", "任务统计:");
     ush_print_kv_hex_i18n("  TASK_COUNT", "  任务数", cleonos_sys_task_count());
     ush_print_kv_hex_i18n("  CURRENT_TASK", "  当前任务", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
     ush_print_kv_hex_i18n("  TIMER_TICKS", "  计时器滴答", cleonos_sys_timer_ticks());
@@ -30,7 +30,7 @@ static int ush_cmd_taskstat(void) {
 }
 
 static int ush_cmd_userstat(void) {
-    ush_writeln_i18n("userstat:", "用户态统计 (userstat):");
+    ush_writeln_i18n("userstat:", "用户态统计:");
     ush_print_kv_hex_i18n("  USER_SHELL_READY", "  用户外壳就绪", cleonos_sys_user_shell_ready());
     ush_print_kv_hex_i18n("  USER_EXEC_REQUESTED", "  用户执行请求", cleonos_sys_user_exec_requested());
     ush_print_kv_hex_i18n("  USER_LAUNCH_TRIES", "  用户启动尝试", cleonos_sys_user_launch_tries());
@@ -44,7 +44,7 @@ static int ush_cmd_userstat(void) {
 }
 
 static int ush_cmd_kbdstat(void) {
-    ush_writeln_i18n("kbdstat:", "键盘统计 (kbdstat):");
+    ush_writeln_i18n("kbdstat:", "键盘统计:");
     ush_print_kv_hex_i18n("  BUFFERED", "  缓冲数量", cleonos_sys_kbd_buffered());
     ush_print_kv_hex_i18n("  PUSHED", "  推入次数", cleonos_sys_kbd_pushed());
     ush_print_kv_hex_i18n("  POPPED", "  弹出次数", cleonos_sys_kbd_popped());
@@ -54,7 +54,7 @@ static int ush_cmd_kbdstat(void) {
 }
 
 static int ush_cmd_shstat(const ush_state *sh) {
-    ush_writeln_i18n("shstat:", "外壳统计 (shstat):");
+    ush_writeln_i18n("shstat:", "外壳统计:");
     ush_print_kv_hex_i18n("  CMD_TOTAL", "  命令总数", sh->cmd_total);
     ush_print_kv_hex_i18n("  CMD_OK", "  命令成功", sh->cmd_ok);
     ush_print_kv_hex_i18n("  CMD_FAIL", "  命令失败", sh->cmd_fail);

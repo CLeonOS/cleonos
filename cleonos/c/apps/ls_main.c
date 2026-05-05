@@ -119,13 +119,13 @@ static void ush_ls_print_one(const char *name, u64 type, u64 size, int long_mode
 
     if (type == 1ULL) {
         clio_write("  ");
-        clio_write_i18n_label("size", "大小 (size)");
+        clio_write_i18n_label("size", "大小");
         clio_write("=");
         clio_write_hex_u64(size);
     } else if (type == 2ULL) {
-        clio_write_i18n_label("  <DIR>", "  <目录 (DIR)>");
+        clio_write_i18n_label("  <DIR>", "  <目录>");
     } else {
-        clio_write_i18n_label("  <UNKNOWN>", "  <未知 (UNKNOWN)>");
+        clio_write_i18n_label("  <UNKNOWN>", "  <未知>");
     }
 
     clio_write_char('\n');
@@ -201,7 +201,7 @@ static int ush_ls_dir(const char *path, int long_mode, int recursive, int print_
     u64 i;
 
     if (depth > 16ULL) {
-        clio_writeln((ush_locale_is_zh() != 0) ? "ls: 递归深度达到上限 (recursion depth limit reached)"
+        clio_writeln((ush_locale_is_zh() != 0) ? "ls: 递归深度达到上限"
                                                 : "ls: recursion depth limit reached");
         return 0;
     }
@@ -214,7 +214,7 @@ static int ush_ls_dir(const char *path, int long_mode, int recursive, int print_
     }
 
     if (count == 0ULL) {
-        clio_writeln((ush_locale_is_zh() != 0) ? "(空) (empty)" : "(empty)");
+        clio_writeln((ush_locale_is_zh() != 0) ? "(空)" : "(empty)");
     }
 
     for (i = 0ULL; i < count; i++) {

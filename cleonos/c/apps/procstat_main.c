@@ -78,7 +78,7 @@ static void ush_procstat_print_detail(const cleonos_proc_snapshot *snap) {
         return;
     }
 
-    ush_writeln_i18n("procstat:", "进程状态 (procstat):");
+    ush_writeln_i18n("procstat:", "进程状态:");
     ush_print_kv_hex_i18n("  PID", "  进程号", snap->pid);
     ush_print_kv_hex_i18n("  PPID", "  父进程号", snap->ppid);
     ush_write_i18n_label("  STATE", "  状态");
@@ -172,7 +172,7 @@ static int ush_cmd_procstat(const char *arg) {
         u64 i;
         u64 shown = 0ULL;
 
-        ush_writeln_i18n("procstat:", "进程状态 (procstat):");
+        ush_writeln_i18n("procstat:", "进程状态:");
 
         for (i = 0ULL; i < proc_count; i++) {
             u64 pid = 0ULL;

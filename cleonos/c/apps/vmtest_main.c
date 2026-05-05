@@ -19,7 +19,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
         }
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "vmtest: 分配 (alloc) %llu bytes\n" : "vmtest: alloc %llu bytes\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "vmtest: 分配 %llu bytes\n" : "vmtest: alloc %llu bytes\n",
                  (unsigned long long)size);
     mem = (unsigned char *)cleonos_sys_vm_alloc(size, CLEONOS_VM_FLAG_READ | CLEONOS_VM_FLAG_WRITE);
     if (mem == (unsigned char *)0) {
@@ -44,6 +44,6 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
         return 1;
     }
 
-    ush_writeln_i18n("vmtest: ok", "vmtest: 成功 (ok)");
+    ush_writeln_i18n("vmtest: ok", "vmtest: 成功");
     return 0;
 }

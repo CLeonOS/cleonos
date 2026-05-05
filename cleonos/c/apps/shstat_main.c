@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_shstat(const ush_state *sh) {
-    ush_writeln_i18n("shstat:", "外壳统计 (shstat):");
+    ush_writeln_i18n("shstat:", "外壳统计:");
     ush_print_kv_hex_i18n("  CMD_TOTAL", "  命令总数", sh->cmd_total);
     ush_print_kv_hex_i18n("  CMD_OK", "  命令成功", sh->cmd_ok);
     ush_print_kv_hex_i18n("  CMD_FAIL", "  命令失败", sh->cmd_fail);

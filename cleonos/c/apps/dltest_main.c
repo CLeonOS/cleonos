@@ -21,7 +21,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
 
     handle = dlopen(lib_path, 0);
     if (handle == (void *)0) {
-        (void)printf((ush_locale_is_zh() != 0) ? "[dltest] dlopen 失败 (failed): %s\n"
+        (void)printf((ush_locale_is_zh() != 0) ? "[dltest] dlopen 失败: %s\n"
                                                 : "[dltest] dlopen failed: %s\n",
                      lib_path);
         return 1;
@@ -32,7 +32,7 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     hello_fn = (dl_void_fn)dlsym(handle, "cleonos_libdemo_hello");
 
     if (add_fn == (dl_math2_fn)0 || mul_fn == (dl_math2_fn)0 || hello_fn == (dl_void_fn)0) {
-        ush_writeln_i18n("[dltest] dlsym failed", "[dltest] dlsym 失败 (failed)");
+        ush_writeln_i18n("[dltest] dlsym failed", "[dltest] dlsym 失败");
         (void)dlclose(handle);
         return 2;
     }
@@ -42,10 +42,10 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
     (void)printf("[dltest] mul(6, 9) = %llu\n", mul_fn(6ULL, 9ULL));
 
     if (dlclose(handle) != 0) {
-        ush_writeln_i18n("[dltest] dlclose failed", "[dltest] dlclose 失败 (failed)");
+        ush_writeln_i18n("[dltest] dlclose failed", "[dltest] dlclose 失败");
         return 3;
     }
 
-    ush_writeln_i18n("[dltest] PASS", "[dltest] 通过 (PASS)");
+    ush_writeln_i18n("[dltest] PASS", "[dltest] 通过");
     return 0;
 }

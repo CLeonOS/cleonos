@@ -30,34 +30,34 @@ static int timertest_run(void) {
     tick0 = cleonos_sys_timer_ticks();
     ms0 = cleonos_sys_time_ms();
 
-    (void)printf((ush_locale_is_zh() != 0) ? "timer_hz (计时器频率): %llu\n" : "timer_hz: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "计时器频率: %llu\n" : "timer_hz: %llu\n",
                  (unsigned long long)hz);
-    (void)printf((ush_locale_is_zh() != 0) ? "start_ticks (起始Ticks): %llu\n" : "start_ticks: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "起始 ticks: %llu\n" : "start_ticks: %llu\n",
                  (unsigned long long)tick0);
-    (void)printf((ush_locale_is_zh() != 0) ? "start_ms (起始毫秒): %llu\n" : "start_ms: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "起始毫秒: %llu\n" : "start_ms: %llu\n",
                  (unsigned long long)ms0);
 
-    ush_writeln_i18n("test: sleep_ms(1000)", "测试 (test): sleep_ms(1000)");
+    ush_writeln_i18n("test: sleep_ms(1000)", "测试: sleep_ms(1000)");
     tick0 = cleonos_sys_timer_ticks();
     ms0 = cleonos_sys_time_ms();
     slept = cleonos_sys_sleep_ms(1000ULL);
     tick1 = cleonos_sys_timer_ticks();
     ms1 = cleonos_sys_time_ms();
-    (void)printf((ush_locale_is_zh() != 0) ? "sleep_ms_return (返回值): %llu\n" : "sleep_ms_return: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "sleep_ms 返回值: %llu\n" : "sleep_ms_return: %llu\n",
                  (unsigned long long)slept);
     timertest_print_delta("sleep_ms_delta", tick0, tick1, ms0, ms1);
 
-    ush_writeln_i18n("test: sleep_ticks(timer_hz)", "测试 (test): sleep_ticks(timer_hz)");
+    ush_writeln_i18n("test: sleep_ticks(timer_hz)", "测试: sleep_ticks(timer_hz)");
     tick0 = cleonos_sys_timer_ticks();
     ms0 = cleonos_sys_time_ms();
     slept = cleonos_sys_sleep_ticks(hz);
     tick1 = cleonos_sys_timer_ticks();
     ms1 = cleonos_sys_time_ms();
-    (void)printf((ush_locale_is_zh() != 0) ? "sleep_ticks_return (返回值): %llu\n" : "sleep_ticks_return: %llu\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "sleep_ticks 返回值: %llu\n" : "sleep_ticks_return: %llu\n",
                  (unsigned long long)slept);
     timertest_print_delta("sleep_ticks_delta", tick0, tick1, ms0, ms1);
 
-    ush_writeln_i18n("test: time_ms monotonic sample", "测试 (test): time_ms 单调性采样");
+    ush_writeln_i18n("test: time_ms monotonic sample", "测试: time_ms 单调性采样");
     ms0 = cleonos_sys_time_ms();
     for (i = 0ULL; i < 64ULL; i++) {
         ms1 = cleonos_sys_time_ms();
@@ -69,7 +69,7 @@ static int timertest_run(void) {
         (void)cleonos_sys_sleep_ms(10ULL);
     }
 
-    (void)printf((ush_locale_is_zh() != 0) ? "monotonic_ms (毫秒单调性): %s\n" : "monotonic_ms: %s\n",
+    (void)printf((ush_locale_is_zh() != 0) ? "毫秒单调性: %s\n" : "monotonic_ms: %s\n",
                  (monotonic_ok != 0) ? "ok" : "failed");
     return monotonic_ok;
 }

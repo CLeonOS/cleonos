@@ -526,7 +526,7 @@ static int ush_cmd_httpget(const char *arg) {
         if (cleonos_tls_connect(tls_conn, dst_ipv4_be, url.port, url.host, USH_HTTPGET_TCP_POLL_BUDGET) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 连接失败 (tls connect failed): %s\n"
+            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 连接失败: %s\n"
                                                     : "httpget: tls connect failed: %s\n",
                          tls_error);
             goto done;
@@ -567,7 +567,7 @@ static int ush_cmd_httpget(const char *arg) {
         if (cleonos_tls_write_all(tls_conn, request, (u64)request_len) == 0) {
             char tls_error[96];
             cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 发送失败 (tls send failed): %s\n"
+            (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 发送失败: %s\n"
                                                     : "httpget: tls send failed: %s\n",
                          tls_error);
             goto done;
@@ -593,7 +593,7 @@ static int ush_cmd_httpget(const char *arg) {
             if (tls_got < 0) {
                 char tls_error[96];
                 cleonos_tls_error_text(cleonos_tls_last_error(tls_conn), tls_error, (u64)sizeof(tls_error));
-                (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 接收失败 (tls recv failed): %s\n"
+                (void)printf((ush_locale_is_zh() != 0) ? "httpget: TLS 接收失败: %s\n"
                                                         : "httpget: tls recv failed: %s\n",
                              tls_error);
                 goto done;

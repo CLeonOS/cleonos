@@ -158,7 +158,7 @@ static int ush_dns_parse_response(const u8 *resp, u64 resp_len, u16 expected_id)
     }
 
     if ((flags & 0x000FU) != 0U) {
-        (void)printf((ush_locale_is_zh() != 0) ? "nslookup: 服务器错误 (server error) rcode=%u\n"
+        (void)printf((ush_locale_is_zh() != 0) ? "nslookup: 服务器错误 rcode=%u\n"
                                                : "nslookup: server error rcode=%u\n",
                      (unsigned int)(flags & 0x000FU));
         return 0;
@@ -278,7 +278,7 @@ static int ush_cmd_nslookup(const char *arg) {
     ush_write_i18n_label("Query", "查询");
     ush_write(": ");
     (void)puts(arg);
-    ush_writeln_i18n("Answer:", "应答 (Answer):");
+    ush_writeln_i18n("Answer:", "应答:");
 
     for (loops = 0; loops < 600; loops++) {
         cleonos_net_udp_recv_req recv_req;
