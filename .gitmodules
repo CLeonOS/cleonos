@@ -37,3 +37,6 @@
 [submodule "cleonos/third-party/libpng"]
 	path = cleonos/third-party/libpng
 	url = https://github.com/CLeonOS/libpng.git
+[submodule "cleonos/third-party/tinycc"]
+	path = cleonos/third-party/tinycc
+	url = https://github.com/TinyCC/tinycc.git
