@@ -38,7 +38,7 @@ endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
-.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all help list scan graph
+.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all help list scan graph
 
 all: iso
 
@@ -48,7 +48,7 @@ $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > @mkdir -p $(BDT_BUILD_DIR)
 > $(HOST_CC) -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
-configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
+configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
 
 list: bdt
