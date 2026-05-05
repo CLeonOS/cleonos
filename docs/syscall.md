@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~148）
+## 4. Syscall 列表（0~149）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1336,6 +1336,17 @@ typedef struct cleonos_mmap_req {
 - `req.target=0` 调整 TTY 逻辑分辨率
 - `req.target=1` 调整 WM/UWM 逻辑分辨率
 - 逻辑尺寸会被限制在物理 framebuffer 范围内
+
+### 149 `CLEONOS_SYSCALL_TTY_GRID_INFO`
+
+- 参数：
+- `arg0`: `cleonos_tty_grid_info *out_info`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 返回当前 TTY 文本网格尺寸
+- `cols` 为字符列数
+- `rows` 为字符行数
+- 适合 TUI/termbox/ncurses 风格用户态程序查询布局
 
 页表隔离状态：
 
