@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~146）
+## 4. Syscall 列表（0~148）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1314,6 +1314,28 @@ typedef struct cleonos_mmap_req {
 - 支持：`mmap(NULL, length, PROT_*, MAP_PRIVATE, fd, offset)`
 - 支持：`munmap(addr, length)`
 - 不支持：`MAP_SHARED`、`MAP_FIXED`、非空地址 hint。
+
+### 147 `CLEONOS_SYSCALL_DISPLAY_INFO`
+
+- 参数：
+- `arg0`: `u64 target`
+- `arg1`: `cleonos_display_info *out_info`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- `target=0` 为 TTY 逻辑分辨率
+- `target=1` 为 WM/UWM 逻辑分辨率
+- 返回同时包含当前物理 framebuffer 和对应逻辑尺寸
+
+### 148 `CLEONOS_SYSCALL_DISPLAY_SET_MODE`
+
+- 参数：
+- `arg0`: `cleonos_display_set_mode_req *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：
+- 当前实现不是硬件 mode set，而是逻辑分辨率切换
+- `req.target=0` 调整 TTY 逻辑分辨率
+- `req.target=1` 调整 WM/UWM 逻辑分辨率
+- 逻辑尺寸会被限制在物理 framebuffer 范围内
 
 页表隔离状态：
 

@@ -61,6 +61,23 @@ typedef struct cleonos_fb_info {
     u64 bpp;
 } cleonos_fb_info;
 
+#define CLEONOS_DISPLAY_TARGET_TTY 0ULL
+#define CLEONOS_DISPLAY_TARGET_WM 1ULL
+
+typedef struct cleonos_display_info {
+    u64 target;
+    u64 physical_width;
+    u64 physical_height;
+    u64 logical_width;
+    u64 logical_height;
+} cleonos_display_info;
+
+typedef struct cleonos_display_set_mode_req {
+    u64 target;
+    u64 logical_width;
+    u64 logical_height;
+} cleonos_display_set_mode_req;
+
 typedef struct cleonos_mouse_state {
     u64 x;
     u64 y;
@@ -396,6 +413,8 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_LOCALE_GET 144ULL
 #define CLEONOS_SYSCALL_LOCALE_SET 145ULL
 #define CLEONOS_SYSCALL_MMAP 146ULL
+#define CLEONOS_SYSCALL_DISPLAY_INFO 147ULL
+#define CLEONOS_SYSCALL_DISPLAY_SET_MODE 148ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -500,6 +519,8 @@ u64 cleonos_sys_dl_open(const char *path);
 u64 cleonos_sys_dl_close(u64 handle);
 u64 cleonos_sys_dl_sym(u64 handle, const char *symbol);
 u64 cleonos_sys_fb_info(cleonos_fb_info *out_info);
+u64 cleonos_sys_display_info(u64 target, cleonos_display_info *out_info);
+u64 cleonos_sys_display_set_mode(const cleonos_display_set_mode_req *req);
 u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req);
 u64 cleonos_sys_fb_clear(u64 rgb);
 u64 cleonos_sys_kernel_version(char *out_version, u64 out_size);

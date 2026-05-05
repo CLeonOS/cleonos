@@ -124,7 +124,7 @@ static int ush_uwm_boot_window(ush_uwm_session *sess, int index) {
 }
 
 int ush_uwm_prepare_session(ush_uwm_session *sess) {
-    cleonos_fb_info fb;
+    cleonos_display_info display;
     int work_bottom;
     int work_h;
     int base_w;
@@ -145,16 +145,17 @@ int ush_uwm_prepare_session(ush_uwm_session *sess) {
     ush_zero(sess, (u64)sizeof(*sess));
     ush_copy(sess->last_error, (u64)sizeof(sess->last_error), "uwm: init failed");
 
-    if (cleonos_sys_fb_info(&fb) == 0ULL || fb.width == 0ULL || fb.height == 0ULL || fb.bpp != 32ULL) {
+    if (cleonos_sys_display_info(CLEONOS_DISPLAY_TARGET_WM, &display) == 0ULL || display.logical_width == 0ULL ||
+        display.logical_height == 0ULL) {
         return ush_uwm_fail(sess, "uwm: framebuffer unavailable");
     }
 
-    if (fb.width > 4096ULL || fb.height > 4096ULL) {
+    if (display.logical_width > 4096ULL || display.logical_height > 4096ULL) {
         return ush_uwm_fail(sess, "uwm: framebuffer is larger than 4096x4096");
     }
 
-    sess->screen_w = (int)fb.width;
-    sess->screen_h = (int)fb.height;
+    sess->screen_w = (int)display.logical_width;
+    sess->screen_h = (int)display.logical_height;
     sess->active_window = -1;
     sess->drag_window = -1;
     sess->resize_window = -1;

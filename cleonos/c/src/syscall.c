@@ -372,6 +372,14 @@ u64 cleonos_sys_fb_info(cleonos_fb_info *out_info) {
     return cleonos_syscall(CLEONOS_SYSCALL_FB_INFO, (u64)out_info, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_display_info(u64 target, cleonos_display_info *out_info) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISPLAY_INFO, target, (u64)out_info, 0ULL);
+}
+
+u64 cleonos_sys_display_set_mode(const cleonos_display_set_mode_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_DISPLAY_SET_MODE, (u64)req, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_fb_blit(const cleonos_fb_blit_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_FB_BLIT, (u64)req, 0ULL, 0ULL);
 }

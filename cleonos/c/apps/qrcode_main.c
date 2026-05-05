@@ -542,7 +542,7 @@ static void ush_qrcode_window_loop(u64 window_id, int width, int height, int x, 
 
 static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
     int qr_size = qrcodegen_getSize(qrcode);
-    cleonos_fb_info fb_info;
+    cleonos_display_info display_info;
     cleonos_wm_create_req create_req;
     u64 old_tty;
     u64 window_id;
@@ -555,16 +555,23 @@ static int ush_qrcode_emit_window(const uint8_t qrcode[]) {
         return 0;
     }
 
-    ush_zero(&fb_info, (u64)sizeof(fb_info));
-    if (cleonos_sys_fb_info(&fb_info) == 0ULL || fb_info.width == 0ULL || fb_info.height == 0ULL ||
-        fb_info.bpp != 32ULL) {
+    ush_zero(&display_info, (u64)sizeof(display_info));
+    if (cleonos_sys_display_info(CLEONOS_DISPLAY_TARGET_WM, &display_info) == 0ULL || display_info.logical_width == 0ULL ||
+        display_info.logical_height == 0ULL) {
         ush_writeln_i18n("qrcode: desktop unavailable, fallback to ascii",
                          "qrcode: 桌面不可用，回退到 ASCII 输出");
         ush_qrcode_emit_ascii(qrcode);
         return 1;
     }
 
-    ush_qrcode_choose_window_geometry(&fb_info, &win_x, &win_y, &win_w, &win_h);
+    {
+        cleonos_fb_info fb_info;
+        fb_info.width = display_info.logical_width;
+        fb_info.height = display_info.logical_height;
+        fb_info.pitch = 0ULL;
+        fb_info.bpp = 32ULL;
+        ush_qrcode_choose_window_geometry(&fb_info, &win_x, &win_y, &win_w, &win_h);
+    }
     if (ush_qrcode_draw_window_canvas(qrcode, win_w, win_h) == 0) {
         ush_writeln_i18n("qrcode: desktop window too small", "qrcode: 桌面窗口过小");
         return 0;

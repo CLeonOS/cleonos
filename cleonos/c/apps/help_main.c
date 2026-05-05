@@ -27,6 +27,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  doom [wad_path]    (framebuffer bootstrap renderer)");
     ush_writeln("  memstat / fsstat / taskstat / userstat / shstat / stats");
     ush_writeln("  tty [index]");
+    ush_writeln("  resolution [show|tty <w> <h>|wm <w> <h>|all <w> <h>]");
     ush_writeln("  dmesg [n]");
     ush_writeln("  kbdstat");
     ush_writeln("  mkdir <dir>");

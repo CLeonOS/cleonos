@@ -957,17 +957,18 @@ static void pg_loop(pg_app *app) {
 }
 
 static int pg_choose_geometry(pg_app *app) {
-    cleonos_fb_info fb;
+    cleonos_display_info display;
     int max_w;
     int max_h;
 
-    memset(&fb, 0, sizeof(fb));
-    if (app == (pg_app *)0 || cleonos_sys_fb_info(&fb) == 0ULL || fb.width == 0ULL || fb.height == 0ULL ||
-        fb.bpp != 32ULL || fb.width > 4096ULL || fb.height > 4096ULL) {
+    memset(&display, 0, sizeof(display));
+    if (app == (pg_app *)0 || cleonos_sys_display_info(CLEONOS_DISPLAY_TARGET_WM, &display) == 0ULL ||
+        display.logical_width == 0ULL || display.logical_height == 0ULL || display.logical_width > 4096ULL ||
+        display.logical_height > 4096ULL) {
         return 0;
     }
-    app->screen_w = (int)fb.width;
-    app->screen_h = (int)fb.height;
+    app->screen_w = (int)display.logical_width;
+    app->screen_h = (int)display.logical_height;
     max_w = app->screen_w - 80;
     max_h = app->screen_h - 120;
     if (max_w < PG_MIN_W) {

@@ -922,7 +922,7 @@ static void tm_loop(tm_app *app) {
 }
 
 static int tm_choose_geometry(tm_app *app) {
-    cleonos_fb_info fb;
+    cleonos_display_info display;
     int max_w;
     int max_h;
 
@@ -930,16 +930,17 @@ static int tm_choose_geometry(tm_app *app) {
         return 0;
     }
 
-    tm_zero(&fb, (u64)sizeof(fb));
-    if (cleonos_sys_fb_info(&fb) == 0ULL || fb.width == 0ULL || fb.height == 0ULL || fb.bpp != 32ULL) {
+    tm_zero(&display, (u64)sizeof(display));
+    if (cleonos_sys_display_info(CLEONOS_DISPLAY_TARGET_WM, &display) == 0ULL || display.logical_width == 0ULL ||
+        display.logical_height == 0ULL) {
         return 0;
     }
-    if (fb.width > 4096ULL || fb.height > 4096ULL) {
+    if (display.logical_width > 4096ULL || display.logical_height > 4096ULL) {
         return 0;
     }
 
-    app->screen_w = (int)fb.width;
-    app->screen_h = (int)fb.height;
+    app->screen_w = (int)display.logical_width;
+    app->screen_h = (int)display.logical_height;
     max_w = app->screen_w - 80;
     max_h = app->screen_h - 120;
     if (max_w < TM_MIN_W) {
