@@ -143,6 +143,35 @@ u64 cleonos_sys_tty_grid_info(cleonos_tty_grid_info *out_info) {
     return cleonos_syscall(CLEONOS_SYSCALL_TTY_GRID_INFO, (u64)out_info, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_tty_status_set(const char *text) {
+    return cleonos_syscall(CLEONOS_SYSCALL_TTY_STATUS_SET, (u64)text, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_inputm_count(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_COUNT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_inputm_info(u64 index, cleonos_inputm_info *out_info) {
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_INFO, index, (u64)out_info, (u64)sizeof(cleonos_inputm_info));
+}
+
+u64 cleonos_sys_inputm_current(void) {
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_CURRENT, 0ULL, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_inputm_select(u64 index) {
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_SELECT, index, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_inputm_register(const char *name, const char *path, u64 flags) {
+    cleonos_inputm_register_req req;
+
+    req.name_ptr = (u64)name;
+    req.path_ptr = (u64)path;
+    req.flags = flags;
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_REGISTER, (u64)&req, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_kbd_get_char(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_KBD_GET_CHAR, 0ULL, 0ULL, 0ULL);
 }

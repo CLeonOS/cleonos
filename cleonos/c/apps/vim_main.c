@@ -71,6 +71,191 @@ static void ush_vim_set_statusf(ush_vim_editor *ed, const char *fmt, u64 value) 
     ush_vim_set_status(ed, line);
 }
 
+static int ush_vim_utf8_is_cont(unsigned char ch) {
+    return (ch >= 0x80U && ch <= 0xBFU) ? 1 : 0;
+}
+
+static u64 ush_vim_utf8_len_from_lead(unsigned char lead) {
+    if (lead < 0x80U) {
+        return 1ULL;
+    }
+    if (lead >= 0xC2U && lead <= 0xDFU) {
+        return 2ULL;
+    }
+    if (lead >= 0xE0U && lead <= 0xEFU) {
+        return 3ULL;
+    }
+    if (lead >= 0xF0U && lead <= 0xF4U) {
+        return 4ULL;
+    }
+    return 1ULL;
+}
+
+static u64 ush_vim_utf8_char_len_at(const char *text, u64 len, u64 pos) {
+    u64 need;
+    u64 i;
+
+    if (text == (const char *)0 || pos >= len) {
+        return 0ULL;
+    }
+
+    need = ush_vim_utf8_len_from_lead((unsigned char)text[pos]);
+    if (need == 1ULL || pos + need > len) {
+        return 1ULL;
+    }
+
+    for (i = 1ULL; i < need; i++) {
+        if (ush_vim_utf8_is_cont((unsigned char)text[pos + i]) == 0) {
+            return 1ULL;
+        }
+    }
+
+    return need;
+}
+
+static unsigned int ush_vim_utf8_decode_at(const char *text, u64 len, u64 pos, u64 *out_adv) {
+    unsigned char b0;
+    u64 adv;
+    unsigned int cp;
+
+    if (out_adv != (u64 *)0) {
+        *out_adv = 0ULL;
+    }
+    if (text == (const char *)0 || pos >= len) {
+        return 0U;
+    }
+
+    b0 = (unsigned char)text[pos];
+    adv = ush_vim_utf8_char_len_at(text, len, pos);
+    if (out_adv != (u64 *)0) {
+        *out_adv = adv;
+    }
+
+    if (adv == 1ULL) {
+        return (unsigned int)b0;
+    }
+    if (adv == 2ULL) {
+        return ((unsigned int)(b0 & 0x1FU) << 6) | (unsigned int)((unsigned char)text[pos + 1ULL] & 0x3FU);
+    }
+    if (adv == 3ULL) {
+        return ((unsigned int)(b0 & 0x0FU) << 12) |
+               ((unsigned int)((unsigned char)text[pos + 1ULL] & 0x3FU) << 6) |
+               (unsigned int)((unsigned char)text[pos + 2ULL] & 0x3FU);
+    }
+
+    cp = ((unsigned int)(b0 & 0x07U) << 18) |
+         ((unsigned int)((unsigned char)text[pos + 1ULL] & 0x3FU) << 12) |
+         ((unsigned int)((unsigned char)text[pos + 2ULL] & 0x3FU) << 6) |
+         (unsigned int)((unsigned char)text[pos + 3ULL] & 0x3FU);
+    return cp;
+}
+
+static u64 ush_vim_codepoint_width(unsigned int cp) {
+    if (cp == 0U) {
+        return 0ULL;
+    }
+    if ((cp >= 0x0300U && cp <= 0x036FU) || (cp >= 0xFE00U && cp <= 0xFE0FU)) {
+        return 0ULL;
+    }
+    if ((cp >= 0x1100U && cp <= 0x115FU) || (cp >= 0x2E80U && cp <= 0xA4CFU) ||
+        (cp >= 0xAC00U && cp <= 0xD7A3U) || (cp >= 0xF900U && cp <= 0xFAFFU) ||
+        (cp >= 0xFE10U && cp <= 0xFE19U) || (cp >= 0xFE30U && cp <= 0xFE6FU) ||
+        (cp >= 0xFF00U && cp <= 0xFF60U) || (cp >= 0xFFE0U && cp <= 0xFFE6U) ||
+        (cp >= 0x20000U && cp <= 0x3FFFDU)) {
+        return 2ULL;
+    }
+    return 1ULL;
+}
+
+static u64 ush_vim_utf8_visual_width_n(const char *text, u64 len) {
+    u64 pos = 0ULL;
+    u64 cols = 0ULL;
+
+    while (text != (const char *)0 && pos < len) {
+        u64 adv = 1ULL;
+        unsigned int cp = ush_vim_utf8_decode_at(text, len, pos, &adv);
+        if (adv == 0ULL) {
+            break;
+        }
+        cols += ush_vim_codepoint_width(cp);
+        pos += adv;
+    }
+
+    return cols;
+}
+
+static u64 ush_vim_utf8_prev_boundary(const char *text, u64 len, u64 pos) {
+    if (text == (const char *)0 || pos == 0ULL) {
+        return 0ULL;
+    }
+    if (pos > len) {
+        pos = len;
+    }
+
+    pos--;
+    while (pos > 0ULL && ush_vim_utf8_is_cont((unsigned char)text[pos]) != 0) {
+        pos--;
+    }
+
+    return pos;
+}
+
+static u64 ush_vim_utf8_next_boundary(const char *text, u64 len, u64 pos) {
+    u64 adv;
+
+    if (text == (const char *)0 || pos >= len) {
+        return len;
+    }
+
+    adv = ush_vim_utf8_char_len_at(text, len, pos);
+    if (adv == 0ULL) {
+        adv = 1ULL;
+    }
+    if (pos + adv > len) {
+        return len;
+    }
+
+    return pos + adv;
+}
+
+static char ush_vim_read_byte_blocking(void) {
+    char ch = '\0';
+    u64 got;
+
+    for (;;) {
+        got = cleonos_sys_fd_read(0ULL, &ch, 1ULL);
+        if (got == 1ULL) {
+            return ch;
+        }
+        (void)cleonos_sys_sleep_ticks(1ULL);
+    }
+}
+
+static u64 ush_vim_collect_utf8(int first, char *out, u64 out_size) {
+    u64 need;
+    u64 len = 1ULL;
+
+    if (out == (char *)0 || out_size == 0ULL) {
+        return 0ULL;
+    }
+
+    out[0] = (char)first;
+    need = ush_vim_utf8_len_from_lead((unsigned char)first);
+    if (need > out_size) {
+        need = out_size;
+    }
+
+    while (len < need) {
+        char next = ush_vim_read_byte_blocking();
+        out[len++] = next;
+        if (ush_vim_utf8_is_cont((unsigned char)next) == 0) {
+            break;
+        }
+    }
+
+    return len;
+}
+
 static void ush_vim_reset_buffer(ush_vim_editor *ed) {
     if (ed == (ush_vim_editor *)0) {
         return;
@@ -109,6 +294,10 @@ static void ush_vim_keep_cursor_valid(ush_vim_editor *ed) {
     if (ed->cursor_col > line->len) {
         ed->cursor_col = line->len;
     }
+    while (ed->cursor_col > 0ULL && ed->cursor_col < line->len &&
+           ush_vim_utf8_is_cont((unsigned char)line->text[ed->cursor_col]) != 0) {
+        ed->cursor_col--;
+    }
 }
 
 static void ush_vim_ensure_cursor_visible(ush_vim_editor *ed) {
@@ -124,12 +313,15 @@ static void ush_vim_ensure_cursor_visible(ush_vim_editor *ed) {
 }
 
 static void ush_vim_move_left(ush_vim_editor *ed) {
+    ush_vim_line *line;
+
     if (ed == (ush_vim_editor *)0) {
         return;
     }
 
+    line = &ed->lines[ed->cursor_line];
     if (ed->cursor_col > 0ULL) {
-        ed->cursor_col--;
+        ed->cursor_col = ush_vim_utf8_prev_boundary(line->text, line->len, ed->cursor_col);
     } else if (ed->cursor_line > 0ULL) {
         ed->cursor_line--;
         ed->cursor_col = ed->lines[ed->cursor_line].len;
@@ -145,7 +337,7 @@ static void ush_vim_move_right(ush_vim_editor *ed) {
 
     line = &ed->lines[ed->cursor_line];
     if (ed->cursor_col < line->len) {
-        ed->cursor_col++;
+        ed->cursor_col = ush_vim_utf8_next_boundary(line->text, line->len, ed->cursor_col);
     } else if (ed->cursor_line + 1ULL < ed->line_count) {
         ed->cursor_line++;
         ed->cursor_col = 0ULL;
@@ -197,33 +389,37 @@ static int ush_vim_insert_line_after(ush_vim_editor *ed, u64 line_index) {
     return 1;
 }
 
-static int ush_vim_insert_char(ush_vim_editor *ed, char ch) {
+static int ush_vim_insert_bytes(ush_vim_editor *ed, const char *bytes, u64 byte_len) {
     ush_vim_line *line;
 
-    if (ed == (ush_vim_editor *)0) {
+    if (ed == (ush_vim_editor *)0 || bytes == (const char *)0 || byte_len == 0ULL) {
         return 0;
     }
 
-    if ((unsigned char)ch < 0x20U || ch == '\n' || ch == '\r') {
+    if ((unsigned char)bytes[0] < 0x20U || bytes[0] == '\n' || bytes[0] == '\r') {
         return 0;
     }
 
     line = &ed->lines[ed->cursor_line];
-    if (line->len + 1ULL >= USH_VIM_MAX_LINE_LEN) {
+    if (line->len + byte_len >= USH_VIM_MAX_LINE_LEN) {
         ush_vim_set_status(ed, "line too long");
         return 0;
     }
 
     if (ed->cursor_col < line->len) {
-        (void)memmove(line->text + ed->cursor_col + 1ULL, line->text + ed->cursor_col,
+        (void)memmove(line->text + ed->cursor_col + byte_len, line->text + ed->cursor_col,
                       (size_t)(line->len - ed->cursor_col));
     }
-    line->text[ed->cursor_col] = ch;
-    line->len++;
+    (void)memcpy(line->text + ed->cursor_col, bytes, (size_t)byte_len);
+    line->len += byte_len;
     line->text[line->len] = '\0';
-    ed->cursor_col++;
+    ed->cursor_col += byte_len;
     ed->modified = 1;
     return 1;
+}
+
+static int ush_vim_insert_char(ush_vim_editor *ed, char ch) {
+    return ush_vim_insert_bytes(ed, &ch, 1ULL);
 }
 
 static int ush_vim_split_line(ush_vim_editor *ed) {
@@ -266,13 +462,18 @@ static int ush_vim_backspace(ush_vim_editor *ed) {
 
     line = &ed->lines[ed->cursor_line];
     if (ed->cursor_col > 0ULL) {
+        u64 delete_start = ush_vim_utf8_prev_boundary(line->text, line->len, ed->cursor_col);
+        u64 delete_len = ed->cursor_col - delete_start;
+        if (delete_len == 0ULL) {
+            delete_len = 1ULL;
+        }
         if (ed->cursor_col < line->len) {
-            (void)memmove(line->text + ed->cursor_col - 1ULL, line->text + ed->cursor_col,
+            (void)memmove(line->text + delete_start, line->text + ed->cursor_col,
                           (size_t)(line->len - ed->cursor_col));
         }
-        line->len--;
+        line->len -= delete_len;
         line->text[line->len] = '\0';
-        ed->cursor_col--;
+        ed->cursor_col = delete_start;
         ed->modified = 1;
         return 1;
     }
@@ -320,11 +521,19 @@ static int ush_vim_delete_char(ush_vim_editor *ed) {
         return 0;
     }
 
-    if (ed->cursor_col + 1ULL < line->len) {
-        (void)memmove(line->text + ed->cursor_col, line->text + ed->cursor_col + 1ULL,
-                      (size_t)(line->len - ed->cursor_col - 1ULL));
+    {
+        u64 next = ush_vim_utf8_next_boundary(line->text, line->len, ed->cursor_col);
+        u64 delete_len = next - ed->cursor_col;
+        if (delete_len == 0ULL) {
+            delete_len = 1ULL;
+        }
+
+        if (ed->cursor_col + delete_len < line->len) {
+            (void)memmove(line->text + ed->cursor_col, line->text + ed->cursor_col + delete_len,
+                          (size_t)(line->len - ed->cursor_col - delete_len));
+        }
+        line->len -= delete_len;
     }
-    line->len--;
     line->text[line->len] = '\0';
     ed->modified = 1;
     return 1;
@@ -462,6 +671,7 @@ static void ush_vim_goto(u64 row, u64 col) {
 static void ush_vim_render_line_no_newline(const ush_vim_editor *ed, u64 line_index) {
     char buf[256];
     u64 col;
+    u64 pos;
     const ush_vim_line *line;
     u64 visual_line_no;
 
@@ -482,18 +692,47 @@ static void ush_vim_render_line_no_newline(const ush_vim_editor *ed, u64 line_in
     (void)snprintf(buf, sizeof(buf), "%4llu ", (unsigned long long)visual_line_no);
     ush_write(buf);
 
-    for (col = 0ULL; col < USH_VIM_VIEW_COLS; col++) {
-        char out_ch = ' ';
-        if (col < line->len) {
-            out_ch = line->text[col];
+    col = 0ULL;
+    pos = 0ULL;
+    while (pos < line->len && col < USH_VIM_VIEW_COLS) {
+        u64 adv = 1ULL;
+        u64 width;
+        unsigned int cp = ush_vim_utf8_decode_at(line->text, line->len, pos, &adv);
+
+        if (adv == 0ULL) {
+            break;
         }
 
-        if (line_index == ed->cursor_line && col == ed->cursor_col) {
-            ush_write_char(out_ch);
-        } else {
-            ush_write_char(out_ch);
+        width = ush_vim_codepoint_width(cp);
+        if (width == 0ULL) {
+            width = 1ULL;
         }
+        if (col + width > USH_VIM_VIEW_COLS) {
+            break;
+        }
+
+        (void)cleonos_sys_fd_write(1ULL, line->text + pos, adv);
+        col += width;
+        pos += adv;
     }
+
+    while (col < USH_VIM_VIEW_COLS) {
+        ush_write_char(' ');
+        col++;
+    }
+}
+
+static u64 ush_vim_line_cursor_visual_col(const ush_vim_line *line, u64 cursor_col) {
+    if (line == (const ush_vim_line *)0) {
+        return 0ULL;
+    }
+    if (cursor_col > line->len) {
+        cursor_col = line->len;
+    }
+    while (cursor_col > 0ULL && ush_vim_utf8_is_cont((unsigned char)line->text[cursor_col]) != 0) {
+        cursor_col--;
+    }
+    return ush_vim_utf8_visual_width_n(line->text, cursor_col);
 }
 
 static const char *ush_vim_mode_text(const ush_vim_editor *ed) {
@@ -528,10 +767,13 @@ static void ush_vim_place_terminal_cursor(const ush_vim_editor *ed) {
         }
     } else {
         u64 visual_row = 0ULL;
-        u64 visual_col = ed->cursor_col;
+        u64 visual_col = 0ULL;
 
         if (ed->cursor_line > ed->scroll_top) {
             visual_row = ed->cursor_line - ed->scroll_top;
+        }
+        if (ed->cursor_line < ed->line_count) {
+            visual_col = ush_vim_line_cursor_visual_col(&ed->lines[ed->cursor_line], ed->cursor_col);
         }
         if (visual_row >= USH_VIM_VIEW_ROWS) {
             visual_row = USH_VIM_VIEW_ROWS - 1ULL;
@@ -959,8 +1201,16 @@ static void ush_vim_handle_insert_mode(ush_vim_editor *ed, int key) {
         return;
     }
 
-    if (key >= 32 && key <= 126) {
-        (void)ush_vim_insert_char(ed, (char)key);
+    if (key >= 32 && key <= 255) {
+        char bytes[4];
+        u64 byte_len = 1ULL;
+
+        bytes[0] = (char)key;
+        if (key >= 0x80) {
+            byte_len = ush_vim_collect_utf8(key, bytes, (u64)sizeof(bytes));
+        }
+
+        (void)ush_vim_insert_bytes(ed, bytes, byte_len);
     }
 }
 
@@ -1030,7 +1280,8 @@ static void ush_vim_handle_normal_mode(ush_vim_editor *ed, int key) {
     }
     if (key == 'a') {
         if (ed->cursor_col < ed->lines[ed->cursor_line].len) {
-            ed->cursor_col++;
+            ed->cursor_col = ush_vim_utf8_next_boundary(ed->lines[ed->cursor_line].text,
+                                                        ed->lines[ed->cursor_line].len, ed->cursor_col);
         }
         ed->mode = USH_VIM_MODE_INSERT;
         ed->pending_jj = 0;
@@ -1094,9 +1345,18 @@ static void ush_vim_handle_command_mode(ush_vim_editor *ed, const ush_state *sh,
         return;
     }
 
-    if (key >= 32 && key <= 126) {
-        if (ed->command_len + 1ULL < USH_VIM_CMD_MAX) {
-            ed->command[ed->command_len++] = (char)key;
+    if (key >= 32 && key <= 255) {
+        char bytes[4];
+        u64 byte_len = 1ULL;
+
+        bytes[0] = (char)key;
+        if (key >= 0x80) {
+            byte_len = ush_vim_collect_utf8(key, bytes, (u64)sizeof(bytes));
+        }
+
+        if (ed->command_len + byte_len < USH_VIM_CMD_MAX) {
+            (void)memcpy(ed->command + ed->command_len, bytes, (size_t)byte_len);
+            ed->command_len += byte_len;
             ed->command[ed->command_len] = '\0';
         }
     }
@@ -1214,7 +1474,7 @@ static int ush_cmd_vim(ush_state *sh, const char *arg) {
         edit_key_dirty = 0;
         if (old_mode == USH_VIM_MODE_INSERT &&
             (key == USH_VIM_KEY_BACKSPACE || key == USH_VIM_KEY_DEL || key == '\t' ||
-             (key >= 32 && key <= 126))) {
+             (key >= 32 && key <= 255))) {
             edit_key_dirty = 1;
         }
         if (old_mode == USH_VIM_MODE_NORMAL && (key == 'x')) {

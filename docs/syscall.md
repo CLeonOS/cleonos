@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~149）
+## 4. Syscall 列表（0~155）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1347,6 +1347,47 @@ typedef struct cleonos_mmap_req {
 - `cols` 为字符列数
 - `rows` 为字符行数
 - 适合 TUI/termbox/ncurses 风格用户态程序查询布局
+
+### 150 `CLEONOS_SYSCALL_INPUTM_COUNT`
+
+- 参数：无
+- 返回：已注册输入法数量
+- 说明：内核默认注册 `SystemENG`，启动时扫描 `/shell/inputm/*.elf` 并注册可识别的输入法。
+
+### 151 `CLEONOS_SYSCALL_INPUTM_INFO`
+
+- 参数：
+- `arg0`: `u64 index`
+- `arg1`: `cleonos_inputm_info *out_info`
+- `arg2`: `u64 out_size`
+- 返回：成功 `1`，失败 `0`
+- 说明：返回输入法名称、路径、flags、是否 active。
+
+### 152 `CLEONOS_SYSCALL_INPUTM_CURRENT`
+
+- 参数：无
+- 返回：当前输入法 index
+
+### 153 `CLEONOS_SYSCALL_INPUTM_SELECT`
+
+- 参数：
+- `arg0`: `u64 index`
+- 返回：成功 `1`，失败 `0`
+- 说明：切换当前输入法。键盘热键 `Ctrl+Shift+Space` 会循环调用同等逻辑。
+
+### 154 `CLEONOS_SYSCALL_INPUTM_REGISTER`
+
+- 参数：
+- `arg0`: `cleonos_inputm_register_req *req`
+- 返回：输入法 index，失败返回 `-1`
+- 说明：用户态输入法程序可调用该接口注册自身。当前 `PinyinCN` 使用 `CLEONOS_INPUTM_FLAG_CHINESE_PINYIN`。
+
+### 155 `CLEONOS_SYSCALL_TTY_STATUS_SET`
+
+- 参数：
+- `arg0`: `const char *text`
+- 返回：成功 `1`，失败 `0`
+- 说明：设置 TTY 底部状态栏输入法/扩展状态文本。传空指针会清空扩展状态。
 
 页表隔离状态：
 

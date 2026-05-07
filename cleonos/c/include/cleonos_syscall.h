@@ -15,6 +15,9 @@ typedef unsigned long long usize;
 #define CLEONOS_SYSINFO_TEXT_MAX 32ULL
 #define CLEONOS_SYSINFO_BOOT_MODE_MAX 16ULL
 #define CLEONOS_LOCALE_TEXT_MAX 32ULL
+#define CLEONOS_INPUTM_NAME_MAX 32ULL
+#define CLEONOS_INPUTM_PATH_MAX 192ULL
+#define CLEONOS_INPUTM_FLAG_CHINESE_PINYIN 0x1ULL
 
 #define CLEONOS_PROC_STATE_UNUSED 0ULL
 #define CLEONOS_PROC_STATE_PENDING 1ULL
@@ -82,6 +85,19 @@ typedef struct cleonos_tty_grid_info {
     u64 cols;
     u64 rows;
 } cleonos_tty_grid_info;
+
+typedef struct cleonos_inputm_info {
+    char name[CLEONOS_INPUTM_NAME_MAX];
+    char path[CLEONOS_INPUTM_PATH_MAX];
+    u64 flags;
+    u64 active;
+} cleonos_inputm_info;
+
+typedef struct cleonos_inputm_register_req {
+    u64 name_ptr;
+    u64 path_ptr;
+    u64 flags;
+} cleonos_inputm_register_req;
 
 typedef struct cleonos_mouse_state {
     u64 x;
@@ -421,6 +437,12 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_DISPLAY_INFO 147ULL
 #define CLEONOS_SYSCALL_DISPLAY_SET_MODE 148ULL
 #define CLEONOS_SYSCALL_TTY_GRID_INFO 149ULL
+#define CLEONOS_SYSCALL_INPUTM_COUNT 150ULL
+#define CLEONOS_SYSCALL_INPUTM_INFO 151ULL
+#define CLEONOS_SYSCALL_INPUTM_CURRENT 152ULL
+#define CLEONOS_SYSCALL_INPUTM_SELECT 153ULL
+#define CLEONOS_SYSCALL_INPUTM_REGISTER 154ULL
+#define CLEONOS_SYSCALL_TTY_STATUS_SET 155ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -471,6 +493,12 @@ u64 cleonos_sys_tty_switch(u64 tty_index);
 u64 cleonos_sys_tty_write(const char *text, u64 length);
 u64 cleonos_sys_tty_write_char(char ch);
 u64 cleonos_sys_tty_grid_info(cleonos_tty_grid_info *out_info);
+u64 cleonos_sys_tty_status_set(const char *text);
+u64 cleonos_sys_inputm_count(void);
+u64 cleonos_sys_inputm_info(u64 index, cleonos_inputm_info *out_info);
+u64 cleonos_sys_inputm_current(void);
+u64 cleonos_sys_inputm_select(u64 index);
+u64 cleonos_sys_inputm_register(const char *name, const char *path, u64 flags);
 u64 cleonos_sys_kbd_get_char(void);
 u64 cleonos_sys_fs_stat_type(const char *path);
 u64 cleonos_sys_fs_stat_size(const char *path);

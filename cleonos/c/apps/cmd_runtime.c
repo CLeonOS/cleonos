@@ -119,7 +119,8 @@ int ush_is_space(char ch) {
 }
 
 int ush_is_printable(char ch) {
-    return (isprint((unsigned char)ch) != 0) ? 1 : 0;
+    unsigned char uch = (unsigned char)ch;
+    return (isprint(uch) != 0 || uch >= 0x80U) ? 1 : 0;
 }
 
 int ush_has_suffix(const char *name, const char *suffix) {
