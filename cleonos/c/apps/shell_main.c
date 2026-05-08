@@ -26,6 +26,7 @@ int cleonos_app_main(void) {
     if (ush_login_if_needed(&sh) == 0) {
         return 1;
     }
+    ush_history_load(&sh);
 
     if (ush_run_script_file(&sh, "/shell/init.cmd") == 0 && ush_run_script_file(&sh, "/shell/INIT.CMD") == 0 &&
         ush_run_script_file(&sh, "/SHELL/INIT.CMD") == 0) {
@@ -38,6 +39,7 @@ int cleonos_app_main(void) {
         ush_execute_line(&sh, line);
 
         if (sh.exit_requested != 0) {
+            ush_history_save(&sh);
             return (int)(sh.exit_code & 0x7FFFFFFFULL);
         }
     }

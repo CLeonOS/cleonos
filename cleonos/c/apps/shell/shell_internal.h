@@ -35,6 +35,13 @@ typedef long long i64;
 #define USH_KEY_SHIFT_HOME ((char)0x15)
 #define USH_KEY_SHIFT_END ((char)0x16)
 #define USH_KEY_REVERSE_SEARCH ((char)0x17)
+#define USH_KEY_LINE_START ((char)0x18)
+#define USH_KEY_LINE_END ((char)0x19)
+#define USH_KEY_KILL_BEFORE ((char)0x1A)
+#define USH_KEY_KILL_AFTER ((char)0x1C)
+#define USH_KEY_KILL_WORD_BEFORE ((char)0x1D)
+#define USH_KEY_CLEAR_SCREEN ((char)0x1E)
+#define USH_KEY_EOF_OR_DELETE ((char)0x1F)
 
 #define USH_LINENOISE_COMPLETE_NONE 0
 #define USH_LINENOISE_COMPLETE_EDITED 1
@@ -42,6 +49,8 @@ typedef long long i64;
 
 #define USH_CMD_CTX_PATH "/temp/.ush_cmd_ctx.bin"
 #define USH_CMD_RET_PATH "/temp/.ush_cmd_ret.bin"
+#define USH_HISTORY_PATH "/system/shell/history.txt"
+#define USH_HISTORY_FALLBACK_PATH "/temp/shell_history.txt"
 #define USH_CMD_RET_FLAG_CWD 0x1ULL
 #define USH_CMD_RET_FLAG_EXIT 0x2ULL
 
@@ -111,6 +120,8 @@ void ush_read_plain_line(const char *prompt, char *out_line, u64 out_size);
 void ush_read_secret_line(const char *prompt, char *out_line, u64 out_size);
 char ush_input_read_char_blocking(void);
 void ush_input_render_line(ush_state *sh);
+void ush_history_load(ush_state *sh);
+void ush_history_save(const ush_state *sh);
 const char *ush_linenoise_hint(const ush_state *sh);
 u64 ush_linenoise_hint_visible_len(const char *hint);
 int ush_linenoise_complete(ush_state *sh);

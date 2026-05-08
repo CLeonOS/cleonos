@@ -160,6 +160,8 @@ static int ush_cmd_help(void) {
     ush_writeln("pipeline/redirection: cmd1 | cmd2 | cmd3 > out.txt");
     ush_writeln("redirection append:   cmd >> out.txt");
     ush_writeln("edit keys: Left/Right, Home/End, Up/Down history, Tab completion, Ctrl+R search");
+    ush_writeln("           Ctrl+A/E home/end, Ctrl+U/K/W cut, Ctrl+L clear, Ctrl+D eof/delete");
+    ush_writeln("           trailing \\ continues the command on the next prompt");
     return 1;
 }
 

@@ -193,6 +193,48 @@ static void ush_linenoise_complete_commands(const char *token, ush_linenoise_mat
     }
 }
 
+static void ush_linenoise_complete_elf_dir(const char *dir, const char *token, ush_linenoise_match_list *matches) {
+    u64 count;
+    u64 i;
+
+    if (dir == (const char *)0 || token == (const char *)0 || matches == (ush_linenoise_match_list *)0) {
+        return;
+    }
+
+    if (cleonos_sys_fs_stat_type(dir) != 2ULL) {
+        return;
+    }
+
+    count = cleonos_sys_fs_child_count(dir);
+    for (i = 0ULL; i < count && matches->count < USH_LINENOISE_MAX_MATCHES; i++) {
+        char name[CLEONOS_FS_NAME_MAX];
+        char command[USH_PATH_MAX];
+        u64 len;
+
+        name[0] = '\0';
+        if (cleonos_sys_fs_get_child_name(dir, i, name) == 0ULL) {
+            continue;
+        }
+
+        len = ush_strlen(name);
+        if (len <= 4ULL || ush_streq(name + len - 4ULL, ".elf") == 0) {
+            continue;
+        }
+
+        ush_linenoise_copy_n(command, (u64)sizeof(command), name, len - 4ULL);
+        if (ush_linenoise_has_prefix(command, token) == 0) {
+            continue;
+        }
+
+        ush_linenoise_match_add(matches, command);
+    }
+}
+
+static void ush_linenoise_complete_external_commands(const char *token, ush_linenoise_match_list *matches) {
+    ush_linenoise_complete_elf_dir("/shell", token, matches);
+    ush_linenoise_complete_elf_dir("/shell/uwm", token, matches);
+}
+
 static int ush_linenoise_split_path_token(const ush_state *sh, const char *token, char *out_dir, u64 out_dir_size,
                                           char *out_prefix, u64 out_prefix_size, int *out_absolute) {
     u64 slash_pos = (u64)-1;
@@ -476,6 +518,7 @@ int ush_linenoise_complete(ush_state *sh) {
 
     if (command_token != 0 && ush_contains_char(token, '/') == 0) {
         ush_linenoise_complete_commands(token, &matches);
+        ush_linenoise_complete_external_commands(token, &matches);
     }
     ush_linenoise_complete_path(sh, token, &matches);
 

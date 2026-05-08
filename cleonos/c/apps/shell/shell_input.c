@@ -576,18 +576,12 @@ static int ush_line_has_non_space(const char *line) {
     return 0;
 }
 
-static void ush_history_push(ush_state *sh, const char *line) {
-    if (sh == (ush_state *)0) {
-        return;
-    }
-
-    if (ush_line_has_non_space(line) == 0) {
-        ush_history_cancel_nav(sh);
+static void ush_history_push_memory(ush_state *sh, const char *line) {
+    if (sh == (ush_state *)0 || ush_line_has_non_space(line) == 0) {
         return;
     }
 
     if (sh->history_count > 0ULL && ush_streq(sh->history[sh->history_count - 1ULL], line) != 0) {
-        ush_history_cancel_nav(sh);
         return;
     }
 
@@ -603,7 +597,109 @@ static void ush_history_push(ush_state *sh, const char *line) {
 
         ush_copy(sh->history[USH_HISTORY_MAX - 1ULL], (u64)sizeof(sh->history[USH_HISTORY_MAX - 1ULL]), line);
     }
+}
 
+static const char *ush_history_storage_path(void) {
+    if (cleonos_sys_fs_stat_type("/system/shell") == 2ULL) {
+        return USH_HISTORY_PATH;
+    }
+
+    return USH_HISTORY_FALLBACK_PATH;
+}
+
+void ush_history_load(ush_state *sh) {
+    char data[4096];
+    u64 got;
+    u64 start = 0ULL;
+    u64 pos;
+    const char *path;
+
+    if (sh == (ush_state *)0) {
+        return;
+    }
+
+    path = ush_history_storage_path();
+    if (cleonos_sys_fs_stat_type(path) != 1ULL) {
+        return;
+    }
+
+    got = cleonos_sys_fs_read(path, data, (u64)sizeof(data) - 1ULL);
+    if (got == 0ULL || got == (u64)-1) {
+        return;
+    }
+
+    data[got] = '\0';
+    sh->history_count = 0ULL;
+    for (pos = 0ULL; pos <= got; pos++) {
+        if (data[pos] == '\n' || data[pos] == '\0') {
+            char line[USH_LINE_MAX];
+            u64 len = pos - start;
+
+            if (len > 0ULL && data[start + len - 1ULL] == '\r') {
+                len--;
+            }
+            if (len >= USH_LINE_MAX) {
+                len = USH_LINE_MAX - 1ULL;
+            }
+
+            if (len > 0ULL) {
+                u64 i;
+                for (i = 0ULL; i < len; i++) {
+                    line[i] = data[start + i];
+                }
+                line[len] = '\0';
+                ush_history_push_memory(sh, line);
+            }
+
+            start = pos + 1ULL;
+        }
+    }
+
+    ush_history_cancel_nav(sh);
+}
+
+void ush_history_save(const ush_state *sh) {
+    char data[4096];
+    u64 len = 0ULL;
+    u64 i;
+    const char *path;
+
+    if (sh == (const ush_state *)0) {
+        return;
+    }
+
+    for (i = 0ULL; i < sh->history_count; i++) {
+        u64 j = 0ULL;
+
+        while (sh->history[i][j] != '\0' && len + 2ULL < (u64)sizeof(data)) {
+            data[len++] = sh->history[i][j++];
+        }
+        if (len + 1ULL < (u64)sizeof(data)) {
+            data[len++] = '\n';
+        }
+    }
+
+    path = ush_history_storage_path();
+    (void)cleonos_sys_fs_write(path, data, len);
+}
+
+static void ush_history_push(ush_state *sh, const char *line) {
+    if (sh == (ush_state *)0) {
+        return;
+    }
+
+    if (ush_line_has_non_space(line) == 0) {
+        ush_history_cancel_nav(sh);
+        return;
+    }
+
+    if (sh->history_count > 0ULL && ush_streq(sh->history[sh->history_count - 1ULL], line) != 0) {
+        ush_history_cancel_nav(sh);
+        return;
+    }
+
+    ush_history_push_memory(sh, line);
+    ush_history_save(sh);
     ush_history_cancel_nav(sh);
 }
 
@@ -660,6 +756,96 @@ static void ush_history_down(ush_state *sh) {
     }
 
     ush_history_apply_current(sh);
+}
+
+static void ush_input_cut_range_to_clipboard(ush_state *sh, u64 start, u64 end) {
+    u64 len;
+    u64 i;
+
+    if (sh == (ush_state *)0 || start >= end || start >= sh->line_len) {
+        return;
+    }
+
+    if (end > sh->line_len) {
+        end = sh->line_len;
+    }
+
+    len = end - start;
+    if (len > USH_LINE_MAX - 1ULL) {
+        len = USH_LINE_MAX - 1ULL;
+    }
+
+    for (i = 0ULL; i < len; i++) {
+        ush_input_clipboard[i] = sh->line[start + i];
+    }
+    ush_input_clipboard[len] = '\0';
+    ush_input_clipboard_len = len;
+    ush_input_delete_range(sh, start, end);
+}
+
+static u64 ush_input_prev_word_boundary(const char *text, u64 len, u64 pos) {
+    u64 p = pos;
+
+    if (text == (const char *)0) {
+        return 0ULL;
+    }
+    if (p > len) {
+        p = len;
+    }
+
+    while (p > 0ULL) {
+        u64 prev = ush_input_utf8_prev_boundary(text, len, p);
+        if (prev == p) {
+            break;
+        }
+        if (ush_is_space(text[prev]) == 0) {
+            break;
+        }
+        p = prev;
+    }
+
+    while (p > 0ULL) {
+        u64 prev = ush_input_utf8_prev_boundary(text, len, p);
+        if (prev == p || ush_is_space(text[prev]) != 0) {
+            break;
+        }
+        p = prev;
+    }
+
+    return p;
+}
+
+static int ush_input_line_needs_continuation(const char *line, u64 len) {
+    u64 pos;
+
+    if (line == (const char *)0 || len == 0ULL) {
+        return 0;
+    }
+
+    pos = len;
+    while (pos > 0ULL && ush_is_space(line[pos - 1ULL]) != 0) {
+        pos--;
+    }
+
+    return (pos > 0ULL && line[pos - 1ULL] == '\\') ? 1 : 0;
+}
+
+static void ush_input_remove_continuation_marker(ush_state *sh) {
+    u64 pos;
+
+    if (sh == (ush_state *)0 || sh->line_len == 0ULL) {
+        return;
+    }
+
+    pos = sh->line_len;
+    while (pos > 0ULL && ush_is_space(sh->line[pos - 1ULL]) != 0) {
+        pos--;
+    }
+
+    if (pos > 0ULL && sh->line[pos - 1ULL] == '\\') {
+        ush_input_delete_range(sh, pos - 1ULL, pos);
+        sh->cursor = sh->line_len;
+    }
 }
 
 char ush_input_read_char_blocking(void) {
@@ -774,6 +960,18 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
         }
 
         if (ch == '\n') {
+            if (ush_input_line_needs_continuation(sh->line, sh->line_len) != 0) {
+                ush_history_cancel_nav(sh);
+                ush_input_selection_clear();
+                ush_input_remove_continuation_marker(sh);
+                if (sh->line_len + 1ULL < USH_LINE_MAX) {
+                    ush_input_insert_text(sh, " ", 1ULL);
+                }
+                ush_write("\n... ");
+                sh->rendered_len = 0ULL;
+                continue;
+            }
+
             ush_write_char('\n');
             sh->line[sh->line_len] = '\0';
             ush_history_push(sh, sh->line);
@@ -855,6 +1053,77 @@ void ush_read_line(ush_state *sh, char *out_line, u64 out_size) {
             sh->cursor = sh->line_len;
             ush_input_selection_update_from_anchor(sh);
             ush_input_render_line(sh);
+            continue;
+        }
+
+        if (ch == USH_KEY_LINE_START) {
+            ush_input_selection_clear();
+            if (sh->cursor != 0ULL) {
+                sh->cursor = 0ULL;
+                ush_input_render_line(sh);
+            }
+            continue;
+        }
+
+        if (ch == USH_KEY_LINE_END) {
+            ush_input_selection_clear();
+            if (sh->cursor != sh->line_len) {
+                sh->cursor = sh->line_len;
+                ush_input_render_line(sh);
+            }
+            continue;
+        }
+
+        if (ch == USH_KEY_KILL_BEFORE) {
+            if (sh->cursor > 0ULL) {
+                ush_history_cancel_nav(sh);
+                ush_input_cut_range_to_clipboard(sh, 0ULL, sh->cursor);
+                ush_input_render_line(sh);
+            }
+            continue;
+        }
+
+        if (ch == USH_KEY_KILL_AFTER) {
+            if (sh->cursor < sh->line_len) {
+                ush_history_cancel_nav(sh);
+                ush_input_cut_range_to_clipboard(sh, sh->cursor, sh->line_len);
+                ush_input_render_line(sh);
+            }
+            continue;
+        }
+
+        if (ch == USH_KEY_KILL_WORD_BEFORE) {
+            if (sh->cursor > 0ULL) {
+                u64 start = ush_input_prev_word_boundary(sh->line, sh->line_len, sh->cursor);
+                if (start < sh->cursor) {
+                    ush_history_cancel_nav(sh);
+                    ush_input_cut_range_to_clipboard(sh, start, sh->cursor);
+                    ush_input_render_line(sh);
+                }
+            }
+            continue;
+        }
+
+        if (ch == USH_KEY_CLEAR_SCREEN) {
+            ush_write("\x1B[2J\x1B[H");
+            sh->rendered_len = 0ULL;
+            ush_input_render_line(sh);
+            continue;
+        }
+
+        if (ch == USH_KEY_EOF_OR_DELETE) {
+            if (sh->line_len == 0ULL) {
+                ush_write("exit\n");
+                ush_copy(out_line, out_size, "exit");
+                ush_reset_line(sh);
+                return;
+            }
+            if (sh->cursor < sh->line_len) {
+                u64 next = ush_input_utf8_next_boundary(sh->line, sh->line_len, sh->cursor);
+                ush_history_cancel_nav(sh);
+                ush_input_delete_range(sh, sh->cursor, next);
+                ush_input_render_line(sh);
+            }
             continue;
         }
 
