@@ -608,6 +608,7 @@ static int install_update_kernel(void);
 static void install_print_usage(void) {
     install_puts_i18n("usage:", "用法:");
     (void)puts("  install2disk");
+    (void)puts("  install2disk install");
     (void)puts("  install2disk update");
     (void)puts("  install2disk update-shell");
     (void)puts("  install2disk update shell");
@@ -3445,7 +3446,7 @@ static int install_update_kernel(void) {
     return 1;
 }
 
-static int install2disk_run(void) {
+static int install2disk_run(int interactive) {
     u64 copied_files = 0ULL;
     u64 copied_bytes = 0ULL;
     install_progress root_progress;
@@ -3466,7 +3467,7 @@ static int install2disk_run(void) {
         return 0;
     }
 
-    {
+    if (interactive != 0) {
         int choice;
 
         choice = install_prompt_choice(
@@ -3566,6 +3567,11 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
             return (install_update_all() != 0) ? 0 : 1;
         }
 
+        if (strcmp(argv[1], "install") == 0 || strcmp(argv[1], "full-install") == 0 ||
+            strcmp(argv[1], "format") == 0) {
+            return (install2disk_run(0) != 0) ? 0 : 1;
+        }
+
         if (strcmp(argv[1], "update-kernel") == 0 || strcmp(argv[1], "kernel") == 0 ||
             (strcmp(argv[1], "update") == 0 && argc > 2 && argv[2] != (char *)0 &&
              strcmp(argv[2], "kernel") == 0)) {
@@ -3609,5 +3615,5 @@ int cleonos_app_main(int argc, char **argv, char **envp) {
         return 1;
     }
 
-    return (install2disk_run() != 0) ? 0 : 1;
+    return (install2disk_run(1) != 0) ? 0 : 1;
 }

@@ -481,6 +481,10 @@ u64 cleonos_sys_locale_set(const char *locale) {
     return cleonos_syscall(CLEONOS_SYSCALL_LOCALE_SET, (u64)(usize)locale, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_boot_cmdline(char *out_cmdline, u64 out_size) {
+    return cleonos_syscall(CLEONOS_SYSCALL_BOOT_CMDLINE, (u64)(usize)out_cmdline, out_size, 0ULL);
+}
+
 u64 cleonos_sys_net_available(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_AVAILABLE, 0ULL, 0ULL, 0ULL);
 }
