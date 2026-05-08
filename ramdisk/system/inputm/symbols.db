@@ -1,0 +1,62 @@
+# inputm.name=Symbols
+# inputm.label=SYM:
+alpha	α Α
+beta	β Β
+gamma	γ Γ
+delta	δ Δ
+epsilon	ε Ε
+zeta	ζ Ζ
+eta	η Η
+theta	θ Θ
+iota	ι Ι
+kappa	κ Κ
+lambda	λ Λ
+mu	μ Μ
+nu	ν Ν
+xi	ξ Ξ
+omicron	ο Ο
+pi	π Π
+rho	ρ Ρ
+sigma	σ Σ
+tau	τ Τ
+upsilon	υ Υ
+phi	φ Φ
+chi	χ Χ
+psi	ψ Ψ
+omega	ω Ω
+sqrt	√
+sum	∑
+prod	∏
+int	∫
+inf	∞
+infty	∞
+approx	≈
+neq	≠
+le	≤
+ge	≥
+pm	±
+times	×
+div	÷
+cdot	·
+degree	°
+arrow	→ ← ↑ ↓ ↔ ↕
+right	→
+left	←
+up	↑
+down	↓
+mapsto	↦
+forall	∀
+exists	∃
+in	∈
+notin	∉
+subset	⊂ ⊆
+superset	⊃ ⊇
+union	∪
+inter	∩
+and	∧
+or	∨
+not	¬
+empty	∅
+angle	∠
+perp	⊥
+parallel	∥
