@@ -19,8 +19,8 @@ static void pinyin_list(void) {
     for (i = 0ULL; i < count; i++) {
         cleonos_inputm_info info;
         if (cleonos_sys_inputm_info(i, &info) != 0ULL) {
-            printf("%c %llu: %s path=%s flags=0x%llx\n", (i == current) ? '*' : ' ', i, info.name, info.path,
-                   info.flags);
+            printf("%c %llu: %s path=%s rule=%s label=%s flags=0x%llx\n", (i == current) ? '*' : ' ', i, info.name,
+                   info.path, info.rule_path, info.label, info.flags);
         }
     }
 }
@@ -83,7 +83,11 @@ int cleonos_app_main(void) {
     u64 ai;
     u64 idx;
 
-    (void)cleonos_sys_inputm_register("PinyinCN", "/shell/inputm/pinyin.elf", CLEONOS_INPUTM_FLAG_CHINESE_PINYIN);
+    (void)cleonos_sys_inputm_register_rule("PinyinCN", "/shell/inputm/pinyin.elf", PINYIN_DICT_PATH, "PINYIN:",
+                                           CLEONOS_INPUTM_FLAG_CHINESE_PINYIN |
+                                               CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
+                                               CLEONOS_INPUTM_FLAG_RULE_SPLIT |
+                                               CLEONOS_INPUTM_FLAG_RULE_COMMIT_RAW);
 
     arg[0] = '\0';
     argc = cleonos_sys_proc_argc();

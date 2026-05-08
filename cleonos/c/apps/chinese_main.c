@@ -16,9 +16,31 @@ static int ush_cmd_chinese(void) {
     ush_writeln("数字混排: 版本 2026.05.04，进度 100%，状态 OK。");
     ush_chinese_rule();
 
+    ush_writeln("繁体中文测试:");
+    ush_writeln("  基本繁體: 你好，世界！這是繁體中文顯示測試。");
+    ush_writeln("  系統詞彙: 核心 外殼 桌面 視窗 終端機 瀏覽器 套件管理器");
+    ush_writeln("  常用字形: 龍 體 醫 廣 門 電 腦 資 訊 開 發");
+    ush_chinese_rule();
+
+    ush_writeln("日语测试:");
+    ush_writeln("  ひらがな: あいうえお かきくけこ さしすせそ こんにちは");
+    ush_writeln("  カタカナ: アイウエオ カキクケコ サシスセソ コンピュータ");
+    ush_writeln("  日本語: CLeonOS は UTF-8 と日本語表示をテストしています。");
+    ush_writeln("  漢字かな混じり: 東京 京都 大阪 日本語 入力 表示 確認");
+    ush_chinese_rule();
+
+    ush_writeln("韩语测试:");
+    ush_writeln("  한글: 안녕하세요 세계! 이것은 한국어 표시 테스트입니다.");
+    ush_writeln("  자모: ㄱ ㄴ ㄷ ㄹ ㅁ ㅂ ㅅ ㅇ ㅈ ㅊ ㅋ ㅌ ㅍ ㅎ");
+    ush_writeln("  단어: 운영체제 커널 셸 데스크톱 창 터미널 브라우저 패키지");
+    ush_chinese_rule();
+
     ush_writeln("双宽对齐检查:");
     ush_writeln("ASCII : |ABCD|EFGH|IJKL|");
     ush_writeln("中文  : |你好|世界|测试|");
+    ush_writeln("繁體  : |你好|世界|測試|");
+    ush_writeln("日语  : |日本|東京|かな|");
+    ush_writeln("韩语  : |한글|세계|테스트|");
     ush_writeln("混合  : |A你B|C好D|OS中文|");
     ush_writeln("全角  : |ＡＢ|１２|！？|");
     ush_chinese_rule();
@@ -44,6 +66,9 @@ static int ush_cmd_chinese(void) {
     ush_writeln("字体缩放检查:");
     ush_writeln("\x1B[2z二倍中文标题\x1B[1z 普通大小恢复");
     ush_writeln("\x1B[3z三倍中文\x1B[1z 恢复");
+    ush_writeln("\x1B[2z二倍繁體標題\x1B[1z 普通大小恢復");
+    ush_writeln("\x1B[2z二倍日本語タイトル\x1B[1z 通常サイズ");
+    ush_writeln("\x1B[2z두 배 한글 제목\x1B[1z 일반 크기");
     ush_chinese_rule();
 
     ush_writeln("滚动检查，下面输出 16 行中文:");

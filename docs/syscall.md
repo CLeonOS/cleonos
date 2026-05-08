@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~155）
+## 4. Syscall 列表（0~157）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1352,7 +1352,9 @@ typedef struct cleonos_mmap_req {
 
 - 参数：无
 - 返回：已注册输入法数量
-- 说明：内核默认注册 `SystemENG`，启动时扫描 `/shell/inputm/*.elf` 并注册可识别的输入法。
+- 说明：内核默认注册 `SystemENG`。
+- 启动时扫描 `/shell/inputm/*.elf`，并按同名规则表 `/system/inputm/<name>.db` 自动注册规则表输入法。
+- 规则表输入法由内核宿主管理按键、候选栏、翻页和提交；用户态输入法 ELF 负责安装/注册规则文件。
 
 ### 151 `CLEONOS_SYSCALL_INPUTM_INFO`
 
@@ -1361,7 +1363,19 @@ typedef struct cleonos_mmap_req {
 - `arg1`: `cleonos_inputm_info *out_info`
 - `arg2`: `u64 out_size`
 - 返回：成功 `1`，失败 `0`
-- 说明：返回输入法名称、路径、flags、是否 active。
+- 说明：返回输入法名称、ELF 路径、规则文件路径、状态栏标签、flags、是否 active。
+- 当前结构：
+
+```c
+typedef struct cleonos_inputm_info {
+    char name[CLEONOS_INPUTM_NAME_MAX];
+    char path[CLEONOS_INPUTM_PATH_MAX];
+    char rule_path[CLEONOS_INPUTM_PATH_MAX];
+    char label[CLEONOS_INPUTM_LABEL_MAX];
+    u64 flags;
+    u64 active;
+} cleonos_inputm_info;
+```
 
 ### 152 `CLEONOS_SYSCALL_INPUTM_CURRENT`
 
@@ -1380,7 +1394,8 @@ typedef struct cleonos_mmap_req {
 - 参数：
 - `arg0`: `cleonos_inputm_register_req *req`
 - 返回：输入法 index，失败返回 `-1`
-- 说明：用户态输入法程序可调用该接口注册自身。当前 `PinyinCN` 使用 `CLEONOS_INPUTM_FLAG_CHINESE_PINYIN`。
+- 说明：旧注册接口，保留用于兼容只需要注册名称/路径/flags 的输入法。
+- 新输入法推荐使用 `CLEONOS_SYSCALL_INPUTM_REGISTER_RULE` 注册规则表输入法。
 
 ### 155 `CLEONOS_SYSCALL_TTY_STATUS_SET`
 
@@ -1388,6 +1403,55 @@ typedef struct cleonos_mmap_req {
 - `arg0`: `const char *text`
 - 返回：成功 `1`，失败 `0`
 - 说明：设置 TTY 底部状态栏输入法/扩展状态文本。传空指针会清空扩展状态。
+
+### 156 `CLEONOS_SYSCALL_BOOT_CMDLINE`
+
+- 参数：
+- `arg0`: `char *out_buffer`
+- `arg1`: `u64 out_size`
+- 返回：成功 `1`，失败 `0`
+- 说明：复制当前 Limine/kernel command line 到用户缓冲区。
+- 用户态命令：`bootargs`。
+
+### 157 `CLEONOS_SYSCALL_INPUTM_REGISTER_RULE`
+
+- 参数：
+- `arg0`: `cleonos_inputm_rule_register_req *req`
+- 返回：输入法 index，失败返回 `-1`
+- 说明：注册一个由内核宿主管理的规则表输入法。
+- `name_ptr`：输入法显示名称，例如 `PinyinCN`、`RomajiJP`
+- `path_ptr`：输入法 ELF 路径，例如 `/shell/inputm/romaji.elf`
+- `rule_path_ptr`：规则表路径，例如 `/system/inputm/romaji.db`
+- `label_ptr`：底栏 composing 标签，例如 `PINYIN:`、`ROMAJI:`，可为空
+- `flags`：规则表行为控制位
+
+```c
+typedef struct cleonos_inputm_rule_register_req {
+    u64 name_ptr;
+    u64 path_ptr;
+    u64 rule_path_ptr;
+    u64 label_ptr;
+    u64 flags;
+} cleonos_inputm_rule_register_req;
+```
+
+规则表相关 flags：
+
+- `CLEONOS_INPUTM_FLAG_RULE_TABLE`：规则表输入法。内核注册时会自动补上该位。
+- `CLEONOS_INPUTM_FLAG_RULE_LOWERCASE`：将输入字母转成小写后匹配规则。
+- `CLEONOS_INPUTM_FLAG_RULE_SPLIT`：允许把连续输入拆成多个规则 key 并组合候选，例如 `kakiku -> かきく`。
+- `CLEONOS_INPUTM_FLAG_RULE_COMMIT_RAW`：没有候选时提交原始 composing 文本。
+- `CLEONOS_INPUTM_FLAG_CHINESE_PINYIN`、`CLEONOS_INPUTM_FLAG_JAPANESE_ROMAJI`：语言/类型标记，主要用于工具显示和默认 label。
+
+用户态封装：
+
+```c
+u64 cleonos_sys_inputm_register_rule(const char *name,
+                                     const char *path,
+                                     const char *rule_path,
+                                     const char *label,
+                                     u64 flags);
+```
 
 页表隔离状态：
 
@@ -1498,3 +1562,4 @@ typedef struct cleonos_mmap_req {
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
+

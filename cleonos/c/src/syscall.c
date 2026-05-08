@@ -172,6 +172,18 @@ u64 cleonos_sys_inputm_register(const char *name, const char *path, u64 flags) {
     return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_REGISTER, (u64)&req, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_inputm_register_rule(const char *name, const char *path, const char *rule_path, const char *label,
+                                     u64 flags) {
+    cleonos_inputm_rule_register_req req;
+
+    req.name_ptr = (u64)name;
+    req.path_ptr = (u64)path;
+    req.rule_path_ptr = (u64)rule_path;
+    req.label_ptr = (u64)label;
+    req.flags = flags;
+    return cleonos_syscall(CLEONOS_SYSCALL_INPUTM_REGISTER_RULE, (u64)&req, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_kbd_get_char(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_KBD_GET_CHAR, 0ULL, 0ULL, 0ULL);
 }

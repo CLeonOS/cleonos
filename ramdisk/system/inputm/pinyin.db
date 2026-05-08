@@ -1,3 +1,5 @@
+# inputm.name=PinyinCN
+# inputm.label=PINYIN:
 # CLeonOS pinyin dictionary generated from wolfgitpr/csharp-pinyin mandarin dictionaries
 # Source main license: Apache-2.0; mandarin dictionary: CC-CEDICT / CC BY-SA 4.0. See pinyin_LICENSE.txt.
 a	吖 啊 锕 嗄
@@ -6536,3 +6538,4 @@ zuqian	租钱
 zuqu	组曲
 zuse	阻塞
 zuzhang	族长 组长
+
