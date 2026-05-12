@@ -1,6 +1,8 @@
 #ifndef CLEONOS_MBEDTLS_CONFIG_H
 #define CLEONOS_MBEDTLS_CONFIG_H
 
+#include <stdio.h>
+
 #define MBEDTLS_CONFIG_VERSION 0x03000000
 
 /* CLeonOS userland does not have POSIX sockets, CA storage or wall-clock time yet. */
