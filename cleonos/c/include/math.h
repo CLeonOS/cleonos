@@ -11,6 +11,7 @@
 
 double floor(double value);
 double ceil(double value);
+double round(double value);
 double fmod(double left, double right);
 double ldexp(double value, int exponent);
 double frexp(double value, int *out_exponent);

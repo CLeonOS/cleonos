@@ -64,6 +64,7 @@ typedef struct ush_cmd_ret {
 extern const char *ush_pipeline_stdin_text;
 extern u64 ush_pipeline_stdin_len;
 
+void cleonos_cmd_runtime_pre_main(char **envp);
 void ush_zero(void *ptr, u64 size);
 void ush_init_state(ush_state *sh);
 

@@ -44,6 +44,10 @@ int ispunct(int ch) {
     return (isgraph(ch) != 0 && isalnum(ch) == 0) ? 1 : 0;
 }
 
+int isascii(int ch) {
+    return ((unsigned int)ch <= 0x7FU) ? 1 : 0;
+}
+
 int tolower(int ch) {
     return (isupper(ch) != 0) ? (ch - 'A' + 'a') : ch;
 }

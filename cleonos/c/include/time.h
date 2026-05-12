@@ -24,6 +24,9 @@ time_t time(time_t *out_time);
 clock_t clock(void);
 struct tm *gmtime(const time_t *timer);
 struct tm *gmtime_r(const time_t *timer, struct tm *out_tm);
+struct tm *localtime(const time_t *timer);
+struct tm *localtime_r(const time_t *timer, struct tm *out_tm);
+time_t mktime(struct tm *tm_value);
 size_t strftime(char *out, size_t out_size, const char *format, const struct tm *tm_value);
 
 #endif

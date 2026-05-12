@@ -6,6 +6,11 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <unistd.h>
+
+#ifdef fileno
+#undef fileno
+#endif
 
 typedef struct cleonos_tcc_file FILE;
 typedef long time_t;

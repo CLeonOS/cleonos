@@ -3,6 +3,11 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <unistd.h>
+
+#ifdef fileno
+#undef fileno
+#endif
 
 struct dg_stream;
 typedef struct dg_stream FILE;

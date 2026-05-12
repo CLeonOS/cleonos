@@ -11,6 +11,7 @@ NM ?= nm
 TAR ?= tar
 XORRISO ?= xorriso
 QEMU_X86_64 ?= qemu-system-x86_64
+PYTHON ?= python3
 OPT_LEVEL ?=
 MENUCONFIG_ARGS ?=
 MENUCONFIG_PRESET ?=
@@ -20,6 +21,7 @@ BDT_NAME := bdt
 JOBS ?= 1
 V ?= 0
 SHOW_COMMANDS ?= 0
+OS_VERSION_OUT ?= ramdisk/etc
 
 ifeq ($(OS),Windows_NT)
 BDT_NAME := bdt.exe
@@ -38,7 +40,7 @@ endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
-.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all help list scan graph
+.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
 
 all: iso
 
@@ -50,6 +52,9 @@ $(BDT): $(BDT_SRC) bdt/src/bdt.h
 
 configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
+
+os-version gen-os-version:
+> $(PYTHON) scripts/gen_os_version.py "$(CURDIR)" "$(OS_VERSION_OUT)"
 
 list: bdt
 > $(BDT) --list $(BDT_VERBOSE)
@@ -68,5 +73,6 @@ help: bdt
 > @echo "  make run"
 > @echo "  make run-hardboot"
 > @echo "  make menuconfig"
+> @echo "  make os-version"
 > @echo "  make scan"
 > @echo "  make graph"

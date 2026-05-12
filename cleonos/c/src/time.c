@@ -105,6 +105,35 @@ __attribute__((weak)) struct tm *gmtime(const time_t *timer) {
     return gmtime_r(timer, &tm_value);
 }
 
+__attribute__((weak)) struct tm *localtime_r(const time_t *timer, struct tm *out_tm) {
+    return gmtime_r(timer, out_tm);
+}
+
+__attribute__((weak)) struct tm *localtime(const time_t *timer) {
+    static struct tm tm_value;
+    return localtime_r(timer, &tm_value);
+}
+
+__attribute__((weak)) time_t mktime(struct tm *tm_value) {
+    long long days = 0;
+    int year;
+    int month;
+
+    if (tm_value == (struct tm *)0) {
+        return (time_t)-1;
+    }
+
+    for (year = 1970; year < tm_value->tm_year + 1900; year++) {
+        days += cleonos_time_days_in_year(year);
+    }
+    for (month = 0; month < tm_value->tm_mon; month++) {
+        days += cleonos_time_days_in_month(tm_value->tm_year + 1900, month);
+    }
+    days += tm_value->tm_mday - 1;
+    return (time_t)(days * 86400LL + (long long)tm_value->tm_hour * 3600LL + (long long)tm_value->tm_min * 60LL +
+                    (long long)tm_value->tm_sec);
+}
+
 static int cleonos_time_append_num(char *out, size_t out_size, size_t *io_at, int value, int width) {
     char buf[16];
     int i;

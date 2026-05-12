@@ -12,6 +12,7 @@ int isprint(int ch);
 int iscntrl(int ch);
 int isgraph(int ch);
 int ispunct(int ch);
+int isascii(int ch);
 int tolower(int ch);
 int toupper(int ch);
 

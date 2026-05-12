@@ -1,0 +1,8 @@
+NAME=CLeonOS
+PRETTY_NAME=CLeonOS 26.5.0-indev
+ID=cleonos
+VERSION_ID=26.5.0-indev
+VERSION_CODENAME=rolling
+HOME_URL=https://github.com/CLeonOS/cleonos
+BUG_REPORT_URL=https://github.com/CLeonOS/cleonos/issues
+KERNEL=CLKS
