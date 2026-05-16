@@ -533,6 +533,14 @@ u64 cleonos_sys_net_tcp_connect(const cleonos_net_tcp_connect_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_CONNECT, (u64)req, 0ULL, 0ULL);
 }
 
+u64 cleonos_sys_net_tcp_listen(const cleonos_net_tcp_listen_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_LISTEN, (u64)req, 0ULL, 0ULL);
+}
+
+u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req) {
+    return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_ACCEPT, (u64)req, 0ULL, 0ULL);
+}
+
 u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req) {
     return cleonos_syscall(CLEONOS_SYSCALL_NET_TCP_SEND, (u64)req, 0ULL, 0ULL);
 }

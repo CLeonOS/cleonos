@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 
-#define USH_SYSSTAT_MAX_IDS (CLEONOS_SYSCALL_LOCALE_SET + 1ULL)
+#define USH_SYSSTAT_MAX_IDS (CLEONOS_SYSCALL_NET_TCP_ACCEPT + 1ULL)
 #define USH_SYSSTAT_DEFAULT_TOP 12ULL
 
 typedef struct ush_sysstat_entry {
@@ -220,6 +220,10 @@ static const char *ush_sysstat_name_for_id(u64 id) {
         return "NET_DNS_SERVER";
     case CLEONOS_SYSCALL_NET_TCP_CONNECT:
         return "NET_TCP_CONNECT";
+    case CLEONOS_SYSCALL_NET_TCP_LISTEN:
+        return "NET_TCP_LISTEN";
+    case CLEONOS_SYSCALL_NET_TCP_ACCEPT:
+        return "NET_TCP_ACCEPT";
     case CLEONOS_SYSCALL_NET_TCP_SEND:
         return "NET_TCP_SEND";
     case CLEONOS_SYSCALL_NET_TCP_RECV:

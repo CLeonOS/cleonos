@@ -14,6 +14,10 @@
 #define INSTALL_WHOLE_FILE_LIMIT (128ULL * 1024ULL)
 #define INSTALL_PROGRESS_BAR_WIDTH 28U
 #define INSTALL_PROGRESS_STEP_PERCENT 5ULL
+#define INSTALL_OS_VERSION_SOURCE "/etc/os-version"
+#define INSTALL_OS_RELEASE_SOURCE "/etc/os-release"
+#define INSTALL_OS_VERSION_TARGET INSTALL_MOUNT_PATH "/etc/os-version"
+#define INSTALL_OS_RELEASE_TARGET INSTALL_MOUNT_PATH "/etc/os-release"
 #define INSTALL_KERNEL_SOURCE "/system/install/clks_kernel.elf"
 #define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/kernel.elf"
 #define INSTALL_LIMINE_CONF_SOURCE "/system/install/limine-harddisk.conf"
@@ -2235,6 +2239,24 @@ static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, inst
     return 1;
 }
 
+static int install_sync_os_metadata(u64 *copied_files, u64 *copied_bytes, install_progress *progress) {
+    if (install_mkdir(INSTALL_MOUNT_PATH "/etc") == 0) {
+        return 0;
+    }
+
+    if (install_overwrite_file_whole(INSTALL_OS_VERSION_SOURCE, INSTALL_OS_VERSION_TARGET, copied_files,
+                                     copied_bytes, progress) == 0) {
+        return 0;
+    }
+
+    if (install_overwrite_file_whole(INSTALL_OS_RELEASE_SOURCE, INSTALL_OS_RELEASE_TARGET, copied_files,
+                                     copied_bytes, progress) == 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static void install_read_secret_line(const char *prompt, char *out, u64 out_size) {
     u64 len = 0ULL;
 
@@ -2528,6 +2550,14 @@ static int install_repair_component(const char *kind, const char *name) {
         return install_repair_manifest();
     }
 
+    if (strcmp(kind, "os-meta") == 0 || strcmp(kind, "os-release") == 0 || strcmp(kind, "os-version") == 0 ||
+        strcmp(kind, "release") == 0 || strcmp(kind, "version") == 0) {
+        if (install_sync_os_metadata(&copied_files, &copied_bytes, (install_progress *)0) == 0) {
+            return 0;
+        }
+        return install_repair_manifest();
+    }
+
     if (strcmp(kind, "path") == 0) {
         if (name == (const char *)0 || name[0] != '/') {
             install_puts_i18n("install2disk: repair path requires an absolute path",
@@ -2613,14 +2643,15 @@ static int install_repair_interactive(void) {
     install_puts_i18n("  [m] install manifest", "  [m] 安装清单");
     install_puts_i18n("  [c] Limine config files", "  [c] Limine 配置文件");
     install_puts_i18n("  [s] Limine sys file", "  [s] Limine sys 文件");
+    install_puts_i18n("  [o] os-version / os-release", "  [o] os-version / os-release");
     install_puts_i18n("  [a] /shell app ELF", "  [a] /shell 应用 ELF");
     install_puts_i18n("  [u] /shell/uwm app ELF", "  [u] /shell/uwm 应用 ELF");
     install_puts_i18n("  [d] /driver ELF", "  [d] /driver ELF");
     install_puts_i18n("  [y] /system ELF", "  [y] /system ELF");
     install_puts_i18n("  [p] absolute path", "  [p] 绝对路径");
-    choice = install_prompt_choice(INSTALL_TEXT("install2disk: choose repair target [l/b/m/c/s/a/u/d/y/p, q cancel]: ",
-                                                "install2disk: 选择修复目标 [l/b/m/c/s/a/u/d/y/p, q 取消]: "),
-                                   "lbmcsaudypq", 'q');
+    choice = install_prompt_choice(INSTALL_TEXT("install2disk: choose repair target [l/b/m/c/s/o/a/u/d/y/p, q cancel]: ",
+                                                "install2disk: 选择修复目标 [l/b/m/c/s/o/a/u/d/y/p, q 取消]: "),
+                                   "lbmcsoaudypq", 'q');
 
     if (choice == 'q') {
         install_puts_i18n("install2disk: cancelled", "install2disk: 已取消");
@@ -2641,6 +2672,9 @@ static int install_repair_interactive(void) {
     }
     if (choice == 's') {
         return install_repair_component("limine-sys", (const char *)0);
+    }
+    if (choice == 'o') {
+        return install_repair_component("os-meta", (const char *)0);
     }
 
     if (choice == 'p') {
@@ -3282,6 +3316,8 @@ static int install_update_shell(int dry_run) {
             install_progress_plan_file(&progress, source_path, 1ULL);
         }
     }
+    install_progress_plan_file(&progress, INSTALL_OS_VERSION_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_OS_RELEASE_SOURCE, 1ULL);
 
     if (install_update_shell_delete_obsolete(install_update_old_entries, old_count, install_update_new_entries,
                                              new_count, 1, &result) == 0) {
@@ -3312,6 +3348,9 @@ static int install_update_shell(int dry_run) {
         if (install_update_shell_copy_entry(install_update_new_entries + i, &result, &progress) == 0) {
             return 0;
         }
+    }
+    if (install_sync_os_metadata(&result.copied_files, &result.copied_bytes, &progress) == 0) {
+        return 0;
     }
     progress.done_items = progress.total_items;
     progress.done_bytes = progress.total_bytes;
@@ -3404,11 +3443,17 @@ static int install_update_kernel(void) {
     memset(&result, 0, sizeof(result));
     progress.label = "update kernel";
     install_progress_plan_file(&progress, INSTALL_KERNEL_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_OS_VERSION_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_OS_RELEASE_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_LIMINE_CONF_SOURCE, 4ULL);
     install_progress_print(&progress, 1);
 
     if (install_update_overwrite_checked(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, "/kernel.elf", &result,
                                          &copied_files, &copied_bytes, &progress) == 0) {
+        return 0;
+    }
+
+    if (install_sync_os_metadata(&copied_files, &copied_bytes, &progress) == 0) {
         return 0;
     }
 

@@ -4,8 +4,14 @@
 #include "cmd_runtime.h"
 #include "user/cleonos_user.h"
 
-static void ucmd_load_context(ush_cmd_ctx *ctx, ush_state *sh, const char *expected_cmd, char *initial_cwd,
-                              int *out_has_context, const char **out_arg) {
+#if defined(__GNUC__) || defined(__clang__)
+#define USH_UNUSED __attribute__((unused))
+#else
+#define USH_UNUSED
+#endif
+
+static void USH_UNUSED ucmd_load_context(ush_cmd_ctx *ctx, ush_state *sh, const char *expected_cmd, char *initial_cwd,
+                                         int *out_has_context, const char **out_arg) {
     if (ctx == (ush_cmd_ctx *)0 || sh == (ush_state *)0 || expected_cmd == (const char *)0 ||
         initial_cwd == (char *)0 || out_has_context == (int *)0 || out_arg == (const char **)0) {
         return;
@@ -25,7 +31,7 @@ static void ucmd_load_context(ush_cmd_ctx *ctx, ush_state *sh, const char *expec
     }
 }
 
-static void ucmd_finish_context(const ush_state *sh, const char *initial_cwd, int has_context) {
+static void USH_UNUSED ucmd_finish_context(const ush_state *sh, const char *initial_cwd, int has_context) {
     ush_cmd_ret ret;
 
     if (sh == (const ush_state *)0 || initial_cwd == (const char *)0 || has_context == 0) {
@@ -47,7 +53,7 @@ static void ucmd_finish_context(const ush_state *sh, const char *initial_cwd, in
     (void)ush_command_ret_write(&ret);
 }
 
-static int ucmd_read_line_internal(const char *prompt, char *out_line, u64 out_size, int secret) {
+static int USH_UNUSED ucmd_read_line_internal(const char *prompt, char *out_line, u64 out_size, int secret) {
     u64 len = 0ULL;
 
     if (out_line == (char *)0 || out_size == 0ULL) {
@@ -103,15 +109,15 @@ static int ucmd_read_line_internal(const char *prompt, char *out_line, u64 out_s
     }
 }
 
-static int ucmd_read_plain_line(const char *prompt, char *out_line, u64 out_size) {
+static int USH_UNUSED ucmd_read_plain_line(const char *prompt, char *out_line, u64 out_size) {
     return ucmd_read_line_internal(prompt, out_line, out_size, 0);
 }
 
-static int ucmd_read_secret_line(const char *prompt, char *out_line, u64 out_size) {
+static int USH_UNUSED ucmd_read_secret_line(const char *prompt, char *out_line, u64 out_size) {
     return ucmd_read_line_internal(prompt, out_line, out_size, 1);
 }
 
-static int ucmd_query_current_user(cleonos_user_info *out_info) {
+static int USH_UNUSED ucmd_query_current_user(cleonos_user_info *out_info) {
     if (out_info == (cleonos_user_info *)0) {
         return 0;
     }
@@ -120,7 +126,7 @@ static int ucmd_query_current_user(cleonos_user_info *out_info) {
     return (cleonos_sys_user_current(out_info) != 0ULL) ? 1 : 0;
 }
 
-static int ucmd_require_disk_accounts(const char *cmd, const cleonos_user_info *info) {
+static int USH_UNUSED ucmd_require_disk_accounts(const char *cmd, const cleonos_user_info *info) {
     if (cmd == (const char *)0 || info == (const cleonos_user_info *)0) {
         return 0;
     }
@@ -140,7 +146,7 @@ static int ucmd_require_disk_accounts(const char *cmd, const cleonos_user_info *
     return 1;
 }
 
-static int ucmd_require_admin(const char *cmd, const cleonos_user_info *info) {
+static int USH_UNUSED ucmd_require_admin(const char *cmd, const cleonos_user_info *info) {
     if (ucmd_require_disk_accounts(cmd, info) == 0) {
         return 0;
     }
@@ -154,7 +160,7 @@ static int ucmd_require_admin(const char *cmd, const cleonos_user_info *info) {
     return 1;
 }
 
-static void ucmd_emit_user_info(const cleonos_user_info *info) {
+static void USH_UNUSED ucmd_emit_user_info(const cleonos_user_info *info) {
     if (info == (const cleonos_user_info *)0) {
         return;
     }

@@ -14,8 +14,12 @@ static int ush_cmd_help(void) {
     ush_writeln("  clear");
     ush_writeln("  ansi / ansitest / color");
     ush_writeln("  bmpview <file.bmp> [cols]");
+    ush_writeln("  calendar [month] [year]");
+    ush_writeln("  contacts [list|show|path|clear|add <name> <phone> [email]|remove <name>]");
     ush_writeln("  imgview <file.png> [--ascii]");
     ush_writeln("  qrcode [--ecc <L|M|Q|H>] <text>");
+    ush_writeln("  note [show|view|path|clear|add <text>|set <text>|edit]");
+    ush_writeln("  todo [list|show|path|clear|add <text>|remove <number>]");
     ush_writeln("  vim [file]         (vim-like editor: normal/insert/:w/:q/:wq)");
     ush_writeln("  uwm                (user-space window manager; Start includes Task Manager)");
     ush_writeln("  wavplay <file.wav> [steps] [ticks] / wavplay --stop");
@@ -46,6 +50,7 @@ static int ush_cmd_help(void) {
     ush_writeln("  nslookup <domain>");
     ush_writeln("  httpget <http://...|https://...>");
     ush_writeln("  wget <http://...|https://...> [output] / wget -O <output> <url>");
+    ush_writeln("  httpd [-p port] [-r root] [-n max_requests]");
     ush_writeln("  pid");
     ush_writeln("  spawn <path|name> [args...] / bg <path|name> [args...]");
     ush_writeln("  wait <pid> / fg [pid]");

@@ -291,6 +291,14 @@ typedef struct cleonos_net_tcp_connect_req {
     u64 poll_budget;
 } cleonos_net_tcp_connect_req;
 
+typedef struct cleonos_net_tcp_listen_req {
+    u64 port;
+} cleonos_net_tcp_listen_req;
+
+typedef struct cleonos_net_tcp_accept_req {
+    u64 poll_budget;
+} cleonos_net_tcp_accept_req;
+
 typedef struct cleonos_net_tcp_send_req {
     u64 payload_ptr;
     u64 payload_len;
@@ -461,6 +469,8 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_TTY_STATUS_SET 155ULL
 #define CLEONOS_SYSCALL_BOOT_CMDLINE 156ULL
 #define CLEONOS_SYSCALL_INPUTM_REGISTER_RULE 157ULL
+#define CLEONOS_SYSCALL_NET_TCP_LISTEN 158ULL
+#define CLEONOS_SYSCALL_NET_TCP_ACCEPT 159ULL
 
 #define CLEONOS_VM_FLAG_READ 0x1ULL
 #define CLEONOS_VM_FLAG_WRITE 0x2ULL
@@ -603,6 +613,8 @@ u64 cleonos_sys_net_ping(u64 dst_ipv4_be, u64 poll_budget);
 u64 cleonos_sys_net_udp_send(const cleonos_net_udp_send_req *req);
 u64 cleonos_sys_net_udp_recv(cleonos_net_udp_recv_req *req);
 u64 cleonos_sys_net_tcp_connect(const cleonos_net_tcp_connect_req *req);
+u64 cleonos_sys_net_tcp_listen(const cleonos_net_tcp_listen_req *req);
+u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 u64 cleonos_sys_net_tcp_send(const cleonos_net_tcp_send_req *req);
 u64 cleonos_sys_net_tcp_recv(cleonos_net_tcp_recv_req *req);
 u64 cleonos_sys_net_tcp_close(u64 poll_budget);
