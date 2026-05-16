@@ -96,7 +96,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~157）
+## 4. Syscall 列表（0~159）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1453,6 +1453,50 @@ u64 cleonos_sys_inputm_register_rule(const char *name,
                                      u64 flags);
 ```
 
+### 158 `CLEONOS_SYSCALL_NET_TCP_LISTEN`
+
+- 参数：
+- `arg0`: `const cleonos_net_tcp_listen_req *req`
+- 返回：成功 `1`，失败 `0`
+- 说明：让内核 TCP 栈进入监听状态，等待指定端口上的入站连接。
+- `req->port`：本地监听端口，范围应为 `1..65535`。
+- 典型用途：用户态 HTTP server、远程 shell server 等服务端程序。
+- 调用顺序：先 `NET_TCP_LISTEN`，再循环调用 `NET_TCP_ACCEPT`，连接建立后使用 `NET_TCP_RECV` / `NET_TCP_SEND`，最后 `NET_TCP_CLOSE`。
+
+```c
+typedef struct cleonos_net_tcp_listen_req {
+    u64 port;
+} cleonos_net_tcp_listen_req;
+```
+
+用户态封装：
+
+```c
+u64 cleonos_sys_net_tcp_listen(const cleonos_net_tcp_listen_req *req);
+```
+
+### 159 `CLEONOS_SYSCALL_NET_TCP_ACCEPT`
+
+- 参数：
+- `arg0`: `const cleonos_net_tcp_accept_req *req`
+- 返回：有客户端连接建立时返回 `1`，超时、网络不可用或失败返回 `0`
+- 说明：在已经 `NET_TCP_LISTEN` 的端口上等待客户端完成 TCP 握手。
+- `req->poll_budget`：等待/轮询预算；值越大等待越久。
+- 成功后当前 TCP 会话成为后续 `NET_TCP_RECV` / `NET_TCP_SEND` / `NET_TCP_CLOSE` 操作的对象。
+- 当前模型是轻量单连接服务端模型；应用应处理完一个客户端后调用 `NET_TCP_CLOSE`，再进入下一轮 listen/accept。
+
+```c
+typedef struct cleonos_net_tcp_accept_req {
+    u64 poll_budget;
+} cleonos_net_tcp_accept_req;
+```
+
+用户态封装：
+
+```c
+u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
+```
+
 页表隔离状态：
 
 - 当前已加入页表管理器、每进程地址空间 PML4、按进程追踪的 VM 区域、页级 map/unmap/translate 基础设施。
@@ -1511,7 +1555,8 @@ u64 cleonos_sys_inputm_register_rule(const char *name,
 - `cleonos_sys_mmap()`
 - `cleonos_sys_net_available()` / `cleonos_sys_net_ipv4_addr()` / `cleonos_sys_net_netmask()` / `cleonos_sys_net_gateway()` / `cleonos_sys_net_dns_server()` / `cleonos_sys_net_ping()`
 - `cleonos_sys_net_udp_send()` / `cleonos_sys_net_udp_recv()`
-- `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
+- `cleonos_sys_net_tcp_connect()` / `cleonos_sys_net_tcp_listen()` / `cleonos_sys_net_tcp_accept()`
+- `cleonos_sys_net_tcp_send()` / `cleonos_sys_net_tcp_recv()` / `cleonos_sys_net_tcp_close()` / `cleonos_sys_net_tcp_last_error()`
 - `cleonos_sys_mouse_state()`
 - `cleonos_sys_wm_create()` / `cleonos_sys_wm_destroy()` / `cleonos_sys_wm_present()`
 - `cleonos_sys_wm_poll_event()` / `cleonos_sys_wm_move()` / `cleonos_sys_wm_set_focus()` / `cleonos_sys_wm_set_flags()` / `cleonos_sys_wm_resize()`

@@ -23,3 +23,5 @@ configs/menuconfig/.config.clks.json
 configs/menuconfig/config.clks.cmake
 
 venv/
+
+/cleonos-rsh-client

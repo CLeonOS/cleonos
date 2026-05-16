@@ -51,6 +51,8 @@ static int ush_cmd_help(void) {
     ush_writeln("  httpget <http://...|https://...>");
     ush_writeln("  wget <http://...|https://...> [output] / wget -O <output> <url>");
     ush_writeln("  httpd [-p port] [-r root] [-n max_requests]");
+    ush_writeln("  webconsole [-p port] [-n max_requests]");
+    ush_writeln("  rsh <a.b.c.d> [port] / rshd [-p port] [-n max_clients]");
     ush_writeln("  pid");
     ush_writeln("  spawn <path|name> [args...] / bg <path|name> [args...]");
     ush_writeln("  wait <pid> / fg [pid]");

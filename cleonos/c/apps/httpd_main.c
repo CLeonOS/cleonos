@@ -218,6 +218,20 @@ static int httpd_parse_request_path(char *req, char *out_path, u64 out_size) {
     return 1;
 }
 
+static int httpd_strip_query(char *path) {
+    char *query;
+
+    if (path == (char *)0) {
+        return 0;
+    }
+
+    query = strchr(path, '?');
+    if (query != (char *)0) {
+        *query = '\0';
+    }
+    return 1;
+}
+
 static int httpd_handle_client(const char *root) {
     char req_buf[HTTPD_REQ_MAX + 1U];
     char url_path[USH_PATH_MAX];
@@ -256,6 +270,7 @@ static int httpd_handle_client(const char *root) {
         return httpd_send_text_response(405, "Method Not Allowed", "only GET is supported\n");
     }
 
+    (void)httpd_strip_query(url_path);
     if (httpd_build_file_path(file_path, (u64)sizeof(file_path), root, url_path) == 0) {
         return httpd_send_text_response(400, "Bad Request", "bad path\n");
     }
