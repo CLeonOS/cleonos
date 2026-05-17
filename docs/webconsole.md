@@ -1,6 +1,6 @@
 # CLeonOS Web Console 文档
 
-`webconsole` 是 CLeonOS 的本机网页控制面板。它和 `httpd` 分离：`httpd` 只部署静态网站，`webconsole` 才负责系统状态、文件浏览、日志查看、网络状态和 pkg 包管理。
+`webconsole` 是 CLeonOS 的本机网页控制面板。它和 `httpd` 分离：`httpd` 只部署静态网站，`webconsole` 才负责系统状态、文件浏览、日志查看、网络状态、pkg 包管理和远程命令执行。
 
 ## 启动
 
@@ -40,6 +40,7 @@ browser http://<CLeonOS-IP>:8080/
 - `Logs`：内核日志查看。
 - `Network`：网络状态。
 - `Pkg`：包管理面板。
+- `Command`：远程执行 CLeonOS 命令。
 
 页面使用非常简单的 HTML/CSS，以便 CLeonOS browser 可以正常渲染。CSS 只保留基础字体、表格边框、`pre` 换行和链接间距。
 
@@ -167,6 +168,42 @@ URL：
 - 构建依赖在 `project.bdt` 的 `app.webconsole.cflags` 和 `app.webconsole.sources` 中声明。
 - 不要把这些依赖加回 `app.httpd`。
 
+## Command
+
+URL：
+
+```text
+/?view=cmd
+```
+
+功能：
+
+- 在网页中填写当前工作目录 `CWD` 和命令行。
+- 支持内建远程命令：
+  - `pwd`
+  - `cd <dir>`
+  - `help`
+- 支持运行 `/shell/*.elf` 外部命令。
+- 标准输出和标准错误会被捕获并显示在网页 `<pre>` 中。
+- 单次网页显示最多输出 64 KiB，超出后显示截断提示。
+
+相关 URL 示例：
+
+```text
+/?view=cmd&cwd=/&cmd=pwd
+/?view=cmd&cwd=/&cmd=ls
+/?view=cmd&cwd=/shell&cmd=fastfetch
+```
+
+实现说明：
+
+- `webconsole` 使用 `cleonos_sys_exec_pathv_io` 执行外部 ELF。
+- 子进程 stdin 绑定到 `/dev/null`，stdout/stderr 捕获到 `/temp/webconsole-<pid>.out`。
+- 执行前写入 `USH_CMD_CTX_PATH`，让依赖 User Shell 上下文的外部命令能获取 `cmd`、`arg`、`cwd`。
+- 执行后读取 `USH_CMD_RET_PATH`，用于显示命令返回后的工作目录。
+- 出于安全考虑，拒绝执行 `/system` 下的程序。
+- 当前请求是 GET-only，所以命令内容会出现在 URL、浏览器历史和代理日志中。
+
 ## 安全说明
 
 `webconsole` 是本机管理面板，不是公网安全后台。
@@ -178,11 +215,14 @@ URL：
 - 文件删除和 pkg 操作使用 GET 参数触发。
 - 没有 HTTPS。
 - 单连接轻量 TCP 服务模型。
+- `Command` 页面可以远程执行命令。
+- `Command` 页面当前使用 GET 表单，命令参数会暴露在 URL 中。
 
 建议：
 
 - 只在本机、虚拟机内网或受信任网络中使用。
 - 如果后续需要公网使用，应先增加登录认证、CSRF token、权限检查、POST 表单和 TLS。
+- 不要把开启 `Command` 页面的 `webconsole` 暴露到公网。
 
 ## 依赖的 syscall
 
@@ -206,9 +246,17 @@ URL：
 - `cleonos_sys_fs_stat_type`
 - `cleonos_sys_fs_stat_size`
 - `cleonos_sys_fs_remove`
+- `cleonos_sys_fs_write`
+- `cleonos_sys_fs_read`
 - `cleonos_sys_fd_open`
 - `cleonos_sys_fd_read`
+- `cleonos_sys_fd_write`
 - `cleonos_sys_fd_close`
+
+远程命令：
+
+- `cleonos_sys_exec_pathv_io`
+- `cleonos_sys_getpid`
 
 日志：
 
@@ -229,4 +277,3 @@ URL：
 - `cleonos/third-party/sqlite`
 - `cleonos/third-party/cJSON`
 - `project.bdt`
-

@@ -9,6 +9,7 @@
 #define WEBCONSOLE_HTML_MAX 131072U
 #define WEBCONSOLE_LOG_PAGE_SIZE 64ULL
 #define WEBCONSOLE_FILE_PREVIEW_MAX 8192U
+#define WEBCONSOLE_CMD_OUTPUT_MAX 65536ULL
 
 typedef struct wc_html {
     char *buf;
@@ -23,6 +24,8 @@ typedef struct wc_query {
     char path[USH_PATH_MAX];
     char q[96];
     char name[PKG_NAME_MAX];
+    char cmd[USH_LINE_MAX];
+    char cwd[USH_PATH_MAX];
     u64 page;
 } wc_query;
 
@@ -231,6 +234,7 @@ static void wc_nav(wc_html *h) {
     wc_link(h, "/?view=logs", "Logs");
     wc_link(h, "/?view=net", "Network");
     wc_link(h, "/?view=pkg", "Pkg");
+    wc_link(h, "/?view=cmd", "Command");
     wc_raw(h, "</nav>");
 }
 
@@ -375,6 +379,8 @@ static void wc_parse_query(const char *req_path, wc_query *out) {
     wc_query_value(query, "path", out->path, (u64)sizeof(out->path));
     wc_query_value(query, "q", out->q, (u64)sizeof(out->q));
     wc_query_value(query, "name", out->name, (u64)sizeof(out->name));
+    wc_query_value(query, "cmd", out->cmd, (u64)sizeof(out->cmd));
+    wc_query_value(query, "cwd", out->cwd, (u64)sizeof(out->cwd));
     wc_query_value(query, "page", page, (u64)sizeof(page));
     out->page = wc_parse_u64_default(page, 0ULL);
     if (out->view[0] == '\0') {
@@ -382,6 +388,9 @@ static void wc_parse_query(const char *req_path, wc_query *out) {
     }
     if (out->path[0] == '\0') {
         ush_copy(out->path, (u64)sizeof(out->path), "/");
+    }
+    if (out->cwd[0] == '\0') {
+        ush_copy(out->cwd, (u64)sizeof(out->cwd), "/");
     }
 }
 
@@ -759,6 +768,238 @@ static void wc_render_pkg(wc_html *h, const wc_query *query) {
     wc_raw(h, "</table>");
 }
 
+static int wc_write_command_ctx(const char *cmd, const char *arg, const char *cwd) {
+    ush_cmd_ctx ctx;
+
+    ush_zero(&ctx, (u64)sizeof(ctx));
+    if (cmd != (const char *)0) {
+        ush_copy(ctx.cmd, (u64)sizeof(ctx.cmd), cmd);
+    }
+    if (arg != (const char *)0) {
+        ush_copy(ctx.arg, (u64)sizeof(ctx.arg), arg);
+    }
+    if (cwd != (const char *)0) {
+        ush_copy(ctx.cwd, (u64)sizeof(ctx.cwd), cwd);
+    }
+
+    return (cleonos_sys_fs_write(USH_CMD_CTX_PATH, (const char *)&ctx, (u64)sizeof(ctx)) != 0ULL) ? 1 : 0;
+}
+
+static int wc_read_command_ret(ush_cmd_ret *out_ret) {
+    u64 got;
+
+    if (out_ret == (ush_cmd_ret *)0) {
+        return 0;
+    }
+
+    ush_zero(out_ret, (u64)sizeof(*out_ret));
+    got = cleonos_sys_fs_read(USH_CMD_RET_PATH, (char *)out_ret, (u64)sizeof(*out_ret));
+    return (got == (u64)sizeof(*out_ret)) ? 1 : 0;
+}
+
+static void wc_apply_ret(ush_state *sh, const ush_cmd_ret *ret) {
+    if (sh == (ush_state *)0 || ret == (const ush_cmd_ret *)0) {
+        return;
+    }
+    if ((ret->flags & USH_CMD_RET_FLAG_CWD) != 0ULL && ret->cwd[0] == '/') {
+        ush_copy(sh->cwd, (u64)sizeof(sh->cwd), ret->cwd);
+    }
+    if ((ret->flags & USH_CMD_RET_FLAG_EXIT) != 0ULL) {
+        sh->exit_requested = 1;
+        sh->exit_code = ret->exit_code;
+    }
+}
+
+static void wc_render_status_code(wc_html *h, u64 status) {
+    if (status == 0ULL) {
+        return;
+    }
+    wc_raw(h, "<p class=\"err\">");
+    if (status == (u64)-1) {
+        wc_raw(h, "exec request failed");
+    } else if ((status & (1ULL << 63)) != 0ULL) {
+        wc_raw(h, "exec terminated by signal: signal=0x");
+        wc_u64(h, status & 0xFFULL);
+        wc_raw(h, " vector=0x");
+        wc_u64(h, (status >> 8ULL) & 0xFFULL);
+        wc_raw(h, " error=0x");
+        wc_u64(h, (status >> 16ULL) & 0xFFFFULL);
+    } else {
+        wc_raw(h, "exec returned non-zero status: ");
+        wc_u64(h, status);
+    }
+    wc_raw(h, "</p>");
+}
+
+static void wc_render_command_output_file(wc_html *h, const char *path) {
+    char buf[1025];
+    u64 fd;
+    u64 shown = 0ULL;
+    int truncated = 0;
+
+    wc_raw(h, "<pre>");
+    fd = cleonos_sys_fd_open(path, CLEONOS_O_RDONLY, 0ULL);
+    if (fd == (u64)-1) {
+        wc_raw(h, "(no output)");
+        wc_raw(h, "</pre>");
+        (void)cleonos_sys_fs_remove(path);
+        return;
+    }
+
+    for (;;) {
+        u64 capacity = (u64)sizeof(buf) - 1ULL;
+        u64 got;
+
+        if (shown >= WEBCONSOLE_CMD_OUTPUT_MAX) {
+            truncated = 1;
+            break;
+        }
+        if (capacity > WEBCONSOLE_CMD_OUTPUT_MAX - shown) {
+            capacity = WEBCONSOLE_CMD_OUTPUT_MAX - shown;
+        }
+        got = cleonos_sys_fd_read(fd, buf, capacity);
+        if (got == 0ULL || got == (u64)-1) {
+            break;
+        }
+        buf[got] = '\0';
+        wc_esc(h, buf);
+        shown += got;
+    }
+    if (truncated != 0) {
+        wc_raw(h, "\n[webconsole] output truncated\n");
+    }
+    if (shown == 0ULL) {
+        wc_raw(h, "(no output)");
+    }
+    wc_raw(h, "</pre>");
+    (void)cleonos_sys_fd_close(fd);
+    (void)cleonos_sys_fs_remove(path);
+}
+
+static void wc_exec_command(wc_html *h, const char *cmdline, const char *cwd) {
+    ush_state sh;
+    char line[USH_LINE_MAX];
+    char cmd[USH_CMD_MAX];
+    char arg[USH_ARG_MAX];
+    char path[USH_PATH_MAX];
+    char out_path[USH_PATH_MAX];
+    char env_line[(USH_PATH_MAX * 2ULL) + USH_CMD_MAX + 128ULL];
+    u64 out_fd;
+    u64 in_fd;
+    u64 status;
+    ush_cmd_ret ret;
+
+    ush_init_state(&sh);
+    if (cwd != (const char *)0 && cwd[0] == '/' && wc_safe_path(cwd) != 0 && cleonos_sys_fs_stat_type(cwd) == 2ULL) {
+        ush_copy(sh.cwd, (u64)sizeof(sh.cwd), cwd);
+    }
+
+    ush_copy(line, (u64)sizeof(line), cmdline != (const char *)0 ? cmdline : "");
+    ush_trim_line(line);
+    if (line[0] == '\0') {
+        wc_raw(h, "<p>empty command</p>");
+        return;
+    }
+
+    ush_parse_line(line, cmd, (u64)sizeof(cmd), arg, (u64)sizeof(arg));
+    ush_trim_line(arg);
+    wc_raw(h, "<h3>Result</h3>");
+
+    if (ush_streq(cmd, "pwd") != 0) {
+        wc_raw(h, "<pre>");
+        wc_esc(h, sh.cwd);
+        wc_raw(h, "\n</pre>");
+        return;
+    }
+    if (ush_streq(cmd, "cd") != 0) {
+        const char *target = (arg[0] != '\0') ? arg : "/";
+        if (ush_resolve_path(&sh, target, path, (u64)sizeof(path)) == 0 || cleonos_sys_fs_stat_type(path) != 2ULL) {
+            wc_raw(h, "<p class=\"err\">cd: no such directory</p>");
+            return;
+        }
+        wc_raw(h, "<p class=\"ok\">cwd changed to ");
+        wc_esc(h, path);
+        wc_raw(h, "</p>");
+        wc_raw(h, "<p>Use this CWD value for the next command:</p><pre>");
+        wc_esc(h, path);
+        wc_raw(h, "</pre>");
+        return;
+    }
+    if (ush_streq(cmd, "help") != 0) {
+        wc_raw(h, "<pre>Remote commands: pwd, cd &lt;dir&gt;, help, or any /shell/*.elf command.</pre>");
+        return;
+    }
+
+    if (ush_resolve_exec_path(&sh, cmd, path, (u64)sizeof(path)) == 0 || cleonos_sys_fs_stat_type(path) != 1ULL) {
+        wc_raw(h, "<p class=\"err\">command not found</p>");
+        return;
+    }
+    if (ush_path_is_under_system(path) != 0) {
+        wc_raw(h, "<p class=\"err\">refusing to execute programs under /system</p>");
+        return;
+    }
+
+    (void)snprintf(out_path, sizeof(out_path), "/temp/webconsole-%llu.out",
+                   (unsigned long long)cleonos_sys_getpid());
+    (void)cleonos_sys_fs_remove(out_path);
+    out_fd = cleonos_sys_fd_open(out_path, CLEONOS_O_WRONLY | CLEONOS_O_CREAT | CLEONOS_O_TRUNC | CLEONOS_O_APPEND,
+                                 0ULL);
+    if (out_fd == (u64)-1) {
+        wc_raw(h, "<p class=\"err\">output capture open failed</p>");
+        return;
+    }
+    in_fd = cleonos_sys_fd_open("/dev/null", CLEONOS_O_RDONLY, 0ULL);
+
+    (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
+    (void)cleonos_sys_fs_remove(USH_CMD_RET_PATH);
+    if (wc_write_command_ctx(cmd, arg, sh.cwd) == 0) {
+        (void)cleonos_sys_fd_close(out_fd);
+        if (in_fd != (u64)-1) {
+            (void)cleonos_sys_fd_close(in_fd);
+        }
+        (void)cleonos_sys_fs_remove(out_path);
+        wc_raw(h, "<p class=\"err\">command context write failed</p>");
+        return;
+    }
+
+    (void)snprintf(env_line, sizeof(env_line), "PWD=%s;CMD=%s;LAUNCHER=/shell/webconsole.elf;USH_REMOTE=1", sh.cwd,
+                   cmd);
+    status = cleonos_sys_exec_pathv_io(path, arg, env_line, (in_fd == (u64)-1) ? CLEONOS_FD_INHERIT : in_fd, out_fd,
+                                       out_fd);
+
+    (void)cleonos_sys_fd_close(out_fd);
+    if (in_fd != (u64)-1) {
+        (void)cleonos_sys_fd_close(in_fd);
+    }
+    if (wc_read_command_ret(&ret) != 0) {
+        wc_apply_ret(&sh, &ret);
+    }
+
+    wc_render_command_output_file(h, out_path);
+    wc_render_status_code(h, status);
+    wc_raw(h, "<p>cwd after command: <strong>");
+    wc_esc(h, sh.cwd);
+    wc_raw(h, "</strong></p>");
+
+    (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
+    (void)cleonos_sys_fs_remove(USH_CMD_RET_PATH);
+}
+
+static void wc_render_cmd(wc_html *h, const wc_query *query) {
+    wc_section(h, "Remote Command");
+    wc_raw(h, "<p class=\"err\">Danger: this executes commands on this CLeonOS machine. Use only on trusted networks.</p>");
+    wc_raw(h, "<form><input type=\"hidden\" name=\"view\" value=\"cmd\">"
+              "<p>CWD <input name=\"cwd\" value=\"");
+    wc_esc(h, query->cwd);
+    wc_raw(h, "\"></p><p>Command <input name=\"cmd\" value=\"");
+    wc_esc(h, query->cmd);
+    wc_raw(h, "\"><button>Run</button></p></form>");
+
+    if (query->cmd[0] != '\0') {
+        wc_exec_command(h, query->cmd, query->cwd);
+    }
+}
+
 static int wc_render_page(const char *req_path) {
     static char html_buf[WEBCONSOLE_HTML_MAX];
     wc_query query;
@@ -782,6 +1023,8 @@ static int wc_render_page(const char *req_path) {
         wc_render_net(&h);
     } else if (strcmp(query.view, "pkg") == 0) {
         wc_render_pkg(&h, &query);
+    } else if (strcmp(query.view, "cmd") == 0) {
+        wc_render_cmd(&h, &query);
     } else {
         wc_render_status(&h);
     }
