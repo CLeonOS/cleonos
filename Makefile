@@ -1,3 +1,5 @@
+# This makefile is just a simple way to run bdt
+
 .RECIPEPREFIX := >
 MAKEFLAGS += --no-print-directory
 
