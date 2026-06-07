@@ -5,7 +5,7 @@ CLeonOS has a standalone Ninja build path. It coexists with bdt, but it does not
 ## Design
 
 - `scripts/gen_ninja.py` generates `build.ninja` in the repository root.
-- `build.ninja` is generated output and is not committed.
+- `build.ninja` is generated output.
 - Ninja directly calls tools such as `gcc`, `g++`, `ld`, `rustc`, `xorriso`, `tar`, and `qemu-system-x86_64`.
 - The generator has its own Ninja-specific build manifest and does not read `project.bdt`.
 - Existing bdt targets still work, including `make iso`, `make userapps`, and `make run`.
