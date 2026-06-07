@@ -548,6 +548,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     iso_root = r("build/x86_64/clboot_iso_root")
     efi_img = r("build/x86_64/clboot_efi.img")
     iso_efi_img = r("build/x86_64/clboot_iso_efi.img")
+    harddisk_img = r("build/x86_64/clboot_harddisk.img")
     startup_nsh = r("build/x86_64/startup.nsh")
     efi_offset = 1048576
 
@@ -601,6 +602,23 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
              variables={"cmd": iso_cmd, "desc": "clboot-iso"})
     nw.build("clboot-iso", "phony", [iso])
 
+    harddisk_cmd = (
+        f"rm -f {q(harddisk_img)}"
+        f" && mkdir -p {q(Path(harddisk_img).parent)}"
+        f" && truncate -s 268435456 {q(harddisk_img)}"
+        f" && printf 'label: dos\\nunit: sectors\\n\\nstart=2048, size=522240, type=ef, bootable\\n' | sfdisk {q(harddisk_img)}"
+        f" && mformat -i {q(harddisk_img + '@@' + str(efi_offset))} -F ::"
+        f" && mmd -i {q(harddisk_img + '@@' + str(efi_offset))} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot-harddisk.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ramdisk)} ::/boot/cleonos_ramdisk.tar"
+    )
+    nw.build(harddisk_img, "run", [clboot_efi, clboot_kernel, ramdisk, r("configs/clboot-harddisk.conf"), startup_nsh],
+             variables={"cmd": harddisk_cmd, "desc": "clboot-harddisk"})
+    nw.build("clboot-harddisk", "phony", [harddisk_img])
+
     disk = r("build/x86_64/cleonos_disk.img")
     disk_cmd = f"mkdir -p {q(Path(disk).parent)} && truncate -s 128M {q(disk)}"
     nw.build(disk, "run", variables={"cmd": disk_cmd, "desc": "disk-image"})
@@ -618,6 +636,19 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     )
     nw.build("run-clboot", "console", [iso], variables={"cmd": run_clboot_cmd, "desc": "run-clboot"})
     nw.build("run", "phony", ["run-clboot"])
+
+    run_clboot_harddisk_cmd = (
+        "if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then OVMF=/usr/share/OVMF/OVMF_CODE.fd; "
+        "elif [ -f /usr/share/ovmf/OVMF.fd ]; then OVMF=/usr/share/ovmf/OVMF.fd; "
+        "else echo \"run-clboot-harddisk: OVMF firmware not found\"; exit 1; fi; "
+        "export GSETTINGS_BACKEND=memory; "
+        f"{TOOLS['QEMU_X86_64']} -M q35 -m 1024M -bios \"$OVMF\" -boot order=c "
+        f"-drive {q('file=' + harddisk_img + ',format=raw,if=none,id=clbootdisk,media=disk')} "
+        "-device ide-hd,drive=clbootdisk,bus=ide.0,bootindex=1 "
+        "-netdev user,id=clksnet0 -device e1000,netdev=clksnet0 -serial stdio"
+    )
+    nw.build("run-clboot-harddisk", "console", [harddisk_img],
+             variables={"cmd": run_clboot_harddisk_cmd, "desc": "run-clboot-harddisk"})
 
     nw.build("kernel", "phony", [normal_kernel])
     nw.build("clboot-kernel", "phony", [clboot_kernel])

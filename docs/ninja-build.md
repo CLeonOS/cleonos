@@ -18,6 +18,7 @@ Run from WSL:
 cd /mnt/d/Projects/C/cleonos
 python3 scripts/gen_ninja.py
 ninja -f build.ninja clboot-iso
+ninja -f build.ninja clboot-harddisk
 ```
 
 Makefile shortcuts are also available:
@@ -25,6 +26,7 @@ Makefile shortcuts are also available:
 ```sh
 make ninja-gen
 make ninja-clboot-iso
+make ninja-clboot-harddisk
 make ninja-build
 ```
 
@@ -46,8 +48,10 @@ Common targets:
 - `ramdisk`: package the ramdisk tar archive.
 - `clboot-iso-efi`: generate the FAT EFI boot image embedded in the CLBoot ISO. It contains `BOOTX64.EFI`, the CLBoot kernel ELF, and the ramdisk.
 - `clboot-iso`: generate the CLBoot UEFI ISO.
+- `clboot-harddisk`: generate a UEFI bootable hard disk image at `build/x86_64/clboot_harddisk.img`.
 - `disk-image`: create the QEMU test disk image.
 - `run-clboot`: run CLBoot in QEMU with OVMF by booting the generated CLBoot ISO as a UEFI CD-ROM.
+- `run-clboot-harddisk`: run CLBoot in QEMU with OVMF by booting `build/x86_64/clboot_harddisk.img` as the first hard disk.
 - `run`: alias for `run-clboot`.
 - `all`: default target, currently equivalent to `clboot-iso`.
 
@@ -63,6 +67,8 @@ ninja -f build.ninja -n clboot-kernel
 ninja -f build.ninja -n userapps | head -120
 ninja -f build.ninja -n clboot-iso | head -160
 ninja -f build.ninja -n run-clboot
+ninja -f build.ninja -n clboot-harddisk | head -160
+ninja -f build.ninja -n run-clboot-harddisk
 ```
 
 ## Notes
@@ -70,3 +76,12 @@ ninja -f build.ninja -n run-clboot
 The Ninja path is an independent build entrypoint, not a bdt frontend. If an app rule is changed in bdt's `project.bdt`, update the Ninja-specific manifest in `scripts/gen_ninja.py` when the Ninja build should match that change.
 
 `clboot-iso` creates `build/CLeonOS-CLBoot-x86_64.iso`. `run-clboot` boots that ISO directly as a UEFI CD-ROM and does not use QEMU `-kernel` or a standalone ESP disk. The ISO contains an El Torito FAT EFI image with CLBoot, the kernel ELF, and the ramdisk. `clboot-esp` still creates `build/x86_64/clboot_efi.img` as a standalone ESP disk image for debugging, but it is not used by `run-clboot`.
+
+`clboot-harddisk` creates `build/x86_64/clboot_harddisk.img`. The image has a DOS partition table with one EFI System Partition and contains:
+
+- `\EFI\BOOT\BOOTX64.EFI`
+- `\EFI\CLEONOS\CLBOOT.CONF`
+- `\boot\clks_kernel.elf`
+- `\boot\cleonos_ramdisk.tar`
+
+`run-clboot-harddisk` boots that image as the first QEMU hard disk. Its config uses `configs/clboot-harddisk.conf`, so the kernel cmdline contains `clks.boot=disk clks.bootloader=clboot`.

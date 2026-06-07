@@ -26,7 +26,9 @@ UEFI firmware
 ```sh
 make clboot
 make clboot-iso
+make ninja-clboot-harddisk
 make run-clboot
+make ninja-run-clboot-harddisk
 ```
 
 Ninja 构建：
@@ -34,10 +36,13 @@ Ninja 构建：
 ```sh
 python3 scripts/gen_ninja.py
 ninja -f build.ninja clboot-iso
+ninja -f build.ninja clboot-harddisk
 ninja -f build.ninja run-clboot
+ninja -f build.ninja run-clboot-harddisk
 ```
 
 `run-clboot` 启动的是生成的纯 UEFI ISO，不使用 QEMU `-kernel`，也不使用单独 ESP 硬盘镜像。
+`run-clboot-harddisk` 启动的是生成的 UEFI 硬盘镜像，不挂载 ISO。
 
 产物：
 
@@ -45,6 +50,7 @@ ninja -f build.ninja run-clboot
 build/x86_64/clboot/BOOTX64.EFI
 build/x86_64/clks_kernel_clboot.elf
 build/CLeonOS-CLBoot-x86_64.iso
+build/x86_64/clboot_harddisk.img
 ```
 
 `run-clboot` 需要 OVMF：
@@ -129,6 +135,13 @@ exiting boot services
 /EFI/CLEONOS/clboot.conf
 ```
 
+ISO 构建使用 `configs/clboot.conf`，硬盘镜像构建使用 `configs/clboot-harddisk.conf`。两者菜单格式相同，主要区别是全局 cmdline：
+
+```text
+ISO:  clks.boot=iso clks.bootloader=clboot
+Disk: clks.boot=disk clks.bootloader=clboot
+```
+
 配置格式：
 
 ```ini
@@ -173,6 +186,13 @@ clks.boot=iso clks.bootloader=clboot
 - `builtin`：CLBoot 内置默认启动项。
 - `clboot.conf`：来自 `/EFI/CLEONOS/clboot.conf`。
 - `/boot/kernels scan`：来自 `/boot/kernels/*.elf` 扫描结果。
+
+CLBoot 会在显示菜单前校验每个启动项的 `kernel` 和 `ramdisk` 是否能打开：
+
+- 有效项显示 `[OK]`。
+- 无效项显示 `[BAD]`。
+- 当前默认项无效时会自动停止倒计时。
+- 对无效项按 `Enter` 不会启动，会打开详情页显示缺失原因。
 
 ## CLBoot Protocol
 
@@ -233,9 +253,9 @@ u64 bootlog_entry_count;
 ## 当前限制
 
 - 仅 x86_64 UEFI。
-- 主要支持 ISO 启动。
+- 支持 ISO 启动和 UEFI 硬盘镜像启动。
 - 配置文件支持多个 `menuentry`，每个启动项可指定不同 kernel/ramdisk/cmdline。
 - 支持扫描 `/boot/kernels/*.elf` 并追加到菜单。
 - 暂无 Secure Boot。
-- 暂无硬盘 UEFI 安装启动路径。
+- 硬盘启动当前是构建期生成的 CLBoot UEFI 镜像，仍会加载 ramdisk；不是 install2disk 的无 ramdisk 完整安装模式。
 - 页表仍是 CLBoot 最小可用实现，后续可以继续做更完整的物理内存和 runtime services 处理。

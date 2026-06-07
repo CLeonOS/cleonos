@@ -43,6 +43,10 @@ struct clboot_menu_entry {
     CHAR16 kernel_path[CLBOOT_MENU_PATH_MAX];
     CHAR16 ramdisk_path[CLBOOT_MENU_PATH_MAX];
     CHAR16 source[CLBOOT_MENU_HINT_MAX];
+    CHAR16 validation[CLBOOT_MENU_HINT_MAX];
+    int kernel_ok;
+    int ramdisk_ok;
+    int valid;
     char cmdline[CLBOOT_MENU_CMDLINE_MAX];
 };
 
@@ -720,6 +724,58 @@ static int clboot_read_file(CHAR16 *path, struct clboot_loaded_file *out) {
     return 0;
 }
 
+static int clboot_file_exists(CHAR16 *path) {
+    EFI_FILE_PROTOCOL *root;
+    EFI_FILE_PROTOCOL *file;
+    EFI_HANDLE *handles;
+    UINTN handle_count;
+    UINTN i;
+    int ok = 0;
+
+    root = clboot_open_root();
+    if (root != (EFI_FILE_PROTOCOL *)0) {
+        if (root->Open(root, &file, path, EFI_FILE_MODE_READ, 0ULL) == EFI_SUCCESS) {
+            ok = 1;
+            (void)file->Close(file);
+        }
+        (void)root->Close(root);
+        if (ok != 0) {
+            return 1;
+        }
+    }
+
+    handles = (EFI_HANDLE *)0;
+    handle_count = 0U;
+    if (clboot_bs->LocateHandleBuffer(EFI_BY_PROTOCOL, &gEfiSimpleFileSystemProtocolGuid, (void *)0, &handle_count,
+                                      &handles) != EFI_SUCCESS ||
+        handles == (EFI_HANDLE *)0) {
+        return 0;
+    }
+
+    for (i = 0U; i < handle_count; i++) {
+        EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs = (EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *)0;
+        EFI_FILE_PROTOCOL *scan_root = (EFI_FILE_PROTOCOL *)0;
+        if (clboot_bs->OpenProtocol(handles[i], &gEfiSimpleFileSystemProtocolGuid, (void **)&fs, clboot_image,
+                                    (EFI_HANDLE)0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL) != EFI_SUCCESS ||
+            fs == (EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *)0) {
+            continue;
+        }
+        if (fs->OpenVolume(fs, &scan_root) != EFI_SUCCESS || scan_root == (EFI_FILE_PROTOCOL *)0) {
+            continue;
+        }
+        if (scan_root->Open(scan_root, &file, path, EFI_FILE_MODE_READ, 0ULL) == EFI_SUCCESS) {
+            ok = 1;
+            (void)file->Close(file);
+            (void)scan_root->Close(scan_root);
+            break;
+        }
+        (void)scan_root->Close(scan_root);
+    }
+
+    (void)clboot_bs->FreePool(handles);
+    return ok;
+}
+
 static int clboot_read_file_any(CHAR16 **paths, struct clboot_loaded_file *out) {
     UINTN i = 0U;
     while (paths[i] != (CHAR16 *)0) {
@@ -899,6 +955,10 @@ static void clboot_menu_entry_init(struct clboot_menu_entry *entry, const char *
     clboot_ascii_to_wide(entry->kernel_path, CLBOOT_MENU_PATH_MAX, kernel_path);
     clboot_ascii_to_wide(entry->ramdisk_path, CLBOOT_MENU_PATH_MAX, ramdisk_path);
     clboot_ascii_to_wide(entry->source, CLBOOT_MENU_HINT_MAX, source);
+    clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "not checked");
+    entry->kernel_ok = 0;
+    entry->ramdisk_ok = 0;
+    entry->valid = 0;
     clboot_copy_ascii(entry->cmdline, CLBOOT_MENU_CMDLINE_MAX, cmdline);
 }
 
@@ -1185,11 +1245,39 @@ static void clboot_menu_scan_kernel_dir(struct clboot_menu_config *cfg) {
         clboot_copy_wide(entry->kernel_path, CLBOOT_MENU_PATH_MAX, kernel_path);
         clboot_ascii_to_wide(entry->ramdisk_path, CLBOOT_MENU_PATH_MAX, "\\boot\\cleonos_ramdisk.tar");
         clboot_copy_wide(entry->source, CLBOOT_MENU_HINT_MAX, L"/boot/kernels scan");
+        clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "not checked");
+        entry->kernel_ok = 0;
+        entry->ramdisk_ok = 0;
+        entry->valid = 0;
         clboot_copy_ascii(entry->cmdline, CLBOOT_MENU_CMDLINE_MAX, "");
     }
 
     (void)dir->Close(dir);
     (void)root->Close(root);
+}
+
+static void clboot_menu_validate(struct clboot_menu_config *cfg) {
+    UINTN i;
+
+    if (cfg == (struct clboot_menu_config *)0) {
+        return;
+    }
+    for (i = 0U; i < cfg->count; i++) {
+        struct clboot_menu_entry *entry = &cfg->entries[i];
+        entry->kernel_ok = clboot_file_exists(entry->kernel_path);
+        entry->ramdisk_ok = clboot_file_exists(entry->ramdisk_path);
+        entry->valid = (entry->kernel_ok != 0 && entry->ramdisk_ok != 0) ? 1 : 0;
+
+        if (entry->valid != 0) {
+            clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "OK");
+        } else if (entry->kernel_ok == 0 && entry->ramdisk_ok == 0) {
+            clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "missing kernel and ramdisk");
+        } else if (entry->kernel_ok == 0) {
+            clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "missing kernel");
+        } else {
+            clboot_ascii_to_wide(entry->validation, CLBOOT_MENU_HINT_MAX, "missing ramdisk");
+        }
+    }
 }
 
 static char *clboot_cmdline_build(const char *base, const char *extra) {
@@ -1411,6 +1499,12 @@ static void clboot_show_entry_info(const struct clboot_menu_entry *entry) {
     clboot_print(entry->source);
     clboot_print(L"\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
+    clboot_print(L" Check   : ");
+    clboot_set_attr(entry->valid != 0 ? CLBOOT_TEXT_ATTR_OK : CLBOOT_TEXT_ATTR_ERROR);
+    clboot_print(entry->validation);
+    clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
+    clboot_print(L"\r\n");
+    clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" Hint    : ");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
     clboot_print(entry->hint);
@@ -1467,16 +1561,31 @@ static void clboot_draw_menu(const struct clboot_menu_entry *entries, UINTN coun
 
         clboot_set_attr((i == selected) ? CLBOOT_TEXT_ATTR_SELECTED : CLBOOT_TEXT_ATTR_NORMAL);
         clboot_print(prefix);
-        clboot_print_padded(entries[i].title, 72U);
+        clboot_print_padded(entries[i].title, 62U);
+        if (entries[i].valid == 0) {
+            clboot_set_attr(CLBOOT_TEXT_ATTR_ERROR);
+            clboot_print(L" [BAD]");
+            clboot_set_attr((i == selected) ? CLBOOT_TEXT_ATTR_SELECTED : CLBOOT_TEXT_ATTR_NORMAL);
+            clboot_print_padded(L"", 5U);
+        } else {
+            clboot_set_attr(CLBOOT_TEXT_ATTR_OK);
+            clboot_print(L" [OK] ");
+        }
         clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
         clboot_print(L"\r\n");
     }
 
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
     clboot_print(L" ------------------------------------------------------------------------------\r\n");
-    clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
+    clboot_set_attr(entries[selected].valid == 0 ? CLBOOT_TEXT_ATTR_ERROR : CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" ");
-    clboot_print(entries[selected].hint);
+    if (entries[selected].valid == 0) {
+        clboot_print(L"Invalid entry: ");
+        clboot_print(entries[selected].validation);
+        clboot_print(L". Press i for details.");
+    } else {
+        clboot_print(entries[selected].hint);
+    }
     clboot_print(L"\r\n Page ");
     clboot_print_uint(page + 1U);
     clboot_print(L"/");
@@ -1489,7 +1598,7 @@ static UINTN clboot_boot_menu_select(struct clboot_menu_config *cfg) {
     UINTN count = cfg->count;
     UINTN selected = cfg->default_index;
     UINTN seconds_left = cfg->timeout_seconds;
-    int countdown_active = (seconds_left > 0U) ? 1 : 0;
+    int countdown_active = (seconds_left > 0U && cfg->entries[selected].valid != 0) ? 1 : 0;
     UINTN ticks;
     EFI_INPUT_KEY key;
 
@@ -1501,6 +1610,12 @@ static UINTN clboot_boot_menu_select(struct clboot_menu_config *cfg) {
         for (ticks = 0U; ticks < 10U; ticks++) {
             if (clboot_poll_key(&key) != 0) {
                 if (key.UnicodeChar == L'\r' || key.UnicodeChar == L'\n') {
+                    if (cfg->entries[selected].valid == 0) {
+                        countdown_active = 0;
+                        clboot_show_entry_info(&cfg->entries[selected]);
+                        clboot_draw_menu(cfg->entries, count, selected, seconds_left, countdown_active);
+                        continue;
+                    }
                     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
                     return selected;
                 }
@@ -1665,6 +1780,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
     clboot_menu_config_init_defaults(menu_config);
     clboot_menu_parse_config(menu_config);
     clboot_menu_scan_kernel_dir(menu_config);
+    clboot_menu_validate(menu_config);
     menu_index = clboot_boot_menu_select(menu_config);
     boot_entry = &menu_config->entries[menu_index];
     clboot_draw_compact_header(L"Boot progress");

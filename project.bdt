@@ -326,6 +326,12 @@ type = group
 steps = rm -rf "{root}/build/x86_64/clboot_iso_root" | mkdir -p "{root}/build/x86_64/clboot_iso_root/boot" "{root}/build/x86_64/clboot_iso_root/EFI/BOOT" "{root}/build/x86_64/clboot_iso_root/EFI/CLEONOS" | cp "{root}/build/x86_64/clks_kernel_clboot.elf" "{root}/build/x86_64/clboot_iso_root/boot/clks_kernel.elf" | cp "{root}/build/x86_64/cleonos_ramdisk.tar" "{root}/build/x86_64/clboot_iso_root/boot/cleonos_ramdisk.tar" | cp "{root}/build/x86_64/clboot/BOOTX64.EFI" "{root}/build/x86_64/clboot_iso_root/EFI/BOOT/BOOTX64.EFI" | cp "{root}/configs/clboot.conf" "{root}/build/x86_64/clboot_iso_root/EFI/CLEONOS/clboot.conf" | {XORRISO} -as mkisofs -R -J -efi-boot EFI/BOOT/BOOTX64.EFI -no-emul-boot --efi-boot-part --efi-boot-image --protective-msdos-label "{root}/build/x86_64/clboot_iso_root" -o "{root}/build/CLeonOS-CLBoot-x86_64.iso"
 cache = false
 
+[target.clboot-harddisk]
+deps = clboot, clboot-kernel, ramdisk
+type = command
+command = rm -f "{root}/build/x86_64/clboot_harddisk.img" && mkdir -p "{root}/build/x86_64" && truncate -s 268435456 "{root}/build/x86_64/clboot_harddisk.img" && printf 'label: dos\nunit: sectors\n\nstart=2048, size=522240, type=ef, bootable\n' | sfdisk "{root}/build/x86_64/clboot_harddisk.img" && mformat -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" -F :: && mmd -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clboot/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/configs/clboot-harddisk.conf" ::/EFI/CLEONOS/CLBOOT.CONF && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clks_kernel_clboot.elf" ::/boot/clks_kernel.elf && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/cleonos_ramdisk.tar" ::/boot/cleonos_ramdisk.tar
+cache = false
+
 [target.run]
 deps = iso, disk-image
 type = command
@@ -337,6 +343,13 @@ always = true
 deps = clboot-iso, disk-image
 type = command
 command = if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then OVMF=/usr/share/OVMF/OVMF_CODE.fd; elif [ -f /usr/share/ovmf/OVMF.fd ]; then OVMF=/usr/share/ovmf/OVMF.fd; else echo "run-clboot: OVMF firmware not found"; exit 1; fi; {QEMU_X86_64} -M q35 -m 1024M -bios "$OVMF" -boot order=d -cdrom "{root}/build/CLeonOS-CLBoot-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+cache = false
+always = true
+
+[target.run-clboot-harddisk]
+deps = clboot-harddisk
+type = command
+command = if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then OVMF=/usr/share/OVMF/OVMF_CODE.fd; elif [ -f /usr/share/ovmf/OVMF.fd ]; then OVMF=/usr/share/ovmf/OVMF.fd; else echo "run-clboot-harddisk: OVMF firmware not found"; exit 1; fi; {QEMU_X86_64} -M q35 -m 1024M -bios "$OVMF" -boot order=c -drive "file={root}/build/x86_64/clboot_harddisk.img,format=raw,if=none,id=clbootdisk,media=disk" -device "ide-hd,drive=clbootdisk,bus=ide.0,bootindex=1" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
 cache = false
 always = true
 

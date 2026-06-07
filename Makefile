@@ -43,7 +43,7 @@ endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
-.PHONY: all bdt ninja-gen ninja-build ninja-clboot-iso configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine clboot clboot-kernel clboot-iso run-clboot kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
+.PHONY: all bdt ninja-gen ninja-build ninja-clboot-iso ninja-clboot-harddisk ninja-run-clboot-harddisk configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
 
 all: iso
 
@@ -62,7 +62,13 @@ ninja-build: ninja-gen
 ninja-clboot-iso: ninja-gen
 > $(NINJA) -f build.ninja clboot-iso
 
-configure reconfigure setup setup-tools setup-limine clboot clboot-kernel clboot-iso run-clboot kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
+ninja-clboot-harddisk: ninja-gen
+> $(NINJA) -f build.ninja clboot-harddisk
+
+ninja-run-clboot-harddisk: ninja-gen
+> $(NINJA) -f build.ninja run-clboot-harddisk
+
+configure reconfigure setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
 
 os-version gen-os-version:
@@ -83,9 +89,11 @@ help: bdt
 > @echo "entrypoints:"
 > @echo "  make iso"
 > @echo "  make clboot-iso"
+> @echo "  make ninja-clboot-harddisk"
 > @echo "  make ninja-gen"
 > @echo "  make ninja-clboot-iso"
 > @echo "  make run-clboot"
+> @echo "  make ninja-run-clboot-harddisk"
 > @echo "  make run"
 > @echo "  make run-hardboot"
 > @echo "  make menuconfig"
