@@ -3,7 +3,7 @@ name = CLeonOS
 default = iso
 build_dir = .bdt
 language = zh-CN
-doctor_tools = {CC},{KERNEL_CXX},{USER_CXX},{LD},{RUSTC},{TAR},{XORRISO}
+doctor_tools = {CC},{KERNEL_CXX},{USER_CXX},{LD},{RUSTC},{TAR},{XORRISO},{UEFI_CC}
 
 [subprojects]
 paths = bdt, clks, cleonos
@@ -22,6 +22,7 @@ NM = nm
 TAR = tar
 XORRISO = xorriso
 QEMU_X86_64 = qemu-system-x86_64
+UEFI_CC = x86_64-w64-mingw32-gcc
 python = python3
 
 [config]
@@ -45,6 +46,8 @@ USER_BDT_CFLAGS = -I{root}/cleonos/c/apps/bdt,-I{root}/bdt/src,-include,{root}/c
 USER_TERMBOX2_CFLAGS = -I{root}/cleonos/c/include
 USER_SQLITE_CFLAGS = -I{root}/cleonos/third-party/sqlite,-DSQLITE_OS_OTHER=1,-DSQLITE_THREADSAFE=0,-DSQLITE_OMIT_LOAD_EXTENSION=1,-DSQLITE_OMIT_WAL=1,-DSQLITE_TEMP_STORE=3,-DSQLITE_OMIT_SHARED_CACHE=1,-DSQLITE_OMIT_LOCALTIME=1,-DSQLITE_OMIT_UTF16=1,-DSQLITE_DEFAULT_MEMSTATUS=0
 USER_FASTFETCH_CFLAGS = -I{root}/cleonos/c/apps/fastfetch,-I{root}/cleonos/third-party/fastfetch/src,-I{root}/cleonos/third-party/fastfetch/src/3rdparty/yyjson,-include,{root}/cleonos/c/apps/fastfetch/fastfetch_cleonos_compat.h,-D_GNU_SOURCE,-DFASTFETCH_VERSION='"2.62.1"',-Wno-unused-parameter,-Wno-unused-function,-Wno-sign-compare,-Wno-missing-field-initializers,-Wno-incompatible-pointer-types
+UEFI_CFLAGS = -ffreestanding -fno-stack-protector -fno-builtin -fshort-wchar -mno-red-zone -Wall -Wextra -I{root}/boot/clboot/include -I{root}/boot/clboot/uefi
+UEFI_LDFLAGS = -nostdlib -Wl,--subsystem,10 -Wl,--entry,efi_main
 USER_TLS_SOURCES = {root}/cleonos/c/apps/tls/cleonos_tls.c,{root}/cleonos/c/apps/tls/cleonos_tls_entropy.c,{root}/cleonos/third-party/mbedtls/library/aes.c,{root}/cleonos/third-party/mbedtls/library/asn1parse.c,{root}/cleonos/third-party/mbedtls/library/asn1write.c,{root}/cleonos/third-party/mbedtls/library/bignum.c,{root}/cleonos/third-party/mbedtls/library/bignum_core.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod.c,{root}/cleonos/third-party/mbedtls/library/bignum_mod_raw.c,{root}/cleonos/third-party/mbedtls/library/cipher.c,{root}/cleonos/third-party/mbedtls/library/cipher_wrap.c,{root}/cleonos/third-party/mbedtls/library/constant_time.c,{root}/cleonos/third-party/mbedtls/library/ctr_drbg.c,{root}/cleonos/third-party/mbedtls/library/ecdh.c,{root}/cleonos/third-party/mbedtls/library/ecdsa.c,{root}/cleonos/third-party/mbedtls/library/ecp.c,{root}/cleonos/third-party/mbedtls/library/ecp_curves.c,{root}/cleonos/third-party/mbedtls/library/entropy.c,{root}/cleonos/third-party/mbedtls/library/error.c,{root}/cleonos/third-party/mbedtls/library/gcm.c,{root}/cleonos/third-party/mbedtls/library/md.c,{root}/cleonos/third-party/mbedtls/library/oid.c,{root}/cleonos/third-party/mbedtls/library/pk.c,{root}/cleonos/third-party/mbedtls/library/pk_ecc.c,{root}/cleonos/third-party/mbedtls/library/pk_wrap.c,{root}/cleonos/third-party/mbedtls/library/pkparse.c,{root}/cleonos/third-party/mbedtls/library/platform.c,{root}/cleonos/third-party/mbedtls/library/platform_util.c,{root}/cleonos/third-party/mbedtls/library/rsa.c,{root}/cleonos/third-party/mbedtls/library/rsa_alt_helpers.c,{root}/cleonos/third-party/mbedtls/library/sha256.c,{root}/cleonos/third-party/mbedtls/library/sha512.c,{root}/cleonos/third-party/mbedtls/library/ssl_ciphersuites.c,{root}/cleonos/third-party/mbedtls/library/ssl_client.c,{root}/cleonos/third-party/mbedtls/library/ssl_msg.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls.c,{root}/cleonos/third-party/mbedtls/library/ssl_tls12_client.c,{root}/cleonos/third-party/mbedtls/library/version_features.c,{root}/cleonos/third-party/mbedtls/library/x509.c,{root}/cleonos/third-party/mbedtls/library/x509_crt.c
 USER_BDT_SOURCES = {root}/cleonos/c/apps/bdt/bdt_cleonos_compat.c,{root}/bdt/src/appbuilder.c,{root}/bdt/src/bench.c,{root}/bdt/src/cache.c,{root}/bdt/src/config.c,{root}/bdt/src/diagnostics.c,{root}/bdt/src/executor.c,{root}/bdt/src/graph.c,{root}/bdt/src/hash.c,{root}/bdt/src/lang.c,{root}/bdt/src/log.c,{root}/bdt/src/plugin.c,{root}/bdt/src/project.c,{root}/bdt/src/scanner.c,{root}/bdt/src/shared_cache.c,{root}/bdt/src/status.c,{root}/bdt/src/toolchain.c,{root}/bdt/src/trace.c,{root}/bdt/src/util.c,{root}/bdt/src/view.c
 USER_SQLITE_SOURCES = {root}/cleonos/c/apps/sqlite/sqlite_cleonos_vfs.c,{root}/cleonos/third-party/sqlite/sqlite3.c
@@ -137,6 +140,50 @@ tool = {LD}
 inputs = {root}/build/x86_64/obj
 objects = {root}/build/x86_64/libclks_kernel_rust.a
 output = {root}/build/x86_64/clks_kernel.elf
+linker_script = {root}/clks/arch/x86_64/linker.ld
+ldflags = {KERNEL_LDFLAGS}
+cache = true
+
+[target.clboot]
+deps = setup-tools
+type = command
+command = mkdir -p "{root}/build/x86_64/clboot" | {UEFI_CC} {UEFI_CFLAGS} "{root}/boot/clboot/uefi/main.c" -o "{root}/build/x86_64/clboot/BOOTX64.EFI" {UEFI_LDFLAGS}
+cache = false
+
+[target.clboot-kernel-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {CC}
+sources = clks/kernel/boot/clboot/clboot.c, clks/kernel/core/interrupts.c, clks/kernel/core/kmain.c, clks/kernel/core/log.c, clks/kernel/core/panic.c, clks/kernel/core/scheduler.c, clks/kernel/core/service.c, clks/kernel/hal/audio/pcspeaker.c, clks/kernel/hal/serial/serial.c, clks/kernel/hal/video/font8x8.c, clks/kernel/hal/video/framebuffer.c, clks/kernel/hal/video/psf_font.c, clks/kernel/input/inputm.c, clks/kernel/input/keyboard.c, clks/kernel/input/mouse.c, clks/kernel/interface/bootsplash.c, clks/kernel/interface/desktop.c, clks/kernel/interface/display.c, clks/kernel/interface/shell.c, clks/kernel/interface/tty.c, clks/kernel/interface/wm.c, clks/kernel/memory/heap.c, clks/kernel/memory/pmm.c, clks/kernel/memory/vm.c, clks/kernel/runtime/driver.c, clks/kernel/runtime/elf64.c, clks/kernel/runtime/elfrunner.c, clks/kernel/runtime/exec.c, clks/kernel/runtime/kelf.c, clks/kernel/runtime/locale.c, clks/kernel/runtime/net.c, clks/kernel/runtime/pty.c, clks/kernel/runtime/syscall.c, clks/kernel/runtime/user.c, clks/kernel/runtime/userland.c, clks/kernel/storage/disk.c, clks/kernel/storage/fs.c, clks/kernel/storage/ramdisk.c, clks/kernel/support/libc_compat.c, clks/kernel/support/string.c, clks/arch/x86_64/startup/boot.c, clks/third_party/miniz/miniz_support.c, clks/third_party/miniz/miniz_tdef.c, clks/third_party/qrcodegen/qrcodegen.c
+output = {root}/build/x86_64/clboot_obj
+cflags = {KERNEL_CFLAGS}
+cache = true
+
+[target.clboot-kernel-cpp-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {KERNEL_CXX}
+sources = clks/kernel/core/panic_qr.cpp
+output = {root}/build/x86_64/clboot_obj
+cxxflags = {KERNEL_CXXFLAGS}
+cache = true
+
+[target.clboot-kernel-asm-objects]
+deps = setup-freestanding-headers, menuconfig-headers
+type = compile
+tool = {CC}
+sources = clks/arch/x86_64/interrupt/interrupt_stubs.S, clks/arch/x86_64/startup/exec_stack_call.S
+output = {root}/build/x86_64/clboot_obj
+asflags = {KERNEL_ASFLAGS}
+cache = true
+
+[target.clboot-kernel]
+deps = clboot-kernel-objects, clboot-kernel-cpp-objects, clboot-kernel-asm-objects, kernel-rust
+type = link
+tool = {LD}
+inputs = {root}/build/x86_64/clboot_obj
+objects = {root}/build/x86_64/libclks_kernel_rust.a
+output = {root}/build/x86_64/clks_kernel_clboot.elf
 linker_script = {root}/clks/arch/x86_64/linker.ld
 ldflags = {KERNEL_LDFLAGS}
 cache = true
@@ -273,10 +320,23 @@ type = group
 steps = rm -rf "{root}/build/x86_64/iso_root" | mkdir -p "{root}/build/x86_64/iso_root/boot/limine" "{root}/build/x86_64/iso_root/EFI/BOOT" | cp "{root}/build/x86_64/clks_kernel.elf" "{root}/build/x86_64/iso_root/boot/clks_kernel.elf" | cp "{root}/build/x86_64/cleonos_ramdisk.tar" "{root}/build/x86_64/iso_root/boot/cleonos_ramdisk.tar" | cp "{root}/configs/limine.conf" "{root}/build/x86_64/iso_root/boot/limine/limine.conf" | cp "{root}/configs/limine.conf" "{root}/build/x86_64/iso_root/limine.conf" | cp "{root}/limine/bin/limine-bios.sys" "{root}/build/x86_64/iso_root/boot/limine/limine-bios.sys" | cp "{root}/limine/bin/limine-bios-cd.bin" "{root}/build/x86_64/iso_root/boot/limine/limine-bios-cd.bin" | cp "{root}/limine/bin/limine-uefi-cd.bin" "{root}/build/x86_64/iso_root/boot/limine/limine-uefi-cd.bin" | cp "{root}/limine/bin/BOOTX64.EFI" "{root}/build/x86_64/iso_root/EFI/BOOT/BOOTX64.EFI" | {XORRISO} -as mkisofs -b boot/limine/limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --efi-boot boot/limine/limine-uefi-cd.bin -efi-boot-part --efi-boot-image --protective-msdos-label "{root}/build/x86_64/iso_root" -o "{root}/build/CLeonOS-x86_64.iso" | "{root}/limine/bin/limine" bios-install "{root}/build/CLeonOS-x86_64.iso"
 cache = false
 
+[target.clboot-iso]
+deps = clboot, clboot-kernel, ramdisk
+type = group
+steps = rm -rf "{root}/build/x86_64/clboot_iso_root" | mkdir -p "{root}/build/x86_64/clboot_iso_root/boot" "{root}/build/x86_64/clboot_iso_root/EFI/BOOT" "{root}/build/x86_64/clboot_iso_root/EFI/CLEONOS" | cp "{root}/build/x86_64/clks_kernel_clboot.elf" "{root}/build/x86_64/clboot_iso_root/boot/clks_kernel.elf" | cp "{root}/build/x86_64/cleonos_ramdisk.tar" "{root}/build/x86_64/clboot_iso_root/boot/cleonos_ramdisk.tar" | cp "{root}/build/x86_64/clboot/BOOTX64.EFI" "{root}/build/x86_64/clboot_iso_root/EFI/BOOT/BOOTX64.EFI" | cp "{root}/configs/clboot.conf" "{root}/build/x86_64/clboot_iso_root/EFI/CLEONOS/clboot.conf" | {XORRISO} -as mkisofs -R -J -efi-boot EFI/BOOT/BOOTX64.EFI -no-emul-boot --efi-boot-part --efi-boot-image --protective-msdos-label "{root}/build/x86_64/clboot_iso_root" -o "{root}/build/CLeonOS-CLBoot-x86_64.iso"
+cache = false
+
 [target.run]
 deps = iso, disk-image
 type = command
 command = {QEMU_X86_64} -M pc -m 1024M -boot order=d -cdrom "{root}/build/CLeonOS-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+cache = false
+always = true
+
+[target.run-clboot]
+deps = clboot-iso, disk-image
+type = command
+command = if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then OVMF=/usr/share/OVMF/OVMF_CODE.fd; elif [ -f /usr/share/ovmf/OVMF.fd ]; then OVMF=/usr/share/ovmf/OVMF.fd; else echo "run-clboot: OVMF firmware not found"; exit 1; fi; {QEMU_X86_64} -M q35 -m 1024M -bios "$OVMF" -boot order=d -cdrom "{root}/build/CLeonOS-CLBoot-x86_64.iso" -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
 cache = false
 always = true
 

@@ -11,6 +11,7 @@ NM ?= nm
 TAR ?= tar
 XORRISO ?= xorriso
 QEMU_X86_64 ?= qemu-system-x86_64
+NINJA ?= ninja
 PYTHON ?= python3
 OPT_LEVEL ?=
 MENUCONFIG_ARGS ?=
@@ -40,7 +41,7 @@ endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
 
-.PHONY: all bdt configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
+.PHONY: all bdt ninja-gen ninja-build ninja-clboot-iso configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine clboot clboot-kernel clboot-iso run-clboot kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
 
 all: iso
 
@@ -50,7 +51,16 @@ $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > @mkdir -p $(BDT_BUILD_DIR)
 > $(HOST_CC) -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
-configure reconfigure setup setup-tools setup-limine kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
+ninja-gen:
+> $(PYTHON) scripts/gen_ninja.py
+
+ninja-build: ninja-gen
+> $(NINJA) -f build.ninja
+
+ninja-clboot-iso: ninja-gen
+> $(NINJA) -f build.ninja clboot-iso
+
+configure reconfigure setup setup-tools setup-limine clboot clboot-kernel clboot-iso run-clboot kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
 
 os-version gen-os-version:
@@ -68,8 +78,12 @@ graph: bdt
 help: bdt
 > $(BDT) --list
 > @echo ""
-> @echo "bdt entrypoints:"
+> @echo "entrypoints:"
 > @echo "  make iso"
+> @echo "  make clboot-iso"
+> @echo "  make ninja-gen"
+> @echo "  make ninja-clboot-iso"
+> @echo "  make run-clboot"
 > @echo "  make run"
 > @echo "  make run-hardboot"
 > @echo "  make menuconfig"
