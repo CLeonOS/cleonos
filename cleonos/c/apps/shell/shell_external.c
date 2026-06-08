@@ -94,6 +94,48 @@ static void ush_sync_user_state_after_external(ush_state *sh, u64 stdin_fd, u64 
     (void)ush_login_if_needed(sh);
 }
 
+static void ush_exec_print_nonzero_status(u64 status) {
+    if ((status & (1ULL << 63)) != 0ULL) {
+        ush_writeln("exec: terminated by signal");
+        ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
+        ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
+        ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+    } else {
+        ush_writeln("exec: returned non-zero status");
+        ush_print_kv_hex("  STATUS", status);
+    }
+}
+
+static int ush_exec_spawn_wait_foreground(const char *path, const char *arg, const char *env_line, u64 *out_status) {
+    u64 pid;
+
+    if (out_status == (u64 *)0) {
+        return 0;
+    }
+
+    *out_status = (u64)-1;
+    pid = cleonos_sys_spawn_pathv(path, arg, env_line);
+    if (pid == (u64)-1) {
+        return 0;
+    }
+
+    for (;;) {
+        u64 status = (u64)-1;
+        u64 wait_ret = cleonos_sys_wait_pid(pid, &status);
+
+        if (wait_ret == (u64)-1) {
+            return 0;
+        }
+
+        if (wait_ret == 1ULL) {
+            *out_status = status;
+            return 1;
+        }
+
+        (void)cleonos_sys_sleep_ticks(1ULL);
+    }
+}
+
 static int ush_cmd_ret_apply(ush_state *sh, const ush_cmd_ret *ret) {
     if (sh == (ush_state *)0 || ret == (const ush_cmd_ret *)0) {
         return 0;
@@ -222,12 +264,20 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
         ush_append_text(env_line, (u64)sizeof(env_line), ";USH_STDIN_MODE=PIPE");
     }
 
-    status = cleonos_sys_exec_pathv_io(path, arg, env_line, stdin_fd, stdout_fd, stderr_fd);
+    if (stdin_fd == CLEONOS_FD_INHERIT && stdout_fd == CLEONOS_FD_INHERIT && stderr_fd == CLEONOS_FD_INHERIT) {
+        if (ush_exec_spawn_wait_foreground(path, arg, env_line, &status) == 0) {
+            ush_writeln("exec: request failed");
+            (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
+            return 1;
+        }
+    } else {
+        status = cleonos_sys_exec_pathv_io(path, arg, env_line, stdin_fd, stdout_fd, stderr_fd);
 
-    if (status == (u64)-1) {
-        ush_writeln("exec: request failed");
-        (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
-        return 1;
+        if (status == (u64)-1) {
+            ush_writeln("exec: request failed");
+            (void)cleonos_sys_fs_remove(USH_CMD_CTX_PATH);
+            return 1;
+        }
     }
 
     if (ush_command_ret_read(&ret) != 0) {
@@ -240,15 +290,7 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
     (void)cleonos_sys_fs_remove(USH_CMD_RET_PATH);
 
     if (status != 0ULL) {
-        if ((status & (1ULL << 63)) != 0ULL) {
-            ush_writeln("exec: terminated by signal");
-            ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-            ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-            ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
-        } else {
-            ush_writeln("exec: returned non-zero status");
-            ush_print_kv_hex("  STATUS", status);
-        }
+        ush_exec_print_nonzero_status(status);
 
         if (out_success != (int *)0) {
             *out_success = 0;

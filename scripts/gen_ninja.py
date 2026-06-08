@@ -179,6 +179,9 @@ FASTFETCH_SOURCES = [r(f"cleonos/c/apps/fastfetch/{name}.c") for name in ["fastf
     "modules/uptime/uptime", "modules/shell/shell", "modules/terminal/terminal", "modules/terminalsize/terminalsize",
     "modules/memory/memory", "modules/disk/disk", "modules/locale/locale", "modules/colors/colors", "modules/version/version",
 ]]
+HBOS_SOURCES = [r(f"cleonos/c/apps/hbos/{name}.c") for name in [
+    "hbos_core", "hbos_video", "hbos_fat", "hbos_apps", "hbos_console", "hbos_hrb", "hbos_tek"
+]] + [r("cleonos/c/apps/minizip_cleonos_setjmp.c")]
 
 OUTPUT_GROUPS = {
     "default": {"output": r("build/x86_64/user/apps"), "linker": r("cleonos/c/user.ld"), "apps": []},
@@ -213,6 +216,7 @@ APP_RULES = {
     "install2disk": {"sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
     "leonfetch": {"sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
     "fastfetch": {"cflags": FASTFETCH_CFLAGS, "sources": FASTFETCH_SOURCES},
+    "hbos": {"sources": HBOS_SOURCES},
     "passwd": {"sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
     "useradd": {"sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
     "userdel": {"sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
@@ -533,13 +537,14 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f"{q(ramdisk_root + '/system/tcc')} {q(ramdisk_root + '/shell')} {q(ramdisk_root + '/shell/uwm')} {q(ramdisk_root + '/shell/inputm')} {q(ramdisk_root + '/driver')}"
         f" && cp -R {q(str(ROOT) + '/ramdisk/.')} {q(ramdisk_root + '/')}"
         f" && {TOOLS['PYTHON']} {q(ROOT / 'scripts/gen_os_version.py')} {q(ROOT)} {q(ramdisk_root + '/etc')}"
+        f" && {TOOLS['PYTHON']} {q(ROOT / 'scripts/build_haribote_assets.py')} {q(ROOT)} {q(ramdisk_root + '/system/hbos')}"
         f" && cp -R {q(ROOT / 'build/x86_64/tccroot/.')} {q(ramdisk_root + '/system/tcc/')}"
         f" && cp {q(sym)} {q(ramdisk_root + '/system/kernel.sym')}"
         f" && cp {q(normal_kernel)} {q(ramdisk_root + '/system/install/clks_kernel.elf')}"
         f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/inputm/')} ;; */driver/*.elf) cp \"$f\" {q(ramdisk_root + '/driver/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/')} ;; esac; done"
         f" && touch {q(ramdisk_stamp)}"
     )
-    nw.build(ramdisk_stamp, "run", [normal_kernel, sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
+    nw.build(ramdisk_stamp, "run", [normal_kernel, sym, tcc_stamp, r("scripts/build_haribote_assets.py")] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
     nw.build("ramdisk-root", "phony", [ramdisk_stamp])
     nw.build(ramdisk, "run", [ramdisk_stamp], variables={"cmd": f"mkdir -p {q(Path(ramdisk).parent)} && {TOOLS['TAR']} -cf {q(ramdisk)} -C {q(ramdisk_root)} .", "desc": "ramdisk"})
     nw.build("ramdisk", "phony", [ramdisk])
