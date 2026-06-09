@@ -1,4 +1,4 @@
-# This makefile is just a simple way to run bdt
+# This makefile is a small frontend for Ninja and BDT.
 
 .RECIPEPREFIX := >
 MAKEFLAGS += --no-print-directory
@@ -42,8 +42,9 @@ BDT_VERBOSE := --verbose
 endif
 
 BDT_CONFIG_VARS := CC="$(CC)" KERNEL_CXX="$(KERNEL_CXX)" USER_CXX="$(USER_CXX)" LD="$(LD)" RUSTC="$(RUSTC)" NM="$(NM)" TAR="$(TAR)" XORRISO="$(XORRISO)" QEMU_X86_64="$(QEMU_X86_64)" opt_level="$(OPT_LEVEL)" menuconfig_args="$(MENUCONFIG_ARGS)" menuconfig_preset="$(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),)" DISK_IMAGE_MB="$(DISK_IMAGE_MB)"
+KCONFIG_PRESET_ARG := $(if $(MENUCONFIG_PRESET),--preset $(MENUCONFIG_PRESET),--preset full)
 
-.PHONY: all bdt ninja-gen ninja-build ninja-clboot-iso ninja-clboot-harddisk ninja-run-clboot-harddisk configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
+.PHONY: all bdt ninja-gen ninja-build ninja-menuconfig ninja-olddefconfig ninja-defconfig ninja-clboot-iso ninja-clboot-harddisk ninja-run-clboot-harddisk configure reconfigure menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks olddefconfig defconfig setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all os-version gen-os-version help list scan graph
 
 all: iso
 
@@ -54,10 +55,19 @@ $(BDT): $(BDT_SRC) bdt/src/bdt.h
 > $(HOST_CC) -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Ibdt/src $(BDT_SRC) -o $(BDT) $(BDT_LDLIBS)
 
 ninja-gen:
-> $(PYTHON) scripts/gen_ninja.py
+> MENUCONFIG_PRESET="$(MENUCONFIG_PRESET)" MENUCONFIG_ARGS="$(MENUCONFIG_ARGS)" $(PYTHON) scripts/gen_ninja.py
 
 ninja-build: ninja-gen
 > $(NINJA) -f build.ninja
+
+ninja-menuconfig: ninja-gen
+> $(NINJA) -f build.ninja menuconfig
+
+ninja-olddefconfig: ninja-gen
+> $(NINJA) -f build.ninja olddefconfig
+
+ninja-defconfig: ninja-gen
+> $(NINJA) -f build.ninja defconfig
 
 ninja-clboot-iso: ninja-gen
 > $(NINJA) -f build.ninja clboot-iso
@@ -68,7 +78,20 @@ ninja-clboot-harddisk: ninja-gen
 ninja-run-clboot-harddisk: ninja-gen
 > $(NINJA) -f build.ninja run-clboot-harddisk
 
-configure reconfigure setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all menuconfig menuconfig-gui menuconfig-clks menuconfig-gui-clks: bdt
+menuconfig menuconfig-clks:
+> $(PYTHON) scripts/kconfig_sync.py menuconfig
+
+menuconfig-gui menuconfig-gui-clks:
+> @echo "menuconfig-gui was removed; using Kconfig terminal menuconfig"
+> $(PYTHON) scripts/kconfig_sync.py menuconfig
+
+olddefconfig:
+> $(PYTHON) scripts/kconfig_sync.py olddefconfig
+
+defconfig:
+> $(PYTHON) scripts/kconfig_sync.py defconfig $(KCONFIG_PRESET_ARG) $(MENUCONFIG_ARGS)
+
+configure reconfigure setup setup-tools setup-limine clboot clboot-kernel clboot-iso clboot-harddisk run-clboot run-clboot-harddisk kernel kernel-symbols userapps tcc-runtime ramdisk-root ramdisk disk-image iso run run-hardboot debug clean-drive-image clean clean-all: bdt
 > $(BDT_CONFIG_VARS) $(BDT) $@ -j $(JOBS) $(BDT_VERBOSE)
 
 os-version gen-os-version:

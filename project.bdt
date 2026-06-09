@@ -84,7 +84,7 @@ cache = false
 
 [target.menuconfig-headers]
 type = command
-command = {python} scripts/bdt_gen_menuconfig.py
+command = {python} scripts/kconfig_sync.py export
 cache = false
 
 [target.setup-limine]
@@ -295,9 +295,9 @@ app.mousedrv.include_runtime = false
 cache = true
 
 [target.ramdisk-root]
-deps = userapps, tcc-runtime, kernel-symbols, setup-limine
+deps = userapps, tcc-runtime, kernel-symbols, clboot, clboot-kernel
 type = group
-steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | {python} "{root}/scripts/gen_os_version.py" "{root}" "{root}/build/x86_64/ramdisk_root/etc" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/system/install" "{root}/build/x86_64/ramdisk_root/system/tcc" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" "{root}/build/x86_64/ramdisk_root/shell/inputm" "{root}/build/x86_64/ramdisk_root/driver" | cp -R "{root}/build/x86_64/tccroot/." "{root}/build/x86_64/ramdisk_root/system/tcc/" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/clks_kernel.elf" "{root}/build/x86_64/ramdisk_root/system/install/clks_kernel.elf" | cp "{root}/limine/bin/limine-bios-hdd.bin" "{root}/build/x86_64/ramdisk_root/system/install/limine-bios-hdd.bin" | cp "{root}/limine/bin/limine-bios.sys" "{root}/build/x86_64/ramdisk_root/system/install/limine-bios.sys" | cp "{root}/configs/limine-harddisk.conf" "{root}/build/x86_64/ramdisk_root/system/install/limine-harddisk.conf" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/apps/inputm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/inputm/" | cp "{root}/build/x86_64/user/apps/driver/"*.elf "{root}/build/x86_64/ramdisk_root/driver/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
+steps = rm -rf "{root}/build/x86_64/ramdisk_root" | mkdir -p "{root}/build/x86_64/ramdisk_root" | cp -R "{root}/ramdisk/." "{root}/build/x86_64/ramdisk_root/" | {python} "{root}/scripts/gen_os_version.py" "{root}" "{root}/build/x86_64/ramdisk_root/etc" | mkdir -p "{root}/build/x86_64/ramdisk_root/system" "{root}/build/x86_64/ramdisk_root/system/install" "{root}/build/x86_64/ramdisk_root/system/tcc" "{root}/build/x86_64/ramdisk_root/shell" "{root}/build/x86_64/ramdisk_root/shell/uwm" "{root}/build/x86_64/ramdisk_root/shell/inputm" "{root}/build/x86_64/ramdisk_root/driver" | cp -R "{root}/build/x86_64/tccroot/." "{root}/build/x86_64/ramdisk_root/system/tcc/" | cp "{root}/build/x86_64/kernel.sym" "{root}/build/x86_64/ramdisk_root/system/kernel.sym" | cp "{root}/build/x86_64/clks_kernel_clboot.elf" "{root}/build/x86_64/ramdisk_root/system/install/clks_kernel.elf" | cp "{root}/build/x86_64/clboot/BOOTX64.EFI" "{root}/build/x86_64/ramdisk_root/system/install/BOOTX64.EFI" | cp "{root}/configs/clboot-harddisk.conf" "{root}/build/x86_64/ramdisk_root/system/install/clboot-harddisk.conf" | cp "{root}/build/x86_64/user/apps/"*.elf "{root}/build/x86_64/ramdisk_root/shell/" | cp "{root}/build/x86_64/user/apps/uwm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/uwm/" | cp "{root}/build/x86_64/user/apps/inputm/"*.elf "{root}/build/x86_64/ramdisk_root/shell/inputm/" | cp "{root}/build/x86_64/user/apps/driver/"*.elf "{root}/build/x86_64/ramdisk_root/driver/" | cp "{root}/build/x86_64/user/system/"*.elf "{root}/build/x86_64/ramdisk_root/system/"
 cache = false
 
 [target.ramdisk]
@@ -327,9 +327,9 @@ steps = rm -rf "{root}/build/x86_64/clboot_iso_root" | mkdir -p "{root}/build/x8
 cache = false
 
 [target.clboot-harddisk]
-deps = clboot, clboot-kernel, ramdisk
+deps = clboot, clboot-kernel
 type = command
-command = rm -f "{root}/build/x86_64/clboot_harddisk.img" && mkdir -p "{root}/build/x86_64" && truncate -s 268435456 "{root}/build/x86_64/clboot_harddisk.img" && printf 'label: dos\nunit: sectors\n\nstart=2048, size=522240, type=ef, bootable\n' | sfdisk "{root}/build/x86_64/clboot_harddisk.img" && mformat -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" -F :: && mmd -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clboot/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/configs/clboot-harddisk.conf" ::/EFI/CLEONOS/CLBOOT.CONF && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clks_kernel_clboot.elf" ::/boot/clks_kernel.elf && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/cleonos_ramdisk.tar" ::/boot/cleonos_ramdisk.tar
+command = rm -f "{root}/build/x86_64/clboot_harddisk.img" && mkdir -p "{root}/build/x86_64" && truncate -s 268435456 "{root}/build/x86_64/clboot_harddisk.img" && printf 'label: dos\nunit: sectors\n\nstart=2048, size=522240, type=ef, bootable\n' | sfdisk "{root}/build/x86_64/clboot_harddisk.img" && mformat -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" -F :: && mmd -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clboot/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/configs/clboot-harddisk.conf" ::/EFI/CLEONOS/CLBOOT.CONF && mcopy -i "{root}/build/x86_64/clboot_harddisk.img@@1048576" "{root}/build/x86_64/clks_kernel_clboot.elf" ::/boot/clks_kernel.elf
 cache = false
 
 [target.run]
@@ -355,7 +355,7 @@ always = true
 
 [target.run-hardboot]
 type = command
-command = if [ ! -f "{root}/build/x86_64/cleonos_disk.img" ]; then echo "run-hardboot: missing build/x86_64/cleonos_disk.img; run make run and execute install2disk first"; exit 1; fi; {QEMU_X86_64} -M pc -m 1024M -boot order=c -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
+command = if [ ! -f "{root}/build/x86_64/cleonos_disk.img" ]; then echo "run-hardboot: missing build/x86_64/cleonos_disk.img; run make run-clboot and execute install2disk first"; exit 1; fi; if [ -f /usr/share/OVMF/OVMF_CODE.fd ]; then OVMF=/usr/share/OVMF/OVMF_CODE.fd; elif [ -f /usr/share/ovmf/OVMF.fd ]; then OVMF=/usr/share/ovmf/OVMF.fd; else echo "run-hardboot: OVMF firmware not found"; exit 1; fi; {QEMU_X86_64} -M q35 -m 1024M -bios "$OVMF" -boot order=c -drive "file={root}/build/x86_64/cleonos_disk.img,format=raw,if=none,id=clksdisk,media=disk" -device "ide-hd,drive=clksdisk,bus=ide.0,bootindex=1" -netdev "user,id=clksnet0" -device "e1000,netdev=clksnet0" -serial stdio
 cache = false
 always = true
 
@@ -368,13 +368,25 @@ always = true
 
 [target.menuconfig]
 type = command
-command = {python} scripts/menuconfig.py {menuconfig_preset} {menuconfig_args}
+command = {python} scripts/kconfig_sync.py menuconfig
 cache = false
 always = true
 
 [target.menuconfig-gui]
 type = command
-command = {python} scripts/menuconfig.py --gui {menuconfig_preset} {menuconfig_args}
+command = {python} scripts/kconfig_sync.py menuconfig
+cache = false
+always = true
+
+[target.olddefconfig]
+type = command
+command = {python} scripts/kconfig_sync.py olddefconfig
+cache = false
+always = true
+
+[target.defconfig]
+type = command
+command = {python} scripts/kconfig_sync.py defconfig {menuconfig_preset} {menuconfig_args}
 cache = false
 always = true
 

@@ -8,7 +8,7 @@
 
 #define INSTALL_MOUNT_PATH "/temp/disk"
 #define INSTALL_SECTOR_SIZE 512ULL
-#define INSTALL_STAGE2_LBA 1ULL
+#define INSTALL_PARTITION_LBA 2048ULL
 #define INSTALL_SKIP_PREFIX INSTALL_MOUNT_PATH
 #define INSTALL_COPY_CHUNK_SIZE 8192U
 #define INSTALL_WHOLE_FILE_LIMIT (128ULL * 1024ULL)
@@ -19,10 +19,11 @@
 #define INSTALL_OS_VERSION_TARGET INSTALL_MOUNT_PATH "/etc/os-version"
 #define INSTALL_OS_RELEASE_TARGET INSTALL_MOUNT_PATH "/etc/os-release"
 #define INSTALL_KERNEL_SOURCE "/system/install/clks_kernel.elf"
-#define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/kernel.elf"
-#define INSTALL_LIMINE_CONF_SOURCE "/system/install/limine-harddisk.conf"
-#define INSTALL_LIMINE_SYS_SOURCE "/system/install/limine-bios.sys"
-#define INSTALL_LIMINE_HDD_SOURCE "/system/install/limine-bios-hdd.bin"
+#define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/boot/clks_kernel.elf"
+#define INSTALL_CLBOOT_EFI_SOURCE "/system/install/BOOTX64.EFI"
+#define INSTALL_CLBOOT_CONF_SOURCE "/system/install/clboot-harddisk.conf"
+#define INSTALL_CLBOOT_EFI_TARGET INSTALL_MOUNT_PATH "/EFI/BOOT/BOOTX64.EFI"
+#define INSTALL_CLBOOT_CONF_TARGET INSTALL_MOUNT_PATH "/EFI/CLEONOS/clboot.conf"
 #define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/users.db"
 #define INSTALL_MANIFEST_SOURCE "/system/install_manifest.db"
 #define INSTALL_MANIFEST_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.db"
@@ -143,11 +144,11 @@ static const char *install_stage_label(const char *name) {
     if (strcmp(name, "copy root filesystem") == 0) {
         return INSTALL_TEXT("copy root filesystem", "复制根文件系统");
     }
-    if (strcmp(name, "install kernel and Limine files") == 0) {
-        return INSTALL_TEXT("install kernel and Limine files", "安装内核和 Limine 文件");
+    if (strcmp(name, "install kernel and CLBoot files") == 0) {
+        return INSTALL_TEXT("install kernel and CLBoot files", "安装内核和 CLBoot 文件");
     }
-    if (strcmp(name, "write Limine BIOS boot stages") == 0) {
-        return INSTALL_TEXT("write Limine BIOS boot stages", "写入 Limine BIOS 启动阶段");
+    if (strcmp(name, "write UEFI partition table") == 0) {
+        return INSTALL_TEXT("write UEFI partition table", "写入 UEFI 分区表");
     }
     if (strcmp(name, "generate install manifest") == 0) {
         return INSTALL_TEXT("generate install manifest", "生成安装清单");
@@ -162,11 +163,11 @@ static const char *install_progress_label(const char *label) {
     if (strcmp(label, "repair file") == 0) {
         return INSTALL_TEXT("repair file", "修复文件");
     }
-    if (strcmp(label, "repair limine config") == 0) {
-        return INSTALL_TEXT("repair limine config", "修复 Limine 配置");
+    if (strcmp(label, "repair clboot config") == 0) {
+        return INSTALL_TEXT("repair clboot config", "修复 CLBoot 配置");
     }
-    if (strcmp(label, "repair limine sys") == 0) {
-        return INSTALL_TEXT("repair limine sys", "修复 Limine sys 文件");
+    if (strcmp(label, "repair clboot efi") == 0) {
+        return INSTALL_TEXT("repair clboot efi", "修复 CLBoot EFI 文件");
     }
     if (strcmp(label, "repair bootloader") == 0) {
         return INSTALL_TEXT("repair bootloader", "修复引导器");
@@ -597,9 +598,9 @@ static int install_mkdir_parents_for_file(const char *file_path) {
     return 1;
 }
 
-static int install_prepare_limine_dirs(void) {
-    if (install_mkdir(INSTALL_MOUNT_PATH "/boot") == 0 || install_mkdir(INSTALL_MOUNT_PATH "/boot/limine") == 0 ||
-        install_mkdir(INSTALL_MOUNT_PATH "/limine") == 0) {
+static int install_prepare_clboot_dirs(void) {
+    if (install_mkdir(INSTALL_MOUNT_PATH "/EFI") == 0 || install_mkdir(INSTALL_MOUNT_PATH "/EFI/BOOT") == 0 ||
+        install_mkdir(INSTALL_MOUNT_PATH "/EFI/CLEONOS") == 0 || install_mkdir(INSTALL_MOUNT_PATH "/boot") == 0) {
         return 0;
     }
 
@@ -622,10 +623,10 @@ static void install_print_usage(void) {
     (void)puts("  install2disk verify");
     (void)puts("  install2disk repair");
     (void)puts("  install2disk repair manifest");
-    (void)puts("  install2disk repair limine");
     (void)puts("  install2disk repair bootloader");
-    (void)puts("  install2disk repair limine-conf");
-    (void)puts("  install2disk repair limine-sys");
+    (void)puts("  install2disk repair clboot");
+    (void)puts("  install2disk repair clboot-conf");
+    (void)puts("  install2disk repair clboot-efi");
     (void)puts("  install2disk repair shell <app|app.elf>");
     (void)puts("  install2disk repair uwm <app|app.elf>");
     (void)puts("  install2disk repair driver <app|app.elf>");
@@ -1264,7 +1265,8 @@ static int install_manifest_path_included(const char *logical_path) {
         strcmp(logical_path, "/system/install_manifest.new") == 0 ||
         strcmp(logical_path, "/system/install_manifest.prev") == 0 ||
         strcmp(logical_path, "/system/update_state.db") == 0 || strcmp(logical_path, "/system/users.db") == 0 ||
-        strcmp(logical_path, "/kernel.elf") == 0) {
+        strcmp(logical_path, "/kernel.elf") == 0 || strcmp(logical_path, "/limine.conf") == 0 ||
+        strcmp(logical_path, "/limine-bios.sys") == 0 || install_path_is_under(logical_path, "/limine") != 0) {
         return 0;
     }
 
@@ -1274,13 +1276,10 @@ static int install_manifest_path_included(const char *logical_path) {
         return 0;
     }
 
-    if (install_path_is_under(logical_path, "/boot") != 0 || install_path_is_under(logical_path, "/system") != 0 ||
+    if (install_path_is_under(logical_path, "/EFI") != 0 || install_path_is_under(logical_path, "/boot") != 0 ||
+        install_path_is_under(logical_path, "/system") != 0 ||
         install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/driver") != 0 ||
-        install_path_is_under(logical_path, "/limine") != 0) {
-        return 1;
-    }
-
-    if (strcmp(logical_path, "/limine.conf") == 0 || strcmp(logical_path, "/limine-bios.sys") == 0) {
+        install_path_is_under(logical_path, "/efi") != 0) {
         return 1;
     }
 
@@ -1721,9 +1720,8 @@ static int install_verify_file_required(install_verify_result *result, const cha
 
 static int install_verify_boot_sectors(install_verify_result *result) {
     static unsigned char sector[INSTALL_SECTOR_SIZE];
-    u64 stage2_loc;
-    u64 i;
-    int nonzero = 0;
+    u64 partition_lba;
+    u64 partition_sectors;
     int ok = 1;
 
     if (result == (install_verify_result *)0) {
@@ -1731,49 +1729,35 @@ static int install_verify_boot_sectors(install_verify_result *result) {
     }
 
     if (cleonos_sys_disk_read_sector(0ULL, sector) == 0ULL) {
-        install_puts_i18n("install2disk verify: cannot read MBR sector",
-                          "install2disk verify: 无法读取 MBR 扇区");
+        install_puts_i18n("install2disk verify: cannot read UEFI partition sector",
+                          "install2disk verify: 无法读取 UEFI 分区扇区");
         result->boot_errors++;
         return 0;
     }
 
     if (sector[510U] != 0x55U || sector[511U] != 0xAAU) {
-        install_puts_i18n("install2disk verify: MBR signature missing",
-                          "install2disk verify: MBR 签名缺失");
+        install_puts_i18n("install2disk verify: partition table signature missing",
+                          "install2disk verify: 分区表签名缺失");
         result->boot_errors++;
         ok = 0;
     }
 
-    stage2_loc = 0ULL;
-    for (i = 0ULL; i < 8ULL; i++) {
-        stage2_loc |= ((u64)sector[0x1A4U + i]) << (8ULL * i);
-    }
-
-    if (stage2_loc != INSTALL_STAGE2_LBA * INSTALL_SECTOR_SIZE) {
-        (void)printf(INSTALL_TEXT("install2disk verify: unexpected Limine stage2 pointer: %llu\n",
-                                  "install2disk verify: Limine stage2 指针异常: %llu\n"),
-                     (unsigned long long)stage2_loc);
+    if (sector[0x1BEU + 4U] != 0xEFU) {
+        install_puts_i18n("install2disk verify: first partition is not an EFI System Partition",
+                          "install2disk verify: 第一个分区不是 EFI System Partition");
         result->boot_errors++;
         ok = 0;
     }
 
-    if (cleonos_sys_disk_read_sector(INSTALL_STAGE2_LBA, sector) == 0ULL) {
-        install_puts_i18n("install2disk verify: cannot read Limine stage2 sector",
-                          "install2disk verify: 无法读取 Limine stage2 扇区");
-        result->boot_errors++;
-        return 0;
-    }
+    partition_lba = ((u64)sector[0x1BEU + 8U]) | (((u64)sector[0x1BEU + 9U]) << 8U) |
+                    (((u64)sector[0x1BEU + 10U]) << 16U) | (((u64)sector[0x1BEU + 11U]) << 24U);
+    partition_sectors = ((u64)sector[0x1BEU + 12U]) | (((u64)sector[0x1BEU + 13U]) << 8U) |
+                        (((u64)sector[0x1BEU + 14U]) << 16U) | (((u64)sector[0x1BEU + 15U]) << 24U);
 
-    for (i = 0ULL; i < INSTALL_SECTOR_SIZE; i++) {
-        if (sector[i] != 0U) {
-            nonzero = 1;
-            break;
-        }
-    }
-
-    if (nonzero == 0) {
-        install_puts_i18n("install2disk verify: Limine stage2 sector is blank",
-                          "install2disk verify: Limine stage2 扇区为空");
+    if (partition_lba != INSTALL_PARTITION_LBA || partition_sectors == 0ULL) {
+        (void)printf(INSTALL_TEXT("install2disk verify: invalid ESP partition lba=%llu sectors=%llu\n",
+                                  "install2disk verify: ESP 分区无效 lba=%llu sectors=%llu\n"),
+                     (unsigned long long)partition_lba, (unsigned long long)partition_sectors);
         result->boot_errors++;
         ok = 0;
     }
@@ -1970,17 +1954,11 @@ static int install_verify_manifest(install_verify_result *result) {
 }
 
 static int install_verify_run(void) {
-    static const char *required_files[] = {"/kernel.elf",
-                                           "/boot/limine/limine-bios.sys",
-                                           "/boot/limine-bios.sys",
-                                           "/limine/limine-bios.sys",
-                                           "/limine-bios.sys",
-                                           "/boot/limine/limine.conf",
-                                           "/boot/limine.conf",
-                                           "/limine/limine.conf",
-                                           "/limine.conf",
+    static const char *required_files[] = {"/EFI/BOOT/BOOTX64.EFI",
+                                           "/EFI/CLEONOS/clboot.conf",
+                                           "/boot/clks_kernel.elf",
                                            "/system/users.db",
-                                           "/system/tty.psf",
+                                           "/system/tty.ttf",
                                            "/shell/shell.elf"};
     install_verify_result result;
     char mount_path[USH_PATH_MAX];
@@ -2040,159 +2018,39 @@ static int install_verify_run(void) {
     return 0;
 }
 
-static int install_raw_write_bytes(u64 start_lba, const char *src_path, u64 start_offset, u64 byte_count,
-                                   install_progress *progress) {
-    static char file_buf[4096];
-    static unsigned char sector[INSTALL_SECTOR_SIZE];
-    u64 fd;
-    u64 file_pos = 0ULL;
-    u64 written = 0ULL;
-    u64 cached_start = (u64)-1;
-    u64 cached_len = 0ULL;
-
-    fd = cleonos_sys_fd_open(src_path, CLEONOS_O_RDONLY, 0ULL);
-    if (fd == (u64)-1) {
-        (void)printf(INSTALL_TEXT("install2disk: open boot blob failed: %s\n",
-                                  "install2disk: 打开启动 blob 失败: %s\n"),
-                     src_path);
-        return 0;
-    }
-
-    while (written < byte_count) {
-        u64 want_pos = start_offset + written;
-        u64 sector_lba = start_lba + (written / INSTALL_SECTOR_SIZE);
-        u64 sector_off = written % INSTALL_SECTOR_SIZE;
-        u64 chunk = INSTALL_SECTOR_SIZE - sector_off;
-        u64 i;
-
-        if (chunk > byte_count - written) {
-            chunk = byte_count - written;
-        }
-
-        if (cleonos_sys_disk_read_sector(sector_lba, sector) == 0ULL) {
-            (void)cleonos_sys_fd_close(fd);
-            (void)printf(INSTALL_TEXT("install2disk: read sector failed: %llu\n",
-                                      "install2disk: 读取扇区失败: %llu\n"),
-                         (unsigned long long)sector_lba);
-            return 0;
-        }
-
-        for (i = 0ULL; i < chunk; i++) {
-            u64 p = want_pos + i;
-            if (p < cached_start || p >= cached_start + cached_len) {
-                if (p < file_pos) {
-                    (void)cleonos_sys_fd_close(fd);
-                    install_puts_i18n("install2disk: non-sequential boot blob read",
-                                      "install2disk: 启动 blob 非顺序读取");
-                    return 0;
-                }
-
-                while (file_pos < p) {
-                    u64 skip_need = p - file_pos;
-                    u64 got;
-                    if (skip_need > (u64)sizeof(file_buf)) {
-                        skip_need = (u64)sizeof(file_buf);
-                    }
-                    got = cleonos_sys_fd_read(fd, file_buf, skip_need);
-                    if (got == (u64)-1 || got == 0ULL) {
-                        (void)cleonos_sys_fd_close(fd);
-                        install_puts_i18n("install2disk: boot blob seek failed",
-                                          "install2disk: 启动 blob seek 失败");
-                        return 0;
-                    }
-                    file_pos += got;
-                }
-
-                cached_start = file_pos;
-                cached_len = cleonos_sys_fd_read(fd, file_buf, (u64)sizeof(file_buf));
-                if (cached_len == (u64)-1 || cached_len == 0ULL) {
-                    (void)cleonos_sys_fd_close(fd);
-                    install_puts_i18n("install2disk: boot blob read failed",
-                                      "install2disk: 启动 blob 读取失败");
-                    return 0;
-                }
-                file_pos += cached_len;
-            }
-
-            sector[sector_off + i] = (unsigned char)file_buf[p - cached_start];
-        }
-
-        if (cleonos_sys_disk_write_sector(sector_lba, sector) == 0ULL) {
-            (void)cleonos_sys_fd_close(fd);
-            (void)printf(INSTALL_TEXT("install2disk: write sector failed: %llu\n",
-                                      "install2disk: 写入扇区失败: %llu\n"),
-                         (unsigned long long)sector_lba);
-            return 0;
-        }
-
-        written += chunk;
-        install_progress_add_done_bytes(progress, chunk);
-    }
-
-    (void)cleonos_sys_fd_close(fd);
-    return 1;
-}
-
-static int install_limine_bios(install_progress *progress) {
+static int install_write_uefi_partition_table(install_progress *progress) {
     static unsigned char mbr[INSTALL_SECTOR_SIZE];
-    u64 hdd_size;
-    u64 stage2_size;
-    u64 stage2_bytes;
-    u64 stage2_loc = INSTALL_STAGE2_LBA * INSTALL_SECTOR_SIZE;
     u64 sector_count;
-    u64 partition_lba = 2048ULL;
     u64 partition_sectors;
     unsigned int i;
 
-    hdd_size = cleonos_sys_fs_stat_size(INSTALL_LIMINE_HDD_SOURCE);
-    stage2_size = cleonos_sys_fs_stat_size(INSTALL_LIMINE_SYS_SOURCE);
-    if (hdd_size == (u64)-1 || hdd_size < INSTALL_SECTOR_SIZE || stage2_size == (u64)-1 || stage2_size == 0ULL) {
-        install_puts_i18n("install2disk: missing Limine install blobs",
-                          "install2disk: 缺少 Limine 安装 blob");
-        return 0;
-    }
-
-    if (install_raw_write_bytes(0ULL, INSTALL_LIMINE_HDD_SOURCE, 0ULL, INSTALL_SECTOR_SIZE, progress) == 0) {
-        return 0;
-    }
-
-    stage2_bytes = hdd_size - INSTALL_SECTOR_SIZE;
-    if (stage2_bytes > 0ULL &&
-        install_raw_write_bytes(INSTALL_STAGE2_LBA, INSTALL_LIMINE_HDD_SOURCE, INSTALL_SECTOR_SIZE, stage2_bytes,
-                                progress) == 0) {
-        return 0;
-    }
-
-    if (cleonos_sys_disk_read_sector(0ULL, mbr) == 0ULL) {
-        return 0;
-    }
-
-    for (i = 0U; i < 8U; i++) {
-        mbr[0x1A4U + i] = (unsigned char)((stage2_loc >> (8U * i)) & 0xFFULL);
-    }
-    for (i = 0x1BEU; i < 0x1FEU; i++) {
-        mbr[i] = 0U;
-    }
-
     sector_count = cleonos_sys_disk_sector_count();
-    if (sector_count <= partition_lba || sector_count > 0xFFFFFFFFULL) {
+    if (sector_count <= INSTALL_PARTITION_LBA || sector_count > 0xFFFFFFFFULL) {
         (void)printf(INSTALL_TEXT("install2disk: invalid disk sector count: %llu\n",
                                   "install2disk: 硬盘扇区数量无效: %llu\n"),
                      (unsigned long long)sector_count);
         return 0;
     }
-    partition_sectors = sector_count - partition_lba;
+    partition_sectors = sector_count - INSTALL_PARTITION_LBA;
+
+    if (cleonos_sys_disk_read_sector(0ULL, mbr) == 0ULL) {
+        return 0;
+    }
+
+    for (i = 0U; i < INSTALL_SECTOR_SIZE; i++) {
+        mbr[i] = 0U;
+    }
 
     mbr[0x1BEU] = 0x80U;
     mbr[0x1BEU + 1U] = 0x20U;
     mbr[0x1BEU + 2U] = 0x21U;
     mbr[0x1BEU + 3U] = 0x00U;
-    mbr[0x1BEU + 4U] = 0x0CU;
+    mbr[0x1BEU + 4U] = 0xEFU;
     mbr[0x1BEU + 5U] = 0xFEU;
     mbr[0x1BEU + 6U] = 0xFFU;
     mbr[0x1BEU + 7U] = 0xFFU;
     for (i = 0U; i < 4U; i++) {
-        mbr[0x1BEU + 8U + i] = (unsigned char)((partition_lba >> (8U * i)) & 0xFFULL);
+        mbr[0x1BEU + 8U + i] = (unsigned char)((INSTALL_PARTITION_LBA >> (8U * i)) & 0xFFULL);
         mbr[0x1BEU + 12U + i] = (unsigned char)((partition_sectors >> (8U * i)) & 0xFFULL);
     }
 
@@ -2208,7 +2066,7 @@ static int install_limine_bios(install_progress *progress) {
 }
 
 static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, install_progress *progress) {
-    if (install_prepare_limine_dirs() == 0) {
+    if (install_prepare_clboot_dirs() == 0) {
         return 0;
     }
 
@@ -2217,22 +2075,10 @@ static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, inst
         return 0;
     }
 
-    if (install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
-                          copied_bytes, progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
-                          progress) == 0) {
+    if (install_overwrite_file_whole(INSTALL_CLBOOT_EFI_SOURCE, INSTALL_CLBOOT_EFI_TARGET, copied_files,
+                                     copied_bytes, progress) == 0 ||
+        install_overwrite_file_whole(INSTALL_CLBOOT_CONF_SOURCE, INSTALL_CLBOOT_CONF_TARGET, copied_files,
+                                     copied_bytes, progress) == 0) {
         return 0;
     }
 
@@ -2386,34 +2232,28 @@ static int install_repair_copy_path(const char *src_path, u64 *copied_files, u64
     return 1;
 }
 
-static int install_repair_limine_conf(u64 *copied_files, u64 *copied_bytes) {
+static int install_repair_clboot_conf(u64 *copied_files, u64 *copied_bytes) {
     install_progress progress;
 
     memset(&progress, 0, sizeof(progress));
-    progress.label = "repair limine config";
-    install_progress_plan_file(&progress, INSTALL_LIMINE_CONF_SOURCE, 4ULL);
+    progress.label = "repair clboot config";
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_CONF_SOURCE, 1ULL);
     install_progress_print(&progress, 1);
 
-    if (install_prepare_limine_dirs() == 0) {
+    if (install_prepare_clboot_dirs() == 0) {
         return 0;
     }
 
-    if (install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf", copied_files, copied_bytes,
-                          &progress) == 0) {
+    if (install_overwrite_file_whole(INSTALL_CLBOOT_CONF_SOURCE, INSTALL_CLBOOT_CONF_TARGET, copied_files,
+                                     copied_bytes, &progress) == 0) {
         return 0;
     }
 
     progress.done_items = progress.total_items;
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
-    install_puts_i18n("install2disk: Limine config repaired",
-                      "install2disk: Limine 配置已修复");
+    install_puts_i18n("install2disk: CLBoot config repaired",
+                      "install2disk: CLBoot 配置已修复");
     return 1;
 }
 
@@ -2426,34 +2266,28 @@ static int install_repair_manifest(void) {
     return 1;
 }
 
-static int install_repair_limine_sys(u64 *copied_files, u64 *copied_bytes) {
+static int install_repair_clboot_efi(u64 *copied_files, u64 *copied_bytes) {
     install_progress progress;
 
     memset(&progress, 0, sizeof(progress));
-    progress.label = "repair limine sys";
-    install_progress_plan_file(&progress, INSTALL_LIMINE_SYS_SOURCE, 4ULL);
+    progress.label = "repair clboot efi";
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_EFI_SOURCE, 1ULL);
     install_progress_print(&progress, 1);
 
-    if (install_prepare_limine_dirs() == 0) {
+    if (install_prepare_clboot_dirs() == 0) {
         return 0;
     }
 
-    if (install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine-bios.sys", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/boot/limine-bios.sys", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine/limine-bios.sys", copied_files,
-                          copied_bytes, &progress) == 0 ||
-        install_overwrite_file_whole(INSTALL_LIMINE_SYS_SOURCE, INSTALL_MOUNT_PATH "/limine-bios.sys", copied_files, copied_bytes,
-                          &progress) == 0) {
+    if (install_overwrite_file_whole(INSTALL_CLBOOT_EFI_SOURCE, INSTALL_CLBOOT_EFI_TARGET, copied_files,
+                                     copied_bytes, &progress) == 0) {
         return 0;
     }
 
     progress.done_items = progress.total_items;
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
-    install_puts_i18n("install2disk: Limine sys repaired",
-                      "install2disk: Limine sys 已修复");
+    install_puts_i18n("install2disk: CLBoot EFI repaired",
+                      "install2disk: CLBoot EFI 已修复");
     return 1;
 }
 
@@ -2462,28 +2296,33 @@ static int install_repair_bootloader(void) {
 
     memset(&progress, 0, sizeof(progress));
     progress.label = "repair bootloader";
-    install_progress_plan_file(&progress, INSTALL_LIMINE_HDD_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_EFI_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_CONF_SOURCE, 1ULL);
     progress.total_items += 1ULL;
     install_progress_print(&progress, 1);
 
-    if (install_limine_bios(&progress) == 0) {
+    if (install_prepare_boot_files((u64 *)0, (u64 *)0, &progress) == 0) {
+        return 0;
+    }
+
+    if (install_write_uefi_partition_table(&progress) == 0) {
         return 0;
     }
 
     progress.done_items = progress.total_items;
     progress.done_bytes = progress.total_bytes;
     install_progress_print(&progress, 1);
-    install_puts_i18n("install2disk: BIOS bootloader repaired",
-                      "install2disk: BIOS 引导器已修复");
+    install_puts_i18n("install2disk: UEFI CLBoot bootloader repaired",
+                      "install2disk: UEFI CLBoot 引导器已修复");
     return 1;
 }
 
-static int install_repair_limine_full(u64 *copied_files, u64 *copied_bytes) {
-    if (install_repair_limine_sys(copied_files, copied_bytes) == 0) {
+static int install_repair_clboot_full(u64 *copied_files, u64 *copied_bytes) {
+    if (install_repair_clboot_efi(copied_files, copied_bytes) == 0) {
         return 0;
     }
 
-    if (install_repair_limine_conf(copied_files, copied_bytes) == 0) {
+    if (install_repair_clboot_conf(copied_files, copied_bytes) == 0) {
         return 0;
     }
 
@@ -2491,8 +2330,8 @@ static int install_repair_limine_full(u64 *copied_files, u64 *copied_bytes) {
         return 0;
     }
 
-    install_puts_i18n("install2disk: full Limine BIOS chain repaired",
-                      "install2disk: 完整 Limine BIOS 链已修复");
+    install_puts_i18n("install2disk: full UEFI CLBoot chain repaired",
+                      "install2disk: 完整 UEFI CLBoot 链已修复");
     return 1;
 }
 
@@ -2521,7 +2360,8 @@ static int install_repair_component(const char *kind, const char *name) {
         return 0;
     }
 
-    if (strcmp(kind, "bootloader") == 0 || strcmp(kind, "mbr") == 0) {
+    if (strcmp(kind, "bootloader") == 0 || strcmp(kind, "uefi") == 0 || strcmp(kind, "esp") == 0 ||
+        strcmp(kind, "mbr") == 0) {
         return install_repair_bootloader();
     }
 
@@ -2529,22 +2369,24 @@ static int install_repair_component(const char *kind, const char *name) {
         return install_repair_manifest();
     }
 
-    if (strcmp(kind, "limine-conf") == 0 || strcmp(kind, "limine-config") == 0 || strcmp(kind, "config") == 0) {
-        if (install_repair_limine_conf(&copied_files, &copied_bytes) == 0) {
+    if (strcmp(kind, "clboot-conf") == 0 || strcmp(kind, "clboot-config") == 0 ||
+        strcmp(kind, "limine-conf") == 0 || strcmp(kind, "limine-config") == 0 || strcmp(kind, "config") == 0) {
+        if (install_repair_clboot_conf(&copied_files, &copied_bytes) == 0) {
             return 0;
         }
         return install_repair_manifest();
     }
 
-    if (strcmp(kind, "limine-sys") == 0 || strcmp(kind, "sys") == 0) {
-        if (install_repair_limine_sys(&copied_files, &copied_bytes) == 0) {
+    if (strcmp(kind, "clboot-efi") == 0 || strcmp(kind, "efi") == 0 || strcmp(kind, "bootx64") == 0 ||
+        strcmp(kind, "limine-sys") == 0 || strcmp(kind, "sys") == 0) {
+        if (install_repair_clboot_efi(&copied_files, &copied_bytes) == 0) {
             return 0;
         }
         return install_repair_manifest();
     }
 
-    if (strcmp(kind, "limine") == 0) {
-        if (install_repair_limine_full(&copied_files, &copied_bytes) == 0) {
+    if (strcmp(kind, "clboot") == 0 || strcmp(kind, "limine") == 0) {
+        if (install_repair_clboot_full(&copied_files, &copied_bytes) == 0) {
             return 0;
         }
         return install_repair_manifest();
@@ -2636,13 +2478,13 @@ static int install_repair_interactive(void) {
     char name[INSTALL_REPAIR_NAME_MAX];
 
     install_puts_i18n("install2disk: repair components:", "install2disk: 修复组件:");
-    install_puts_i18n("  [l] full Limine BIOS chain (recommended)",
-                      "  [l] 完整 Limine BIOS 链");
-    install_puts_i18n("  [b] bootloader MBR/stage2 sectors",
-                      "  [b] 引导器 MBR/stage2 扇区");
+    install_puts_i18n("  [l] full UEFI CLBoot chain (recommended)",
+                      "  [l] 完整 UEFI CLBoot 链");
+    install_puts_i18n("  [b] UEFI partition table and boot files",
+                      "  [b] UEFI 分区表和启动文件");
     install_puts_i18n("  [m] install manifest", "  [m] 安装清单");
-    install_puts_i18n("  [c] Limine config files", "  [c] Limine 配置文件");
-    install_puts_i18n("  [s] Limine sys file", "  [s] Limine sys 文件");
+    install_puts_i18n("  [c] CLBoot config file", "  [c] CLBoot 配置文件");
+    install_puts_i18n("  [s] CLBoot EFI file", "  [s] CLBoot EFI 文件");
     install_puts_i18n("  [o] os-version / os-release", "  [o] os-version / os-release");
     install_puts_i18n("  [a] /shell app ELF", "  [a] /shell 应用 ELF");
     install_puts_i18n("  [u] /shell/uwm app ELF", "  [u] /shell/uwm 应用 ELF");
@@ -2659,7 +2501,7 @@ static int install_repair_interactive(void) {
     }
 
     if (choice == 'l') {
-        return install_repair_component("limine", (const char *)0);
+        return install_repair_component("clboot", (const char *)0);
     }
     if (choice == 'b') {
         return install_repair_component("bootloader", (const char *)0);
@@ -2668,10 +2510,10 @@ static int install_repair_interactive(void) {
         return install_repair_component("manifest", (const char *)0);
     }
     if (choice == 'c') {
-        return install_repair_component("limine-conf", (const char *)0);
+        return install_repair_component("clboot-conf", (const char *)0);
     }
     if (choice == 's') {
-        return install_repair_component("limine-sys", (const char *)0);
+        return install_repair_component("clboot-efi", (const char *)0);
     }
     if (choice == 'o') {
         return install_repair_component("os-meta", (const char *)0);
@@ -3445,11 +3287,13 @@ static int install_update_kernel(void) {
     install_progress_plan_file(&progress, INSTALL_KERNEL_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_OS_VERSION_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_OS_RELEASE_SOURCE, 1ULL);
-    install_progress_plan_file(&progress, INSTALL_LIMINE_CONF_SOURCE, 4ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_CONF_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_EFI_SOURCE, 1ULL);
+    progress.total_items += 1ULL;
     install_progress_print(&progress, 1);
 
-    if (install_update_overwrite_checked(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, "/kernel.elf", &result,
-                                         &copied_files, &copied_bytes, &progress) == 0) {
+    if (install_update_overwrite_checked(INSTALL_KERNEL_SOURCE, INSTALL_KERNEL_TARGET, "/boot/clks_kernel.elf",
+                                         &result, &copied_files, &copied_bytes, &progress) == 0) {
         return 0;
     }
 
@@ -3457,18 +3301,14 @@ static int install_update_kernel(void) {
         return 0;
     }
 
-    if (install_prepare_limine_dirs() == 0 ||
-        install_update_overwrite_checked(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine/limine.conf",
-                                         "/boot/limine/limine.conf", &result, &copied_files, &copied_bytes,
+    if (install_prepare_clboot_dirs() == 0 ||
+        install_update_overwrite_checked(INSTALL_CLBOOT_CONF_SOURCE, INSTALL_CLBOOT_CONF_TARGET,
+                                         "/EFI/CLEONOS/clboot.conf", &result, &copied_files, &copied_bytes,
                                          &progress) == 0 ||
-        install_update_overwrite_checked(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/boot/limine.conf",
-                                         "/boot/limine.conf", &result, &copied_files, &copied_bytes, &progress) ==
-            0 ||
-        install_update_overwrite_checked(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine/limine.conf",
-                                         "/limine/limine.conf", &result, &copied_files, &copied_bytes, &progress) ==
-            0 ||
-        install_update_overwrite_checked(INSTALL_LIMINE_CONF_SOURCE, INSTALL_MOUNT_PATH "/limine.conf",
-                                         "/limine.conf", &result, &copied_files, &copied_bytes, &progress) == 0) {
+        install_update_overwrite_checked(INSTALL_CLBOOT_EFI_SOURCE, INSTALL_CLBOOT_EFI_TARGET,
+                                         "/EFI/BOOT/BOOTX64.EFI", &result, &copied_files, &copied_bytes,
+                                         &progress) == 0 ||
+        install_write_uefi_partition_table(&progress) == 0) {
         return 0;
     }
 
@@ -3575,7 +3415,7 @@ static int install2disk_run(int interactive) {
     root_progress.done_items = root_progress.total_items;
     install_progress_print(&root_progress, 1);
 
-    install_stage("install kernel and Limine files");
+    install_stage("install kernel and CLBoot files");
     if (install_prepare_boot_files(&copied_files, &copied_bytes, (install_progress *)0) == 0) {
         return 0;
     }
@@ -3584,8 +3424,8 @@ static int install2disk_run(int interactive) {
         return 0;
     }
 
-    install_stage("write Limine BIOS boot stages");
-    if (install_limine_bios((install_progress *)0) == 0) {
+    install_stage("write UEFI partition table");
+    if (install_write_uefi_partition_table((install_progress *)0) == 0) {
         return 0;
     }
 

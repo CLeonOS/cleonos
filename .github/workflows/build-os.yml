@@ -15,7 +15,7 @@ on:
         required: false
         default: "full"
       menuconfig_overrides:
-        description: "Optional extra menuconfig args, e.g. --set CLEONOS_CLKS_ENABLE_AUDIO=OFF"
+        description: "Optional extra Kconfig args, e.g. --set CLEONOS_CLKS_ENABLE_AUDIO=OFF"
         required: false
         default: ""
 
@@ -65,28 +65,32 @@ jobs:
             automake \
             libtool \
             pkg-config \
-            nasm
+            nasm \
+            ninja-build \
+            kconfig-frontends-nox
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Generate menuconfig with bdt
+      - name: Generate Kconfig
         shell: bash
         run: |
           set -euo pipefail
-          make menuconfig \
+          make defconfig \
             MENUCONFIG_PRESET="${MENUCONFIG_PRESET}" \
-            MENUCONFIG_ARGS="--defaults --non-interactive ${MENUCONFIG_OVERRIDES}"
-          echo "menuconfig generated with preset=${MENUCONFIG_PRESET}"
+            MENUCONFIG_ARGS="--defaults ${MENUCONFIG_OVERRIDES}"
+          echo "Kconfig generated with preset=${MENUCONFIG_PRESET}"
 
-      - name: Build ISO with bdt
+      - name: Build ISO with Ninja
         run: |
-          make iso \
+          make ninja-gen \
             CC=gcc \
             KERNEL_CXX=g++ \
             LD=ld \
             NM=nm \
-            JOBS="$(nproc)"
+            MENUCONFIG_PRESET="${MENUCONFIG_PRESET}" \
+            MENUCONFIG_ARGS="${MENUCONFIG_OVERRIDES}"
+          ninja -f build.ninja clboot-iso -j"$(nproc)"
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4

@@ -94,9 +94,15 @@ TOOLS = {
     "UEFI_CC": os.environ.get("UEFI_CC", "x86_64-w64-mingw32-gcc"),
     "PYTHON": os.environ.get("PYTHON", "python3"),
 }
+MENUCONFIG_PRESET = os.environ.get("MENUCONFIG_PRESET", "full")
+MENUCONFIG_ARGS = os.environ.get("MENUCONFIG_ARGS", "")
 
 FREESTANDING_ASSERT = r("build/bdt-freestanding/include/assert.h")
 MENUCONFIG_HEADER = r("build/bdt-menuconfig/clks_config.h")
+KCONFIG_FILE = r("configs/menuconfig/Kconfig")
+KCONFIG_DOTCONFIG = r("configs/menuconfig/.config")
+KCONFIG_BDT_CONFIG = r("configs/menuconfig/config.clks.bdt")
+KCONFIG_SYNC = r("scripts/kconfig_sync.py")
 
 KERNEL_CFLAGS = [
     "-std=c11", "-ffreestanding", "-fno-stack-protector", "-fno-builtin", "-U_FORTIFY_SOURCE",
@@ -386,7 +392,19 @@ def add_setup(nw):
     assert_printf = " ".join(q(line) for line in assert_lines)
     assert_cmd = "mkdir -p " + q(Path(FREESTANDING_ASSERT).parent) + " && printf '%s\\n' " + assert_printf + " > " + q(FREESTANDING_ASSERT)
     nw.build(FREESTANDING_ASSERT, "run", variables={"cmd": assert_cmd, "desc": "freestanding-headers"})
-    nw.build(MENUCONFIG_HEADER, "run", [r("scripts/bdt_gen_menuconfig.py")], variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / 'scripts/bdt_gen_menuconfig.py')}", "desc": "menuconfig-headers"})
+    defconfig_cmd = f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} defconfig --preset {q(MENUCONFIG_PRESET)}"
+    if MENUCONFIG_ARGS.strip():
+        defconfig_cmd += " " + MENUCONFIG_ARGS.strip()
+    nw.build(KCONFIG_DOTCONFIG, "console", [KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": defconfig_cmd, "desc": "defconfig"})
+    nw.build("defconfig", "phony", [KCONFIG_DOTCONFIG])
+    nw.build("olddefconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} olddefconfig", "desc": "olddefconfig"})
+    nw.build("menuconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} menuconfig", "desc": "menuconfig"})
+    nw.build(
+        [MENUCONFIG_HEADER, KCONFIG_BDT_CONFIG],
+        "run",
+        [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE],
+        variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} export", "desc": "menuconfig-headers"},
+    )
 
 
 def kernel_sources(boot_source):
@@ -533,13 +551,15 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f"{q(ramdisk_root + '/system/tcc')} {q(ramdisk_root + '/shell')} {q(ramdisk_root + '/shell/uwm')} {q(ramdisk_root + '/shell/inputm')} {q(ramdisk_root + '/driver')}"
         f" && cp -R {q(str(ROOT) + '/ramdisk/.')} {q(ramdisk_root + '/')}"
         f" && {TOOLS['PYTHON']} {q(ROOT / 'scripts/gen_os_version.py')} {q(ROOT)} {q(ramdisk_root + '/etc')}"
-        f" && cp -R {q(ROOT / 'build/x86_64/tccroot/.')} {q(ramdisk_root + '/system/tcc/')}"
+        f" && cp -R {q(str(ROOT / 'build/x86_64/tccroot') + '/.')} {q(ramdisk_root + '/system/tcc/')}"
         f" && cp {q(sym)} {q(ramdisk_root + '/system/kernel.sym')}"
-        f" && cp {q(normal_kernel)} {q(ramdisk_root + '/system/install/clks_kernel.elf')}"
+        f" && cp {q(clboot_kernel)} {q(ramdisk_root + '/system/install/clks_kernel.elf')}"
+        f" && cp {q(clboot_efi)} {q(ramdisk_root + '/system/install/BOOTX64.EFI')}"
+        f" && cp {q(ROOT / 'configs/clboot-harddisk.conf')} {q(ramdisk_root + '/system/install/clboot-harddisk.conf')}"
         f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/inputm/')} ;; */driver/*.elf) cp \"$f\" {q(ramdisk_root + '/driver/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/')} ;; esac; done"
         f" && touch {q(ramdisk_stamp)}"
     )
-    nw.build(ramdisk_stamp, "run", [normal_kernel, sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
+    nw.build(ramdisk_stamp, "run", [clboot_kernel, clboot_efi, r("configs/clboot-harddisk.conf"), sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
     nw.build("ramdisk-root", "phony", [ramdisk_stamp])
     nw.build(ramdisk, "run", [ramdisk_stamp], variables={"cmd": f"mkdir -p {q(Path(ramdisk).parent)} && {TOOLS['TAR']} -cf {q(ramdisk)} -C {q(ramdisk_root)} .", "desc": "ramdisk"})
     nw.build("ramdisk", "phony", [ramdisk])
@@ -613,9 +633,8 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot-harddisk.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
-        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ramdisk)} ::/boot/cleonos_ramdisk.tar"
     )
-    nw.build(harddisk_img, "run", [clboot_efi, clboot_kernel, ramdisk, r("configs/clboot-harddisk.conf"), startup_nsh],
+    nw.build(harddisk_img, "run", [clboot_efi, clboot_kernel, r("configs/clboot-harddisk.conf"), startup_nsh],
              variables={"cmd": harddisk_cmd, "desc": "clboot-harddisk"})
     nw.build("clboot-harddisk", "phony", [harddisk_img])
 

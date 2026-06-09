@@ -724,6 +724,19 @@ static int clboot_read_file(CHAR16 *path, struct clboot_loaded_file *out) {
     return 0;
 }
 
+static int clboot_path_is_empty_or_none(const CHAR16 *path) {
+    if (path == (const CHAR16 *)0 || path[0] == 0) {
+        return 1;
+    }
+
+    if ((path[0] == L'n' || path[0] == L'N') && (path[1] == L'o' || path[1] == L'O') &&
+        (path[2] == L'n' || path[2] == L'N') && (path[3] == L'e' || path[3] == L'E') && path[4] == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static int clboot_file_exists(CHAR16 *path) {
     EFI_FILE_PROTOCOL *root;
     EFI_FILE_PROTOCOL *file;
@@ -1265,7 +1278,9 @@ static void clboot_menu_validate(struct clboot_menu_config *cfg) {
     for (i = 0U; i < cfg->count; i++) {
         struct clboot_menu_entry *entry = &cfg->entries[i];
         entry->kernel_ok = clboot_file_exists(entry->kernel_path);
-        entry->ramdisk_ok = clboot_file_exists(entry->ramdisk_path);
+        entry->ramdisk_ok = (clboot_path_is_empty_or_none(entry->ramdisk_path) != 0)
+                                 ? 1
+                                 : clboot_file_exists(entry->ramdisk_path);
         entry->valid = (entry->kernel_ok != 0 && entry->ramdisk_ok != 0) ? 1 : 0;
 
         if (entry->valid != 0) {
@@ -1803,10 +1818,15 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
     clboot_status(L"kernel ELF mapped");
 
     clboot_draw_progress(35U, L"reading ramdisk");
-    if (clboot_read_file(boot_entry->ramdisk_path, &ramdisk_file) == 0) {
+    if (clboot_path_is_empty_or_none(boot_entry->ramdisk_path) != 0) {
+        ramdisk_file.data = (void *)0;
+        ramdisk_file.size = 0ULL;
+        clboot_status(L"ramdisk skipped");
+    } else if (clboot_read_file(boot_entry->ramdisk_path, &ramdisk_file) == 0) {
         clboot_halt(L"CLBoot: cannot read ramdisk");
+    } else {
+        clboot_status(L"ramdisk loaded");
     }
-    clboot_status(L"ramdisk loaded");
 
     clboot_draw_progress(45U, L"loading command line");
     cmdline = clboot_cmdline_build(menu_config->global_cmdline, boot_entry->cmdline);
@@ -1821,7 +1841,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
     clboot_draw_progress(58U, L"allocating boot info");
     if (clboot_alloc_pool(sizeof(*info), (void **)&info) == 0 ||
         clboot_alloc_pool(sizeof(*fb), (void **)&fb) == 0 ||
-        clboot_alloc_pool(sizeof(*module), (void **)&module) == 0) {
+        (ramdisk_file.size != 0ULL && clboot_alloc_pool(sizeof(*module), (void **)&module) == 0)) {
         clboot_halt(L"CLBoot: boot info allocation failed");
     }
 
@@ -1841,10 +1861,12 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
         fb->blue_mask_shift = 0U;
     }
 
-    module->address = (uint64_t)(UINTN)ramdisk_file.data;
-    module->size = ramdisk_file.size;
-    module->path = (uint64_t)(UINTN)"ramdisk";
-    module->cmdline = (uint64_t)(UINTN)"ramdisk";
+    if (ramdisk_file.size != 0ULL) {
+        module->address = (uint64_t)(UINTN)ramdisk_file.data;
+        module->size = ramdisk_file.size;
+        module->path = (uint64_t)(UINTN)"ramdisk";
+        module->cmdline = (uint64_t)(UINTN)"ramdisk";
+    }
 
     clboot_draw_progress(64U, L"allocating memory map");
     cl_mmap_capacity = CLBOOT_MEMMAP_MAX_ENTRIES;
@@ -1862,8 +1884,8 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable
     info->framebuffer = (uint64_t)(UINTN)fb;
     info->memmap_entries = (uint64_t)(UINTN)cl_mmap;
     info->memmap_count = 0ULL;
-    info->modules = (uint64_t)(UINTN)module;
-    info->module_count = 1ULL;
+    info->modules = (ramdisk_file.size != 0ULL) ? (uint64_t)(UINTN)module : 0ULL;
+    info->module_count = (ramdisk_file.size != 0ULL) ? 1ULL : 0ULL;
     info->rsdp = 0ULL;
     info->bootlog = (uint64_t)(UINTN)clboot_bootlog;
     info->bootlog_size = (uint64_t)clboot_bootlog_used;

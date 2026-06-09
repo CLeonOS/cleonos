@@ -1,0 +1,512 @@
+mainmenu "CLeonOS Configuration"
+
+menu "CLKS Kernel"
+menu "Core"
+config AUDIO
+    bool "Audio Driver Init"
+    default y
+    help
+      Initialize kernel audio subsystem during boot.
+
+config MOUSE
+    bool "PS/2 Mouse Input"
+    default y
+    help
+      Initialize kernel PS/2 mouse input subsystem.
+
+config DESKTOP
+    bool "TTY2 Desktop"
+    default y
+    depends on MOUSE
+    help
+      Enable desktop compositor tick/update path on TTY2.
+
+
+config DRIVER_MANAGER
+    bool "Driver Manager"
+    default y
+    help
+      Initialize kernel ELF driver manager.
+
+config KELF
+    bool "KELF Executor"
+    default y
+    depends on DRIVER_MANAGER && ELFRUNNER_INIT
+    imply ELFRUNNER_PROBE
+    imply USER_SYSTEM_APP_PROBE
+    help
+      Enable kernel ELF app dispatcher and kelfd task.
+
+config HEAP_SELFTEST
+    bool "Heap Selftest"
+    default y
+    help
+      Run kmalloc/kfree selftest during kernel boot.
+
+config SYSTEM_DIR_CHECK
+    bool "FS /SYSTEM Sanity Check"
+    default y
+    help
+      Require /system directory check during boot.
+
+config PROCFS
+    bool "Virtual /proc"
+    default y
+    help
+      Enable virtual procfs paths (/proc, /proc/list, /proc/self, /proc/<pid>) in syscall FS layer.
+
+endmenu
+
+menu "Boot UI"
+config BOOT_SPLASH
+    bool "Boot Splash Animation"
+    default y
+    help
+      Draw a framebuffer boot splash with animated progress bar during kernel startup.
+
+
+config BOOT_VIDEO_LOG
+    tristate "Boot Video Geometry Logs"
+    default y
+    help
+      Print framebuffer width/height/pitch/bpp logs at boot.
+
+config SHELL_MODE_LOG
+    tristate "Shell Mode Log"
+    default y
+    help
+      Print whether boot default mode is user shell or kernel shell.
+
+
+endmenu
+
+menu "Input"
+config KEYBOARD
+    bool "PS/2 Keyboard Input"
+    default y
+    imply KBD_TTY_SWITCH_HOTKEY
+    imply KBD_CTRL_SHORTCUTS
+    help
+      Initialize PS/2 keyboard input subsystem.
+
+config KBD_TTY_SWITCH_HOTKEY
+    bool "Keyboard TTY Switch Hotkey"
+    default y
+    depends on KEYBOARD
+    help
+      Enable ALT+F1..F4 keyboard hotkey for active TTY switching.
+
+config KBD_CTRL_SHORTCUTS
+    bool "Keyboard Ctrl Shortcuts"
+    default y
+    depends on KEYBOARD
+    imply KBD_TTY_SWITCH_HOTKEY
+    help
+      Enable Ctrl+A/C/V shortcuts for input selection/copy/paste.
+
+config KBD_FORCE_STOP_HOTKEY
+    bool "Keyboard Force-Stop Hotkey"
+    default y
+    depends on KEYBOARD && PROCFS
+    help
+      Enable Ctrl+Alt+C force-stop for current running user process.
+
+endmenu
+
+menu "Scheduler"
+config KLOGD_TASK
+    bool "Scheduler Task: klogd"
+    default y
+    help
+      Enable periodic klogd maintenance task.
+
+config KWORKER_TASK
+    bool "Scheduler Task: kworker"
+    default y
+    help
+      Enable periodic kernel worker service-heartbeat task.
+
+config USRD_TASK
+    bool "Scheduler Task: usrd"
+    default y
+    help
+      Enable user/runtime dispatch task (shell tick, tty tick, exec tick).
+
+config SCHED_TASK_COUNT_LOG
+    tristate "Scheduler Task Count Log"
+    default y
+    depends on KLOGD_TASK || KWORKER_TASK || USRD_TASK
+    help
+      Print scheduler task count after scheduler initialization.
+
+config INTERRUPT_READY_LOG
+    tristate "Interrupt Ready Log"
+    default y
+    help
+      Print IDT/PIC initialized log after interrupt setup.
+
+config IDLE_DEBUG_LOG
+    tristate "Idle Loop Debug Log"
+    default y
+    help
+      Print debug log before entering kernel idle loop.
+
+endmenu
+
+menu "Userland"
+config USERLAND_AUTO_EXEC
+    bool "Auto Enter User Shell"
+    default y
+    select USRD_TASK
+    select KEYBOARD
+    imply USER_INIT_SCRIPT_PROBE
+    imply SHELL_MODE_LOG
+    help
+      Auto-exec /shell/shell.elf after kernel boot.
+
+
+config USER_INIT_SCRIPT_PROBE
+    bool "User Init Script Probe"
+    default y
+    depends on USERLAND_AUTO_EXEC
+    help
+      Probe and log /shell/init.cmd presence during userland init.
+
+config USER_SYSTEM_APP_PROBE
+    bool "User System App Probe"
+    default y
+    depends on KELF
+    help
+      Probe /system/elfrunner.elf and /system/memc.elf during userland init.
+
+endmenu
+
+menu "User System"
+config USER_SYSTEM
+    bool "Kernel User System"
+    default y
+    help
+      Enable kernel-managed users, login state, account database and per-user home directories.
+
+config USER_DISK_LOGIN
+    bool "Require Login On Disk Boot"
+    default y
+    depends on USER_SYSTEM
+    help
+      Require a user login when CLeonOS boots from an installed disk system.
+
+config USER_READ_POLICY
+    bool "User Read Access Policy"
+    default y
+    depends on USER_SYSTEM
+    help
+      Block ordinary users from reading the account database and other users' home directories.
+
+config USER_WRITE_POLICY
+    bool "User Write Access Policy"
+    default y
+    depends on USER_SYSTEM
+    help
+      Restrict ordinary users to safe writable paths such as their home directory and /temp.
+
+config USER_PRIVILEGE_POLICY
+    bool "User Privileged Operation Policy"
+    default y
+    depends on USER_SYSTEM
+    help
+      Require an administrator account for disk, driver, shutdown and cross-process control operations.
+
+config USER_BOOT_LOG
+    tristate "User System Boot Logs"
+    default y
+    depends on USER_SYSTEM
+    help
+      Print user-system login mode and account database status during boot.
+
+
+endmenu
+
+menu "Runtime / ELF"
+config ELFRUNNER_INIT
+    bool "ELFRUNNER Init"
+    default y
+    help
+      Initialize ELFRUNNER framework in kernel boot path.
+
+config ELFRUNNER_PROBE
+    bool "ELFRUNNER Probe"
+    default y
+    depends on ELFRUNNER_INIT && KELF
+    help
+      Probe kernel ELF runtime metadata after ELFRUNNER init.
+
+config EXEC_SERIAL_LOG
+    tristate "EXEC Serial Logs"
+    default y
+    help
+      Print EXEC run/return/path logs to serial output.
+
+
+config EXEC_CONTEXT_SWITCH_LOG
+    bool "EXEC Context Switch Logs"
+    default n
+    help
+      Print cooperative EXEC suspend/resume logs such as EXEC RUN RESUME and RUN SUSPENDED.
+
+
+config SYSCALL_TICK_QUERY
+    bool "SYSCALL Tick Query"
+    default y
+    depends on PROCFS
+    help
+      Query timer ticks via syscall and log result during boot.
+
+endmenu
+
+menu "File System"
+config FS_ROOT_LOG
+    tristate "FS Root Children Log"
+    default y
+    depends on SYSTEM_DIR_CHECK
+    help
+      Print root directory children count during FS init.
+
+endmenu
+
+menu "TTY / Fonts"
+config EXTERNAL_PSF
+    bool "Load External PSF Font"
+    default y
+    help
+      Load /system/tty.psf and apply it to framebuffer TTY.
+
+config TTY_READY_LOG
+    tristate "TTY Ready Logs"
+    default y
+    help
+      Print TTY count/active/cursor ready logs.
+
+endmenu
+
+menu "Window Manager"
+config WM_MULTI_RECT_DAMAGE
+    bool "WM Multi-Rect Damage"
+    default y
+    depends on DESKTOP
+    help
+      Track several dirty rectangles instead of collapsing every frame into one large region.
+
+config WM_LAYER_CACHE
+    bool "WM Scene Layer Cache"
+    default y
+    depends on DESKTOP
+    help
+      Keep a cached scene layer so unchanged background/window pixels do not need full redraw.
+
+config WM_FRAME_PACING
+    bool "WM Frame Pacing"
+    default y
+    depends on DESKTOP
+    help
+      Limit compositor flush rate using timer/TSC pacing to reduce tearing and jitter.
+
+config WM_STATS_OVERLAY
+    bool "WM FPS/MS Overlay"
+    default y
+    depends on DESKTOP
+    help
+      Draw the compositor FPS/MS box in the bottom-right corner.
+
+config WM_INPUT_DISPATCH
+    bool "WM Input Dispatch"
+    default y
+    depends on DESKTOP && MOUSE && KEYBOARD
+    help
+      Dispatch mouse and keyboard events to focused kernel windows.
+
+config WM_REAP_DEAD_OWNERS
+    bool "WM Dead Owner Cleanup"
+    default y
+    depends on DESKTOP
+    help
+      Automatically destroy windows owned by exited processes.
+
+
+endmenu
+
+menu "Networking"
+config NET_DHCP_CLIENT
+    bool "Network DHCP Client"
+    default y
+    help
+      Use DHCP to auto-configure IPv4/netmask/gateway/DNS; disable to use fallback QEMU-style static config.
+
+
+endmenu
+
+menu "Logging"
+config PMM_STATS_LOG
+    tristate "PMM Stats Logs"
+    default y
+    help
+      Print PMM managed/free/used/dropped pages at boot.
+
+config HEAP_STATS_LOG
+    tristate "Heap Stats Logs"
+    default y
+    help
+      Print heap total/free bytes at boot.
+
+config SYSCALL_SERIAL_LOG
+    bool "SYSCALL Serial Logs"
+    default y
+    help
+      Print user syscall CALL/RET trace logs to serial output.
+
+config SYSCALL_USERID_SERIAL_LOG
+    bool "SYSCALL USER_ID Serial Logs"
+    default y
+    help
+      Print USER_TRACE_BEGIN/END, PID, and USER_ID trace logs to serial output.
+
+config LOG_LEVEL_DEBUG
+    bool "Kernel Log Level: DEBUG"
+    default y
+    help
+      Allow CLKS_LOG_DEBUG messages to be emitted by clks_log/clks_log_hex.
+
+config LOG_LEVEL_INFO
+    bool "Kernel Log Level: INFO"
+    default y
+    help
+      Allow CLKS_LOG_INFO messages to be emitted by clks_log/clks_log_hex.
+
+config LOG_LEVEL_WARN
+    bool "Kernel Log Level: WARN"
+    default y
+    help
+      Allow CLKS_LOG_WARN messages to be emitted by clks_log/clks_log_hex.
+
+config LOG_LEVEL_ERROR
+    bool "Kernel Log Level: ERROR"
+    default y
+    help
+      Allow CLKS_LOG_ERROR messages to be emitted by clks_log/clks_log_hex.
+
+config LOG_OUTPUT_SERIAL
+    bool "Kernel Log Output: Serial"
+    default y
+    help
+      Send clks_log/clks_log_hex output to serial port.
+
+config LOG_OUTPUT_TTY
+    bool "Kernel Log Output: TTY"
+    default y
+    help
+      Render clks_log/clks_log_hex output to TTY with ANSI colors.
+
+config LOG_OUTPUT_JOURNAL
+    bool "Kernel Log Output: Journal"
+    default y
+    help
+      Store clks_log/clks_log_hex lines into in-memory log journal for dmesg/procfs reads.
+
+
+endmenu
+
+menu "USC Syscall Policy"
+config USC
+    bool "UserSafeController (USC)"
+    default y
+    depends on KEYBOARD
+    help
+      Prompt before dangerous user syscalls and remember per-app approval for current boot.
+
+config USC_SC_FS_MKDIR
+    bool "Intercept FS_MKDIR"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall FS_MKDIR.
+
+config USC_SC_FS_WRITE
+    bool "Intercept FS_WRITE"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall FS_WRITE.
+
+config USC_SC_FS_APPEND
+    bool "Intercept FS_APPEND"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall FS_APPEND.
+
+config USC_SC_FS_REMOVE
+    bool "Intercept FS_REMOVE"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall FS_REMOVE.
+
+config USC_SC_EXEC_PATH
+    bool "Intercept EXEC_PATH"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall EXEC_PATH.
+
+config USC_SC_EXEC_PATHV
+    bool "Intercept EXEC_PATHV"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall EXEC_PATHV.
+
+config USC_SC_EXEC_PATHV_IO
+    bool "Intercept EXEC_PATHV_IO"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall EXEC_PATHV_IO.
+
+config USC_SC_SPAWN_PATH
+    bool "Intercept SPAWN_PATH"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall SPAWN_PATH.
+
+config USC_SC_SPAWN_PATHV
+    bool "Intercept SPAWN_PATHV"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall SPAWN_PATHV.
+
+config USC_SC_PROC_KILL
+    bool "Intercept PROC_KILL"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall PROC_KILL.
+
+config USC_SC_SHUTDOWN
+    bool "Intercept SHUTDOWN"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall SHUTDOWN.
+
+config USC_SC_RESTART
+    bool "Intercept RESTART"
+    default y
+    depends on USC
+    help
+      USC prompt for syscall RESTART.
+
+
+endmenu
+
+endmenu

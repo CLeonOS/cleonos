@@ -4,7 +4,7 @@ type = meta
 languages = c, cpp, asm, rust
 
 [sources]
-scan = project.bdt, Makefile, configs/menuconfig/config.clks.bdt, scripts/menuconfig.py
+scan = project.bdt, Makefile, configs/menuconfig/Kconfig, configs/menuconfig/.config, configs/menuconfig/config.clks.bdt, scripts/kconfig_sync.py
 
 [targets]
 default = iso
