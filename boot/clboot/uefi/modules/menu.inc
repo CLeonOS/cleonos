@@ -371,7 +371,7 @@ static void clboot_draw_cmdline_editor(struct clboot_menu_entry *entry, UINTN cu
     clboot_print(entry->kernel_path);
     clboot_print(L"\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
     clboot_print(L" ");
     clboot_print(L"cmdline: ");
@@ -402,7 +402,7 @@ static void clboot_draw_cmdline_editor(struct clboot_menu_entry *entry, UINTN cu
     }
     clboot_print(L"\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" Type to edit   Backspace: delete   Enter: save   Esc: cancel\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
@@ -519,13 +519,13 @@ static void clboot_show_cmdline_preview(const struct clboot_menu_config *cfg, co
     clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" Formula: global cmdline + entry cmdline\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
     clboot_print(L" ");
     clboot_print_ascii_wrapped(final_cmdline == (char *)0 ? "<allocation failed>" : final_cmdline, 76U);
     clboot_print(L"\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" Press any key to return to Boot Menu.\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
@@ -571,7 +571,7 @@ static void clboot_show_entry_info(const struct clboot_menu_entry *entry) {
     clboot_print_ascii_wrapped(entry->cmdline[0] == '\0' ? "<empty>" : entry->cmdline, 66U);
     clboot_print(L"\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" Press any key to return to Boot Menu.\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
@@ -608,7 +608,7 @@ static void clboot_draw_menu(const struct clboot_menu_entry *entries, UINTN coun
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
     clboot_print(L"Enter: boot   e: edit   c: cmdline   i: info   s: shell   +/-: page\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(CLBOOT_TEXT_ATTR_NORMAL);
 
     for (i = start; i < end; i++) {
@@ -638,7 +638,7 @@ static void clboot_draw_menu(const struct clboot_menu_entry *entries, UINTN coun
     }
 
     clboot_set_attr(CLBOOT_TEXT_ATTR_ACCENT);
-    clboot_print(L" ------------------------------------------------------------------------------\r\n");
+    clboot_print(L" --------------------------------------------------------------------------\r\n");
     clboot_set_attr(entries[selected].valid == 0 ? CLBOOT_TEXT_ATTR_ERROR : CLBOOT_TEXT_ATTR_DIM);
     clboot_print(L" ");
     if (entries[selected].valid == 0) {
