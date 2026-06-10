@@ -527,7 +527,10 @@ def add_userapps(nw):
 
 def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     clboot_efi = r("build/x86_64/clboot/BOOTX64.EFI")
-    nw.build(clboot_efi, "uefi", [r("boot/clboot/uefi/main.c")], implicit=[r("boot/clboot/uefi/clboot_uefi.h"), r("boot/clboot/include/clboot_protocol.h")], variables={
+    clboot_font = r("boot/clboot/fonts/clboot.psf")
+    clboot_module_deps = [r("boot/clboot/uefi/clboot_uefi.h"), r("boot/clboot/include/clboot_protocol.h")]
+    clboot_module_deps += [r(rel(path)) for path in sorted((ROOT / "boot/clboot/uefi/modules").glob("*.inc"))]
+    nw.build(clboot_efi, "uefi", [r("boot/clboot/uefi/main.c")], implicit=clboot_module_deps, variables={
         "uefi_cc": TOOLS["UEFI_CC"],
         "uefi_cflags": " ".join(["-ffreestanding", "-fno-stack-protector", "-fno-builtin", "-fcf-protection=none", "-fshort-wchar", "-mno-red-zone", "-Wall", "-Wextra", f"-I{r('boot/clboot/include')}", f"-I{r('boot/clboot/uefi')}"]),
         "uefi_ldflags": " ".join(["-nostdlib", "-Wl,--subsystem,10", "-Wl,--entry,efi_main"]),
@@ -555,11 +558,12 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && cp {q(sym)} {q(ramdisk_root + '/system/kernel.sym')}"
         f" && cp {q(clboot_kernel)} {q(ramdisk_root + '/system/install/clks_kernel.elf')}"
         f" && cp {q(clboot_efi)} {q(ramdisk_root + '/system/install/BOOTX64.EFI')}"
+        f" && cp {q(clboot_font)} {q(ramdisk_root + '/system/install/clboot.psf')}"
         f" && cp {q(ROOT / 'configs/clboot-harddisk.conf')} {q(ramdisk_root + '/system/install/clboot-harddisk.conf')}"
         f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/inputm/')} ;; */driver/*.elf) cp \"$f\" {q(ramdisk_root + '/driver/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/')} ;; esac; done"
         f" && touch {q(ramdisk_stamp)}"
     )
-    nw.build(ramdisk_stamp, "run", [clboot_kernel, clboot_efi, r("configs/clboot-harddisk.conf"), sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
+    nw.build(ramdisk_stamp, "run", [clboot_kernel, clboot_efi, clboot_font, r("configs/clboot-harddisk.conf"), sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
     nw.build("ramdisk-root", "phony", [ramdisk_stamp])
     nw.build(ramdisk, "run", [ramdisk_stamp], variables={"cmd": f"mkdir -p {q(Path(ramdisk).parent)} && {TOOLS['TAR']} -cf {q(ramdisk)} -C {q(ramdisk_root)} .", "desc": "ramdisk"})
     nw.build("ramdisk", "phony", [ramdisk])
@@ -584,11 +588,12 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mmd -i {q(efi_img + '@@' + str(efi_offset))} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(ramdisk)} ::/boot/cleonos_ramdisk.tar"
     )
-    nw.build(efi_img, "run", [clboot_efi, clboot_kernel, ramdisk, r("configs/clboot.conf"), startup_nsh],
+    nw.build(efi_img, "run", [clboot_efi, clboot_kernel, clboot_font, ramdisk, r("configs/clboot.conf"), startup_nsh],
              variables={"cmd": esp_cmd, "desc": "clboot-esp"})
     nw.build("clboot-esp", "phony", [efi_img])
 
@@ -600,11 +605,12 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mmd -i {q(iso_efi_img)} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot"
         f" && mcopy -i {q(iso_efi_img)} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
         f" && mcopy -i {q(iso_efi_img)} {q(ROOT / 'configs/clboot.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(iso_efi_img)} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(iso_efi_img)} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(iso_efi_img)} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
         f" && mcopy -i {q(iso_efi_img)} {q(ramdisk)} ::/boot/cleonos_ramdisk.tar"
     )
-    nw.build(iso_efi_img, "run", [clboot_efi, clboot_kernel, ramdisk, r("configs/clboot.conf"), startup_nsh],
+    nw.build(iso_efi_img, "run", [clboot_efi, clboot_kernel, clboot_font, ramdisk, r("configs/clboot.conf"), startup_nsh],
              variables={"cmd": iso_efi_cmd, "desc": "clboot-iso-efi"})
     nw.build("clboot-iso-efi", "phony", [iso_efi_img])
 
@@ -614,11 +620,12 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && cp {q(ramdisk)} {q(iso_root + '/boot/cleonos_ramdisk.tar')}"
         f" && cp {q(clboot_efi)} {q(iso_root + '/EFI/BOOT/BOOTX64.EFI')}"
         f" && cp {q(ROOT / 'configs/clboot.conf')} {q(iso_root + '/EFI/CLEONOS/clboot.conf')}"
+        f" && cp {q(clboot_font)} {q(iso_root + '/EFI/CLEONOS/clboot.psf')}"
         f" && cp {q(startup_nsh)} {q(iso_root + '/startup.nsh')}"
         f" && cp {q(iso_efi_img)} {q(iso_root + '/efi.img')}"
         f" && {TOOLS['XORRISO']} -as mkisofs -R -J -e efi.img -no-emul-boot {q(iso_root)} -o {q(iso)}"
     )
-    nw.build(iso, "run", [clboot_efi, clboot_kernel, ramdisk, r("configs/clboot.conf"), startup_nsh, iso_efi_img],
+    nw.build(iso, "run", [clboot_efi, clboot_kernel, clboot_font, ramdisk, r("configs/clboot.conf"), startup_nsh, iso_efi_img],
              variables={"cmd": iso_cmd, "desc": "clboot-iso"})
     nw.build("clboot-iso", "phony", [iso])
 
@@ -631,10 +638,11 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mmd -i {q(harddisk_img + '@@' + str(efi_offset))} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot-harddisk.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
     )
-    nw.build(harddisk_img, "run", [clboot_efi, clboot_kernel, r("configs/clboot-harddisk.conf"), startup_nsh],
+    nw.build(harddisk_img, "run", [clboot_efi, clboot_kernel, clboot_font, r("configs/clboot-harddisk.conf"), startup_nsh],
              variables={"cmd": harddisk_cmd, "desc": "clboot-harddisk"})
     nw.build("clboot-harddisk", "phony", [harddisk_img])
 

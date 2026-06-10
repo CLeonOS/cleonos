@@ -22,8 +22,10 @@
 #define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/boot/clks_kernel.elf"
 #define INSTALL_CLBOOT_EFI_SOURCE "/system/install/BOOTX64.EFI"
 #define INSTALL_CLBOOT_CONF_SOURCE "/system/install/clboot-harddisk.conf"
+#define INSTALL_CLBOOT_FONT_SOURCE "/system/install/clboot.psf"
 #define INSTALL_CLBOOT_EFI_TARGET INSTALL_MOUNT_PATH "/EFI/BOOT/BOOTX64.EFI"
 #define INSTALL_CLBOOT_CONF_TARGET INSTALL_MOUNT_PATH "/EFI/CLEONOS/clboot.conf"
+#define INSTALL_CLBOOT_FONT_TARGET INSTALL_MOUNT_PATH "/EFI/CLEONOS/clboot.psf"
 #define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/users.db"
 #define INSTALL_MANIFEST_SOURCE "/system/install_manifest.db"
 #define INSTALL_MANIFEST_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.db"
@@ -1956,6 +1958,7 @@ static int install_verify_manifest(install_verify_result *result) {
 static int install_verify_run(void) {
     static const char *required_files[] = {"/EFI/BOOT/BOOTX64.EFI",
                                            "/EFI/CLEONOS/clboot.conf",
+                                           "/EFI/CLEONOS/clboot.psf",
                                            "/boot/clks_kernel.elf",
                                            "/system/users.db",
                                            "/system/tty.ttf",
@@ -2078,6 +2081,8 @@ static int install_prepare_boot_files(u64 *copied_files, u64 *copied_bytes, inst
     if (install_overwrite_file_whole(INSTALL_CLBOOT_EFI_SOURCE, INSTALL_CLBOOT_EFI_TARGET, copied_files,
                                      copied_bytes, progress) == 0 ||
         install_overwrite_file_whole(INSTALL_CLBOOT_CONF_SOURCE, INSTALL_CLBOOT_CONF_TARGET, copied_files,
+                                     copied_bytes, progress) == 0 ||
+        install_overwrite_file_whole(INSTALL_CLBOOT_FONT_SOURCE, INSTALL_CLBOOT_FONT_TARGET, copied_files,
                                      copied_bytes, progress) == 0) {
         return 0;
     }
@@ -2298,6 +2303,7 @@ static int install_repair_bootloader(void) {
     progress.label = "repair bootloader";
     install_progress_plan_file(&progress, INSTALL_CLBOOT_EFI_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_CLBOOT_CONF_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_FONT_SOURCE, 1ULL);
     progress.total_items += 1ULL;
     install_progress_print(&progress, 1);
 
@@ -3289,6 +3295,7 @@ static int install_update_kernel(void) {
     install_progress_plan_file(&progress, INSTALL_OS_RELEASE_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_CLBOOT_CONF_SOURCE, 1ULL);
     install_progress_plan_file(&progress, INSTALL_CLBOOT_EFI_SOURCE, 1ULL);
+    install_progress_plan_file(&progress, INSTALL_CLBOOT_FONT_SOURCE, 1ULL);
     progress.total_items += 1ULL;
     install_progress_print(&progress, 1);
 
@@ -3307,6 +3314,9 @@ static int install_update_kernel(void) {
                                          &progress) == 0 ||
         install_update_overwrite_checked(INSTALL_CLBOOT_EFI_SOURCE, INSTALL_CLBOOT_EFI_TARGET,
                                          "/EFI/BOOT/BOOTX64.EFI", &result, &copied_files, &copied_bytes,
+                                         &progress) == 0 ||
+        install_update_overwrite_checked(INSTALL_CLBOOT_FONT_SOURCE, INSTALL_CLBOOT_FONT_TARGET,
+                                         "/EFI/CLEONOS/clboot.psf", &result, &copied_files, &copied_bytes,
                                          &progress) == 0 ||
         install_write_uefi_partition_table(&progress) == 0) {
         return 0;

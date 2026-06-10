@@ -67,6 +67,7 @@ jobs:
             pkg-config \
             nasm \
             ninja-build \
+            gcc-mingw-w64-x86-64 \
             kconfig-frontends-nox
 
       - name: Setup Rust
@@ -95,6 +96,6 @@ jobs:
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cleonos-iso
-          path: build/CLeonOS-x86_64.iso
+          name: cleonos-clboot-iso
+          path: build/CLeonOS-CLBoot-x86_64.iso
           if-no-files-found: error
