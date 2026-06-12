@@ -29,7 +29,7 @@ CLeonOS 当前的动态库是“可被 `dlopen` 加载的用户态 ELF 镜像”
 它和 Linux `.so` 不完全一样：
 
 - 文件扩展名通常仍是 `.elf`。
-- 通过 `dlopen("/shell/libdemo.elf", 0)` 加载。
+- 通过 `dlopen("/shell/apps/libdemo.elf", 0)` 加载。
 - 通过 `dlsym(handle, "symbol_name")` 查找导出符号。
 - 通过函数指针调用导出的函数。
 - 不要求写 `cleonos_app_main` 才能被 `dlsym` 使用，但当前示例保留了它用于直接运行时打印状态。
@@ -107,7 +107,7 @@ typedef u64 (*dl_math2_fn)(u64, u64);
 typedef u64 (*dl_void_fn)(void);
 
 int cleonos_app_main(int argc, char **argv, char **envp) {
-    const char *lib_path = "/shell/libdemo.elf";
+    const char *lib_path = "/shell/apps/libdemo.elf";
     void *handle;
     dl_math2_fn add_fn;
     dl_math2_fn mul_fn;
@@ -196,7 +196,7 @@ build/x86_64/user/apps/<name>.elf
 ```text
 cleonos/c/apps/libdemo_main.c
 build/x86_64/user/apps/libdemo.elf
-/shell/libdemo.elf
+/shell/apps/libdemo.elf
 ```
 
 构建：
@@ -215,7 +215,7 @@ dltest
 指定库路径：
 
 ```text
-dltest /shell/libdemo.elf
+dltest /shell/apps/libdemo.elf
 ```
 
 ## 6. 符号导出建议
@@ -249,7 +249,7 @@ dltest /shell/libdemo.elf
 
 ```text
 ls /shell
-dltest /shell/libdemo.elf
+dltest /shell/apps/libdemo.elf
 ```
 
 ### `dlsym` 返回 `NULL`

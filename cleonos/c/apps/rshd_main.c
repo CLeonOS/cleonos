@@ -218,7 +218,7 @@ static int rshd_exec_external(ush_state *sh, const char *cmd, const char *arg) {
         return 0;
     }
 
-    (void)snprintf(env_line, sizeof(env_line), "PWD=%s;CMD=%s;LAUNCHER=/shell/rshd.elf;USH_REMOTE=1", sh->cwd,
+    (void)snprintf(env_line, sizeof(env_line), "PWD=%s;CMD=%s;LAUNCHER=/shell/apps/rshd.elf;USH_REMOTE=1", sh->cwd,
                    cmd);
     status = cleonos_sys_exec_pathv_io(path, arg, env_line, (in_fd == (u64)-1) ? CLEONOS_FD_INHERIT : in_fd, out_fd,
                                        out_fd);

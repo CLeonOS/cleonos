@@ -234,7 +234,7 @@ static void tm_ui_load(void) {
     }
     tm_ui_loaded = 1;
 
-    handle = dlopen("/shell/uwm/uwm_uilib.elf", 0);
+    handle = dlopen("/shell/apps/uwm/uwm_uilib.elf", 0);
     if (handle == (void *)0) {
         return;
     }

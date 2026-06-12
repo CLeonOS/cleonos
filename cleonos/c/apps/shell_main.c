@@ -28,12 +28,6 @@ int cleonos_app_main(void) {
     }
     ush_history_load(&sh);
 
-    if (ush_run_script_file(&sh, "/shell/init.cmd") == 0 && ush_run_script_file(&sh, "/shell/INIT.CMD") == 0 &&
-        ush_run_script_file(&sh, "/SHELL/INIT.CMD") == 0) {
-        shell_writeln_i18n("\x1B[33m[USER][SHELL]\x1B[0m init script not found, continue interactive mode",
-                           "\x1B[33m[USER][SHELL]\x1B[0m 未找到初始化脚本，继续交互模式");
-    }
-
     for (;;) {
         ush_read_line(&sh, line, (u64)sizeof(line));
         ush_execute_line(&sh, line);

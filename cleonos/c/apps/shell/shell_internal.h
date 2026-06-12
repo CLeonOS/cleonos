@@ -49,7 +49,8 @@ typedef long long i64;
 
 #define USH_CMD_CTX_PATH "/temp/.ush_cmd_ctx.bin"
 #define USH_CMD_RET_PATH "/temp/.ush_cmd_ret.bin"
-#define USH_HISTORY_PATH "/system/shell/history.txt"
+#define USH_HISTORY_DIR "/shell/data"
+#define USH_HISTORY_PATH "/shell/data/history.txt"
 #define USH_HISTORY_FALLBACK_PATH "/temp/shell_history.txt"
 #define USH_CMD_RET_FLAG_CWD 0x1ULL
 #define USH_CMD_RET_FLAG_EXIT 0x2ULL

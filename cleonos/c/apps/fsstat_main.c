@@ -10,7 +10,7 @@ static int ush_cmd_fsstat(void) {
     ush_print_kv_hex_i18n("  TEMP_CHILDREN", "  临时目录子项",
                           cleonos_sys_fs_child_count("/temp"));
     ush_print_kv_hex_i18n("  DRIVER_CHILDREN", "  驱动目录子项",
-                          cleonos_sys_fs_child_count("/driver"));
+                          cleonos_sys_fs_child_count("/system/drivers"));
     ush_print_kv_hex_i18n("  DEV_CHILDREN", "  设备目录子项", cleonos_sys_fs_child_count("/dev"));
     return 1;
 }

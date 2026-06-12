@@ -2,6 +2,13 @@
 
 本文档描述 CLeonOS 用户态通过 `int 0x80` 进入内核的 syscall ABI 与当前实现行为。
 
+
+## 启动入口和根目录约定
+
+CLKS 不再提供内核内置 `clks>` Shell。用户态入口由 `/system/configs/user_space_enter.conf` 及启动模式对应的 `user_space_enter*.conf` 决定。默认入口是 `/shell/apps/shell.elf`。
+
+当前运行路径采用新版目录：普通应用在 `/shell/apps`，UWM 应用在 `/shell/apps/uwm`，输入法 ELF 在 `/shell/apps/inputm`，输入法词库在 `/inputm`，驱动 ELF 在 `/system/drivers`，配置在 `/system/configs`，数据库在 `/system/databases`，字体和 `kernel.sym` 等资源在 `/system/others`。
+
 ## 1. 调用约定（x86_64）
 
 用户态统一通过：
@@ -53,6 +60,26 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `2` = `RUNNING`
 - `3` = `EXITED`
 - `4` = `STOPPED`
+
+线程状态值（`proc_snapshot.thread_state`）：
+
+- `0` = `NONE`
+- `1` = `READY`
+- `2` = `RUNNING`
+- `3` = `BLOCKED`
+- `4` = `SLEEPING`
+- `5` = `STOPPED`
+- `6` = `ZOMBIE`
+
+阻塞原因值（`proc_snapshot.blocked_reason`）：
+
+- `0` = `NONE`
+- `1` = `TTY_INPUT`
+- `2` = `PTY_INPUT`
+- `3` = `SLEEP`
+- `4` = `WAIT_CHILD`
+- `5` = `YIELD`
+- `6` = `IO`
 
 常用信号值（`PROC_KILL`）：
 
@@ -136,15 +163,17 @@ UserSafeController（USC）危险 syscall 确认：
 - 参数：无
 - 返回：上下文切换计数
 
-### 7 `CLEONOS_SYSCALL_KELF_COUNT`
+### 7 `CLEONOS_SYSCALL_RESERVED_7`
 
 - 参数：无
-- 返回：内核态 ELF 应用计数
+- 返回：`-1`
+- 说明：保留号，当前未分配。
 
-### 8 `CLEONOS_SYSCALL_KELF_RUNS`
+### 8 `CLEONOS_SYSCALL_RESERVED_8`
 
 - 参数：无
-- 返回：内核态 ELF 累计运行次数
+- 返回：`-1`
+- 说明：保留号，当前未分配。
 
 ### 9 `CLEONOS_SYSCALL_FS_NODE_COUNT`
 
@@ -505,9 +534,11 @@ UserSafeController（USC）危险 syscall 确认：
 - 参数：
 - `arg0`: `u64 pid`
 - `arg1`: `struct cleonos_proc_snapshot *out_snapshot`
-- `arg2`: `u64 out_size`（需 `>= sizeof(cleonos_proc_snapshot)`）
+- `arg2`: `u64 out_size`
 - 返回：成功 `1`，失败 `0`
 - 说明：返回 PID/PPID/状态（含 `STOPPED`）/运行 tick/内存估算/TTY/路径等快照信息。
+- 兼容性：内核按 `min(out_size, sizeof(cleonos_proc_snapshot))` 做前缀复制，允许旧用户程序传入较小的旧版结构大小。
+- 新增字段：`main_thread_id`、`thread_state`、`scheduler_task_id`、`blocked_reason`、`wake_tick`、`wait_target_pid`、`parent_waiting`。
 
 ### 64 `CLEONOS_SYSCALL_PROC_KILL`
 
@@ -965,7 +996,7 @@ typedef struct cleonos_wm_snapshot {
 
 - 参数：无
 - 返回：当前 driver model 登记的驱动数量。
-- 说明：包括启动时自动扫描到的标准 `/driver/*.elf` 驱动，以及之后手动加载的第三方 `/driver/*.elf` 驱动。当前标准驱动也不再登记为 builtin 表项。
+- 说明：包括启动时自动扫描到的标准 `/system/drivers/*.elf` 驱动，以及之后手动加载的第三方 `/system/drivers/*.elf` 驱动。当前标准驱动也不再登记为 builtin 表项。
 
 ### 122 `CLEONOS_SYSCALL_DRIVER_INFO`
 
@@ -981,7 +1012,7 @@ typedef struct cleonos_wm_snapshot {
 - 参数：
 - `arg0`: `const char *path`
 - 返回：成功返回 `load_id`，失败返回 `0`。
-- 说明：校验 `/driver/*.elf`，登记到 driver model，并以普通用户态进程方式启动该驱动 ELF。当前不会把第三方 ELF 直接跳入内核态执行。
+- 说明：校验 `/system/drivers/*.elf`，登记到 driver model，并以普通用户态进程方式启动该驱动 ELF。当前不会把第三方 ELF 直接跳入内核态执行。
 
 ### 124 `CLEONOS_SYSCALL_DRIVER_UNLOAD`
 
@@ -993,8 +1024,8 @@ typedef struct cleonos_wm_snapshot {
 ### 125 `CLEONOS_SYSCALL_DRIVER_RELOAD`
 
 - 参数：无
-- 返回：本次从 `/driver` 新加载的驱动数量。
-- 说明：重新扫描 `/driver/*.elf`，已登记的驱动会被跳过。
+- 返回：本次从 `/system/drivers` 新加载的驱动数量。
+- 说明：重新扫描 `/system/drivers/*.elf`，已登记的驱动会被跳过。
 
 ### 126 `CLEONOS_SYSCALL_TIMER_HZ`
 
@@ -1100,7 +1131,7 @@ typedef struct cleonos_user_login_req {
 } cleonos_user_login_req;
 ```
 
-- 说明：验证 `/system/users.db` 中保存的 SHA-256 密码哈希，成功后把当前进程身份切换为目标用户。
+- 说明：验证 `/system/databases/users.db` 中保存的 SHA-256 密码哈希，成功后把当前进程身份切换为目标用户。
 
 ### 134 `CLEONOS_SYSCALL_USER_LOGOUT`
 
@@ -1112,7 +1143,7 @@ typedef struct cleonos_user_login_req {
 
 - 参数：无
 - 返回：用户数量；非管理员或不可用时返回失败值。
-- 说明：需要管理员身份。用户数据来自 `/system/users.db`。
+- 说明：需要管理员身份。用户数据来自 `/system/databases/users.db`。
 
 ### 136 `CLEONOS_SYSCALL_USER_AT`
 
@@ -1137,7 +1168,7 @@ typedef struct cleonos_user_add_req {
 } cleonos_user_add_req;
 ```
 
-- 说明：创建用户，写入 `/system/users.db`，并创建 `/home/<name>`。需要管理员身份。
+- 说明：创建用户，写入 `/system/databases/users.db`，并创建 `/home/<name>`。需要管理员身份。
 
 ### 138 `CLEONOS_SYSCALL_USER_PASSWD`
 
@@ -1157,7 +1188,7 @@ typedef struct cleonos_user_passwd_req {
 - 说明：
 - 普通用户只能修改自己的密码，且必须提供旧密码。
 - 管理员可以修改其他用户密码。
-- 新密码以 SHA-256 哈希形式保存到 `/system/users.db`。
+- 新密码以 SHA-256 哈希形式保存到 `/system/databases/users.db`。
 
 ### 139 `CLEONOS_SYSCALL_USER_SET_ROLE`
 
@@ -1267,8 +1298,8 @@ typedef struct cleonos_sysinfo {
 - 参数：
 - `arg0`: `const char *locale`
 - 返回：
-- `1`：内核态 locale 已更新，并成功写入 `/system/locale.conf`
-- `2`：内核态 locale 已更新，但写入 `/system/locale.conf` 失败
+- `1`：内核态 locale 已更新，并成功写入 `/system/configs/locale.conf`
+- `2`：内核态 locale 已更新，但写入 `/system/configs/locale.conf` 失败
 - `0`：参数非法或权限不足
 - 说明：设置系统语言。locale 字符串只允许 ASCII 字母、数字、`_`、`-`、`.`，且长度必须小于 `CLEONOS_LOCALE_TEXT_MAX`。
 - 说明：该 syscall 属于系统配置修改，需要通过当前用户权限/USC 检查。
@@ -1353,7 +1384,7 @@ typedef struct cleonos_mmap_req {
 - 参数：无
 - 返回：已注册输入法数量
 - 说明：内核默认注册 `SystemENG`。
-- 启动时扫描 `/shell/inputm/*.elf`，并按同名规则表 `/system/inputm/<name>.db` 自动注册规则表输入法。
+- 启动时扫描 `/shell/apps/inputm/*.elf`，并按同名规则表 `/inputm/<name>.db` 自动注册规则表输入法。
 - 规则表输入法由内核宿主管理按键、候选栏、翻页和提交；用户态输入法 ELF 负责安装/注册规则文件。
 
 ### 151 `CLEONOS_SYSCALL_INPUTM_INFO`
@@ -1420,8 +1451,8 @@ typedef struct cleonos_inputm_info {
 - 返回：输入法 index，失败返回 `-1`
 - 说明：注册一个由内核宿主管理的规则表输入法。
 - `name_ptr`：输入法显示名称，例如 `PinyinCN`、`RomajiJP`
-- `path_ptr`：输入法 ELF 路径，例如 `/shell/inputm/romaji.elf`
-- `rule_path_ptr`：规则表路径，例如 `/system/inputm/romaji.db`
+- `path_ptr`：输入法 ELF 路径，例如 `/shell/apps/inputm/romaji.elf`
+- `rule_path_ptr`：规则表路径，例如 `/inputm/romaji.db`
 - `label_ptr`：底栏 composing 标签，例如 `PINYIN:`、`ROMAJI:`，可为空
 - `flags`：规则表行为控制位
 
@@ -1607,4 +1638,5 @@ u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
+
 

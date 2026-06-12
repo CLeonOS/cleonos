@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SYMBOLS_DICT_PATH "/system/inputm/symbols.db"
+#define SYMBOLS_DICT_PATH "/inputm/symbols.db"
 
 static void symbols_usage(void) {
     puts("usage: symbols [list|use <index>|status <text>|test <key>]");
@@ -85,7 +85,7 @@ int cleonos_app_main(void) {
     u64 ai;
     u64 idx;
 
-    (void)cleonos_sys_inputm_register_rule("Symbols", "/shell/inputm/symbols.elf", SYMBOLS_DICT_PATH, "SYM:",
+    (void)cleonos_sys_inputm_register_rule("Symbols", "/shell/apps/inputm/symbols.elf", SYMBOLS_DICT_PATH, "SYM:",
                                            CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
                                                CLEONOS_INPUTM_FLAG_RULE_COMMIT_RAW);
 

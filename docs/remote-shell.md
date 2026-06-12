@@ -5,8 +5,8 @@ It is intentionally not a full SSH implementation yet: the first protocol is pla
 
 ## Components
 
-- `/shell/rshd.elf`: CLeonOS-only server.
-- `/shell/rsh.elf`: CLeonOS client.
+- `/shell/apps/rshd.elf`: CLeonOS-only server.
+- `/shell/apps/rsh.elf`: CLeonOS client.
 - `tools/cleonos-rsh-client.c`: Linux/Windows host client source.
 
 ## Protocol Model
@@ -21,7 +21,7 @@ Supported server-side built-ins:
 - `cd <dir>`
 - `exit` or `quit`
 
-Other commands are resolved through the normal CLeonOS shell app path logic, for example `ls` runs `/shell/ls.elf`.
+Other commands are resolved through the normal CLeonOS shell app path logic, for example `ls` runs `/shell/apps/ls.elf`.
 
 ## Usage In CLeonOS
 

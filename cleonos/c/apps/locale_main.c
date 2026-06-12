@@ -59,8 +59,8 @@ static int locale_set(const char *value) {
     }
 
     if (ret == 2ULL) {
-        ush_write_i18n_label("locale: set in kernel, but failed to persist /system/locale.conf",
-                             "locale: 内核已设置，但写入 /system/locale.conf 失败");
+        ush_write_i18n_label("locale: set in kernel, but failed to persist /system/configs/locale.conf",
+                             "locale: 内核已设置，但写入 /system/configs/locale.conf 失败");
         ush_write(": ");
         ush_writeln(value);
         return 1;

@@ -13,18 +13,18 @@
 输入法文件建议放在：
 
 ```text
-/shell/inputm/<name>.elf
-/system/inputm/<name>.db
+/shell/apps/inputm/<name>.elf
+/inputm/<name>.db
 ```
 
 例如罗马音日语输入法：
 
 ```text
-/shell/inputm/romaji.elf
-/system/inputm/romaji.db
+/shell/apps/inputm/romaji.elf
+/inputm/romaji.db
 ```
 
-系统启动时会扫描 `/shell/inputm/*.elf`。如果存在同名规则表 `/system/inputm/<name>.db`，内核会自动注册为规则表输入法。
+系统启动时会扫描 `/shell/apps/inputm/*.elf`。如果存在同名规则表 `/inputm/<name>.db`，内核会自动注册为规则表输入法。
 
 输入法 ELF 也可以在运行时主动调用：
 
@@ -124,8 +124,8 @@ u64 cleonos_sys_inputm_register_rule(const char *name,
 ```c
 (void)cleonos_sys_inputm_register_rule(
     "RomajiJP",
-    "/shell/inputm/romaji.elf",
-    "/system/inputm/romaji.db",
+    "/shell/apps/inputm/romaji.elf",
+    "/inputm/romaji.db",
     "ROMAJI:",
     CLEONOS_INPUTM_FLAG_JAPANESE_ROMAJI |
         CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
@@ -167,8 +167,8 @@ u64 cleonos_sys_inputm_register_rule(const char *name,
 int cleonos_app_main(void) {
     u64 index = cleonos_sys_inputm_register_rule(
         "MyIME",
-        "/shell/inputm/myime.elf",
-        "/system/inputm/myime.db",
+        "/shell/apps/inputm/myime.elf",
+        "/inputm/myime.db",
         "MYIME:",
         CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
             CLEONOS_INPUTM_FLAG_RULE_SPLIT |
@@ -212,7 +212,7 @@ output_group.inputm.apps = pinyin, romaji, myime
 规则表文件需要放进 ramdisk：
 
 ```text
-ramdisk/system/inputm/myime.db
+ramdisk/inputm/myime.db
 ```
 
 构建：

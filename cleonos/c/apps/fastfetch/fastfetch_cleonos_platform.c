@@ -28,12 +28,12 @@ void ffPlatformInitImpl(FFPlatform *platform) {
     ff_cl_strbuf_set_cstr(&platform->homeDir, user.home[0] != '\0' ? user.home : "/");
     ffStrbufEnsureEndsWithC(&platform->homeDir, '/');
     ffStrbufSetS(&platform->cacheDir, "/temp/fastfetch/");
-    ffStrbufSetS(&platform->exePath, "/shell/fastfetch.elf");
+    ffStrbufSetS(&platform->exePath, "/shell/apps/fastfetch.elf");
     ffStrbufSetS(&platform->cwd, "/");
     ff_cl_strbuf_set_cstr(&platform->userName, user.name[0] != '\0' ? user.name : "user");
     ff_cl_strbuf_set_cstr(&platform->fullUserName, user.name[0] != '\0' ? user.name : "CLeonOS User");
     ffStrbufSetS(&platform->hostName, "cleonos");
-    ffStrbufSetS(&platform->userShell, "/shell/shell.elf");
+    ffStrbufSetS(&platform->userShell, "/shell/apps/shell.elf");
 
     ffStrbufSetS(&platform->sysinfo.name, info.kernel_name[0] != '\0' ? info.kernel_name : "CLKS");
     ffStrbufSetS(&platform->sysinfo.release, info.kernel_version[0] != '\0' ? info.kernel_version : "unknown");

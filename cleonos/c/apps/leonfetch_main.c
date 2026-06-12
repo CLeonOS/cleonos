@@ -244,7 +244,7 @@ static int ush_cmd_leonfetch(const char *arg) {
         boot_mode = info.boot_mode;
     }
     (void)snprintf(os_text, (unsigned long)sizeof(os_text), "CLeonOS %s", info.arch[0] != '\0' ? info.arch : "unknown");
-    (void)ush_leonfetch_env_value("LAUNCHER", "/shell/shell.elf", launcher_text, (u64)sizeof(launcher_text));
+    (void)ush_leonfetch_env_value("LAUNCHER", "/shell/apps/shell.elf", launcher_text, (u64)sizeof(launcher_text));
     (void)snprintf(shell_text, (unsigned long)sizeof(shell_text), "%s", launcher_text);
     ush_leonfetch_uptime_text(uptime_text, (u64)sizeof(uptime_text), info.uptime_ms, zh);
     if (info.build_date[0] != '\0' || info.build_time[0] != '\0') {
@@ -293,8 +293,6 @@ static int ush_cmd_leonfetch(const char *arg) {
     ush_leonfetch_print_u64_i18n(plain, "Services", "服务数", info.service_count);
     ush_leonfetch_print_u64_i18n(plain, "SvcReady", "就绪服务", info.service_ready_count);
     ush_leonfetch_print_u64_i18n(plain, "CtxSwitches", "上下文切换", cleonos_sys_context_switches());
-    ush_leonfetch_print_u64_i18n(plain, "KELFApps", "KELF 应用", cleonos_sys_kelf_count());
-    ush_leonfetch_print_u64_i18n(plain, "KELFRuns", "KELF 运行次数", cleonos_sys_kelf_runs());
     ush_leonfetch_print_u64_i18n(plain, "FSNodes", "文件系统节点", info.fs_nodes);
     ush_leonfetch_print_u64_i18n(plain, "RootChildren", "根目录子项", cleonos_sys_fs_child_count("/"));
     ush_leonfetch_print_u64_i18n(plain, "ManagedPages", "托管页数", info.managed_pages);

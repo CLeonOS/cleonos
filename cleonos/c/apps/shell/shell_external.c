@@ -209,7 +209,7 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
     ush_append_text(env_line, (u64)sizeof(env_line), sh->cwd);
     ush_append_text(env_line, (u64)sizeof(env_line), ";CMD=");
     ush_append_text(env_line, (u64)sizeof(env_line), canonical);
-    ush_append_text(env_line, (u64)sizeof(env_line), ";LAUNCHER=/shell/shell.elf");
+    ush_append_text(env_line, (u64)sizeof(env_line), ";LAUNCHER=/shell/apps/shell.elf");
     ush_append_text(env_line, (u64)sizeof(env_line), ";USER=");
     ush_append_text(env_line, (u64)sizeof(env_line), sh->username);
     ush_append_text(env_line, (u64)sizeof(env_line), ";HOME=");

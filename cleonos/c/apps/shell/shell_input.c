@@ -600,7 +600,7 @@ static void ush_history_push_memory(ush_state *sh, const char *line) {
 }
 
 static const char *ush_history_storage_path(void) {
-    if (cleonos_sys_fs_stat_type("/system/shell") == 2ULL) {
+    if (cleonos_sys_fs_stat_type(USH_HISTORY_DIR) == 2ULL) {
         return USH_HISTORY_PATH;
     }
 

@@ -119,9 +119,9 @@ const FFShellResult *ffDetectShell(void) {
     if (inited == 0) {
         inited = 1;
         ffStrbufInitS(&result.processName, "shell");
-        ffStrbufInitS(&result.exe, "/shell/shell.elf");
+        ffStrbufInitS(&result.exe, "/shell/apps/shell.elf");
         result.exeName = "shell.elf";
-        ffStrbufInitS(&result.exePath, "/shell/shell.elf");
+        ffStrbufInitS(&result.exePath, "/shell/apps/shell.elf");
         ffStrbufInitS(&result.prettyName, "CLeonOS Shell");
         ffStrbufInitS(&result.version, "");
         result.pid = (uint32_t)cleonos_sys_getpid();

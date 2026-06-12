@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PINYIN_DICT_PATH "/system/inputm/pinyin.db"
+#define PINYIN_DICT_PATH "/inputm/pinyin.db"
 
 static void pinyin_usage(void) {
     puts("usage: pinyin [list|use <index>|status <text>|test <key>]");
@@ -83,7 +83,7 @@ int cleonos_app_main(void) {
     u64 ai;
     u64 idx;
 
-    (void)cleonos_sys_inputm_register_rule("PinyinCN", "/shell/inputm/pinyin.elf", PINYIN_DICT_PATH, "PINYIN:",
+    (void)cleonos_sys_inputm_register_rule("PinyinCN", "/shell/apps/inputm/pinyin.elf", PINYIN_DICT_PATH, "PINYIN:",
                                            CLEONOS_INPUTM_FLAG_CHINESE_PINYIN |
                                                CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
                                                CLEONOS_INPUTM_FLAG_RULE_SPLIT |

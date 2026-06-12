@@ -150,7 +150,7 @@ int ush_resolve_exec_path(const ush_state *sh, const char *arg, char *out_path, 
             return 0;
         }
     } else {
-        static const char prefix[] = "/shell/";
+        static const char prefix[] = "/shell/apps/";
         u64 prefix_len = (u64)(sizeof(prefix) - 1U);
 
         if (prefix_len + 1ULL >= out_size) {

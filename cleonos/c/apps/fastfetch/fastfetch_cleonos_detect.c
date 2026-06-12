@@ -80,7 +80,7 @@ static void ff_port_load_shell(ff_port_context *ctx) {
         ff_port_copy(ctx->shell, sizeof(ctx->shell), value);
         return;
     }
-    ff_port_copy(ctx->shell, sizeof(ctx->shell), "/shell/shell.elf");
+    ff_port_copy(ctx->shell, sizeof(ctx->shell), "/shell/apps/shell.elf");
 }
 
 static void ff_port_load_user(ff_port_context *ctx) {

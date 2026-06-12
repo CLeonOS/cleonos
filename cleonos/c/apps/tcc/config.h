@@ -7,10 +7,10 @@
 #define CONFIG_TCC_SEMLOCK 0
 #define CONFIG_TCC_BACKTRACE 0
 #define CONFIG_TCC_BCHECK 0
-#define CONFIG_TCCDIR "/system/tcc"
+#define CONFIG_TCCDIR "/system/others/tcc"
 #define CONFIG_TCC_SYSINCLUDEPATHS "{B}/include:/include"
 #define CONFIG_TCC_LIBPATHS "{B}/lib:{B}:/system/lib:/lib"
-#define CONFIG_TCC_CRTPREFIX "/system/tcc/lib"
+#define CONFIG_TCC_CRTPREFIX "/system/others/tcc/lib"
 #define CONFIG_TCC_ELFINTERP "-"
 #define CONFIG_TCC_CROSSPREFIX ""
 #define CONFIG_LDDIR "lib"

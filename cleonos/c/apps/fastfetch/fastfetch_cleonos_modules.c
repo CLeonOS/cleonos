@@ -118,7 +118,7 @@ static const char *ff_mod_processes(const ff_port_context *ctx, char *scratch, u
 static const char *ff_mod_packages(const ff_port_context *ctx, char *scratch, unsigned long scratch_size) {
     (void)ctx;
     (void)snprintf(scratch, scratch_size, "pkg db: %s",
-                   cleonos_sys_fs_stat_type("/system/pkg/installed.db") != 0ULL ? "/system/pkg/installed.db"
+                   cleonos_sys_fs_stat_type("/system/databases/pkg/installed.db") != 0ULL ? "/system/databases/pkg/installed.db"
                                                                                  : "not initialized");
     return scratch;
 }

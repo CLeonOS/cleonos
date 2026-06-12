@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 
-#define CONTROL_THEME_PATH "/system/theme.conf"
-#define CONTROL_STARTUP_PATH "/system/startup.conf"
-#define CONTROL_FONT_PATH "/system/font.conf"
-#define CONTROL_NET_PATH "/system/net.conf"
+#define CONTROL_THEME_PATH "/system/configs/theme.conf"
+#define CONTROL_STARTUP_PATH "/system/configs/startup.conf"
+#define CONTROL_FONT_PATH "/system/configs/font.conf"
+#define CONTROL_NET_PATH "/system/configs/net.conf"
 
 static void control_usage(void) {
     ush_writeln("CLeonOS Control Center CLI");
@@ -18,7 +18,7 @@ static void control_usage(void) {
     ush_writeln("  display wm <w> <h>             set window-manager logical resolution");
     ush_writeln("  display all <w> <h>            set both tty and wm resolution");
     ush_writeln("  font show                      show configured font files");
-    ush_writeln("  font set <tty.ttf> [emoji.ttf] write /system/font.conf");
+    ush_writeln("  font set <tty.ttf> [emoji.ttf] write /system/configs/font.conf");
     ush_writeln("  locale show                    show locale");
     ush_writeln("  locale set <locale>            set kernel locale and persist it");
     ush_writeln("  users show                     show current user and user count");
@@ -28,12 +28,12 @@ static void control_usage(void) {
     ush_writeln("  users role <admin|user> <name> run usermod.elf");
     ush_writeln("  users remove <name>            run userdel.elf");
     ush_writeln("  net show                       show network parameters");
-    ush_writeln("  net config dhcp|static ...     write /system/net.conf placeholder");
+    ush_writeln("  net config dhcp|static ...     write /system/configs/net.conf placeholder");
     ush_writeln("  inputm show                    list input methods");
     ush_writeln("  inputm use <index>             select input method");
-    ush_writeln("  theme show                     show /system/theme.conf");
-    ush_writeln("  theme set <name>               write /system/theme.conf");
-    ush_writeln("  startup show                   show /system/startup.conf");
+    ush_writeln("  theme show                     show /system/configs/theme.conf");
+    ush_writeln("  theme set <name>               write /system/configs/theme.conf");
+    ush_writeln("  startup show                   show /system/configs/startup.conf");
     ush_writeln("  startup add <command>          append startup command");
     ush_writeln("  startup clear                  clear startup commands");
     ush_writeln("  boot                           show boot args and boot mode");
@@ -251,10 +251,10 @@ static int control_net(const char *arg) {
     strncat(buf, rest, sizeof(buf) - strlen(buf) - 2U);
     strncat(buf, "\n", sizeof(buf) - strlen(buf) - 1U);
     if (control_write_text(CONTROL_NET_PATH, buf) == 0) {
-        ush_writeln("control: failed to write /system/net.conf");
+        ush_writeln("control: failed to write /system/configs/net.conf");
         return 0;
     }
-    ush_writeln("control: wrote /system/net.conf (kernel live reconfigure syscall not available yet)");
+    ush_writeln("control: wrote /system/configs/net.conf (kernel live reconfigure syscall not available yet)");
     return 1;
 }
 
@@ -330,19 +330,19 @@ static int control_users(const char *arg) {
         return control_users_show();
     }
     if (ush_streq(cmd, "list") != 0) {
-        return control_exec("/shell/users.elf", "");
+        return control_exec("/shell/apps/users.elf", "");
     }
     if (ush_streq(cmd, "add") != 0) {
-        return control_exec("/shell/useradd.elf", rest);
+        return control_exec("/shell/apps/useradd.elf", rest);
     }
     if (ush_streq(cmd, "passwd") != 0) {
-        return control_exec("/shell/passwd.elf", rest);
+        return control_exec("/shell/apps/passwd.elf", rest);
     }
     if (ush_streq(cmd, "role") != 0) {
-        return control_exec("/shell/usermod.elf", rest);
+        return control_exec("/shell/apps/usermod.elf", rest);
     }
     if (ush_streq(cmd, "remove") != 0 || ush_streq(cmd, "del") != 0) {
-        return control_exec("/shell/userdel.elf", rest);
+        return control_exec("/shell/apps/userdel.elf", rest);
     }
     ush_copy(argv, (u64)sizeof(argv), arg);
     (void)argv;
@@ -410,7 +410,7 @@ static int control_font(const char *arg) {
             return 0;
         }
     }
-    snprintf(data, sizeof(data), "tty=%s\nemoji=%s\n", tty_path, emoji_path[0] != '\0' ? emoji_path : "/system/emoji.ttf");
+    snprintf(data, sizeof(data), "tty=%s\nemoji=%s\n", tty_path, emoji_path[0] != '\0' ? emoji_path : "/system/others/fonts/emoji.ttf");
     if (control_write_text(CONTROL_FONT_PATH, data) == 0) {
         ush_writeln("control: font write failed");
         return 0;

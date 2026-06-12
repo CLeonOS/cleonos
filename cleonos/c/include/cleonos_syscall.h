@@ -31,6 +31,22 @@ typedef unsigned long long usize;
 #define CLEONOS_PROC_STATE_EXITED 3ULL
 #define CLEONOS_PROC_STATE_STOPPED 4ULL
 
+#define CLEONOS_THREAD_STATE_NONE 0ULL
+#define CLEONOS_THREAD_STATE_READY 1ULL
+#define CLEONOS_THREAD_STATE_RUNNING 2ULL
+#define CLEONOS_THREAD_STATE_BLOCKED 3ULL
+#define CLEONOS_THREAD_STATE_SLEEPING 4ULL
+#define CLEONOS_THREAD_STATE_STOPPED 5ULL
+#define CLEONOS_THREAD_STATE_ZOMBIE 6ULL
+
+#define CLEONOS_BLOCK_NONE 0ULL
+#define CLEONOS_BLOCK_TTY_INPUT 1ULL
+#define CLEONOS_BLOCK_PTY_INPUT 2ULL
+#define CLEONOS_BLOCK_SLEEP 3ULL
+#define CLEONOS_BLOCK_WAIT_CHILD 4ULL
+#define CLEONOS_BLOCK_YIELD 5ULL
+#define CLEONOS_BLOCK_IO 6ULL
+
 #define CLEONOS_SIGKILL 9ULL
 #define CLEONOS_SIGTERM 15ULL
 #define CLEONOS_SIGCONT 18ULL
@@ -61,6 +77,13 @@ typedef struct cleonos_proc_snapshot {
     u64 uid;
     u64 role;
     char path[CLEONOS_PROC_PATH_MAX];
+    u64 main_thread_id;
+    u64 thread_state;
+    u64 scheduler_task_id;
+    u64 blocked_reason;
+    u64 wake_tick;
+    u64 wait_target_pid;
+    u64 parent_waiting;
 } cleonos_proc_snapshot;
 
 typedef struct cleonos_fb_info {
@@ -199,6 +222,11 @@ typedef struct cleonos_sysinfo {
     u64 task_count;
     u64 service_count;
     u64 service_ready_count;
+    u64 runnable_tasks;
+    u64 sleeping_tasks;
+    u64 blocked_tasks;
+    u64 scheduler_yields;
+    u64 scheduler_wakeups;
 } cleonos_sysinfo;
 
 #define CLEONOS_WM_EVENT_FOCUS_GAINED 1ULL
@@ -318,8 +346,8 @@ typedef struct cleonos_net_tcp_recv_req {
 #define CLEONOS_SYSCALL_SERVICE_COUNT 4ULL
 #define CLEONOS_SYSCALL_SERVICE_READY_COUNT 5ULL
 #define CLEONOS_SYSCALL_CONTEXT_SWITCHES 6ULL
-#define CLEONOS_SYSCALL_KELF_COUNT 7ULL
-#define CLEONOS_SYSCALL_KELF_RUNS 8ULL
+#define CLEONOS_SYSCALL_RESERVED_7 7ULL
+#define CLEONOS_SYSCALL_RESERVED_8 8ULL
 #define CLEONOS_SYSCALL_FS_NODE_COUNT 9ULL
 #define CLEONOS_SYSCALL_FS_CHILD_COUNT 10ULL
 #define CLEONOS_SYSCALL_FS_GET_CHILD_NAME 11ULL
@@ -498,8 +526,6 @@ u64 cleonos_sys_task_count(void);
 u64 cleonos_sys_service_count(void);
 u64 cleonos_sys_service_ready_count(void);
 u64 cleonos_sys_context_switches(void);
-u64 cleonos_sys_kelf_count(void);
-u64 cleonos_sys_kelf_runs(void);
 u64 cleonos_sys_fs_node_count(void);
 u64 cleonos_sys_fs_child_count(const char *dir_path);
 u64 cleonos_sys_fs_get_child_name(const char *dir_path, u64 index, char *out_name);

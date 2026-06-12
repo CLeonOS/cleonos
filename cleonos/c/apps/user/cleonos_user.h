@@ -5,7 +5,7 @@
 
 #define CLEONOS_USER_HASH_HEX_LEN 64U
 #define CLEONOS_USER_RECORD_MAX 192U
-#define CLEONOS_USER_DB_PATH "/system/users.db"
+#define CLEONOS_USER_DB_PATH "/system/databases/users.db"
 #define CLEONOS_USER_SESSION_PATH "/temp/.cleonos_user_session"
 
 typedef struct cleonos_user_record {

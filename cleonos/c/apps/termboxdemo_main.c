@@ -5,7 +5,7 @@
 #include <termbox2.h>
 #include "cmd_runtime.h"
 
-#define TERMBOX2_LIB_PATH "/shell/termbox2.elf"
+#define TERMBOX2_LIB_PATH "/shell/apps/termbox2.elf"
 
 typedef int (*tb_init_fn)(void);
 typedef int (*tb_shutdown_fn)(void);

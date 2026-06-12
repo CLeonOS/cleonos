@@ -40,14 +40,6 @@ u64 cleonos_sys_context_switches(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_CONTEXT_SWITCHES, 0ULL, 0ULL, 0ULL);
 }
 
-u64 cleonos_sys_kelf_count(void) {
-    return cleonos_syscall(CLEONOS_SYSCALL_KELF_COUNT, 0ULL, 0ULL, 0ULL);
-}
-
-u64 cleonos_sys_kelf_runs(void) {
-    return cleonos_syscall(CLEONOS_SYSCALL_KELF_RUNS, 0ULL, 0ULL, 0ULL);
-}
-
 u64 cleonos_sys_fs_node_count(void) {
     return cleonos_syscall(CLEONOS_SYSCALL_FS_NODE_COUNT, 0ULL, 0ULL, 0ULL);
 }

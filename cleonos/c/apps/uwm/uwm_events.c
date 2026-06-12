@@ -1,9 +1,9 @@
 #include "uwm.h"
 
-#define USH_UWM_FILE_EXPLORER_PATH "/shell/uwm/file_explorer.elf"
-#define USH_UWM_TASKMGR_PATH "/shell/uwm/taskmgr.elf"
-#define USH_UWM_TERMINAL_PATH "/shell/uwm/terminal.elf"
-#define USH_UWM_PKG_GUI_PATH "/shell/uwm/pkg_gui.elf"
+#define USH_UWM_FILE_EXPLORER_PATH "/shell/apps/uwm/file_explorer.elf"
+#define USH_UWM_TASKMGR_PATH "/shell/apps/uwm/taskmgr.elf"
+#define USH_UWM_TERMINAL_PATH "/shell/apps/uwm/terminal.elf"
+#define USH_UWM_PKG_GUI_PATH "/shell/apps/uwm/pkg_gui.elf"
 
 static const char *ush_uwm_app_path(int index) {
     if (index == 0) {

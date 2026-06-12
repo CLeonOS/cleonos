@@ -188,10 +188,9 @@ FASTFETCH_SOURCES = [r(f"cleonos/c/apps/fastfetch/{name}.c") for name in ["fastf
 
 OUTPUT_GROUPS = {
     "default": {"output": r("build/x86_64/user/apps"), "linker": r("cleonos/c/user.ld"), "apps": []},
-    "driver": {"output": r("build/x86_64/user/apps/driver"), "linker": r("cleonos/c/user.ld"), "apps": ["ttydrv", "serialdrv", "fbdrv", "pcspeakerdrv", "diskdrv", "netdrv", "kbddrv", "mousedrv"]},
+    "driver": {"output": r("build/x86_64/user/apps/system/drivers"), "linker": r("cleonos/c/user.ld"), "apps": ["ttydrv", "serialdrv", "fbdrv", "pcspeakerdrv", "diskdrv", "netdrv", "kbddrv", "mousedrv"]},
     "uwm": {"output": r("build/x86_64/user/apps/uwm"), "linker": r("cleonos/c/user.ld"), "apps": ["file_explorer", "terminal", "taskmgr", "pkg_gui", "uwm_uilib", "stardust_helloworld", "stardust_layout"]},
     "inputm": {"output": r("build/x86_64/user/apps/inputm"), "linker": r("cleonos/c/user.ld"), "apps": ["pinyin", "romaji", "emoji", "symbols"]},
-    "system": {"output": r("build/x86_64/user/system"), "linker": r("cleonos/c/kelf.ld"), "apps": []},
 }
 
 APP_RULES = {
@@ -254,18 +253,14 @@ KERNEL_COMMON_C_SOURCES = [
     "clks/kernel/input/mouse.c",
     "clks/kernel/interface/bootsplash.c",
     "clks/kernel/interface/desktop.c",
-    "clks/kernel/interface/display.c",
-    "clks/kernel/interface/shell.c",
-    "clks/kernel/interface/tty.c",
+    "clks/kernel/interface/display.c",    "clks/kernel/interface/tty.c",
     "clks/kernel/interface/wm.c",
     "clks/kernel/memory/heap.c",
     "clks/kernel/memory/pmm.c",
     "clks/kernel/memory/vm.c",
     "clks/kernel/runtime/driver.c",
     "clks/kernel/runtime/elf64.c",
-    "clks/kernel/runtime/elfrunner.c",
     "clks/kernel/runtime/exec.c",
-    "clks/kernel/runtime/kelf.c",
     "clks/kernel/runtime/locale.c",
     "clks/kernel/runtime/net.c",
     "clks/kernel/runtime/pty.c",
@@ -495,7 +490,7 @@ def add_userapps(nw):
         for src in top_sources:
             name = Path(src).name
             srel = rel(src)
-            if not name.startswith(prefix) or name.endswith("_main.c") or name.endswith("_kmain.c") or srel in runtime_rels:
+            if not name.startswith(prefix) or name.endswith("_main.c") or srel in runtime_rels:
                 continue
             add_app_source(nw, src, app, obj_root, objects, extra_flags)
 
@@ -504,7 +499,7 @@ def add_userapps(nw):
             for src in collect(subdir, recursive=False, suffixes=(".c", ".cpp", ".cc", ".cxx")):
                 name = Path(src).name
                 srel = rel(src)
-                if name.endswith("_main.c") or name.endswith("_kmain.c") or srel in runtime_rels:
+                if name.endswith("_main.c") or srel in runtime_rels:
                     continue
                 add_app_source(nw, src, app, obj_root, objects, extra_flags)
 
@@ -512,14 +507,6 @@ def add_userapps(nw):
         out = norm(Path(group["output"]) / f"{app}.elf")
         outputs.append(out)
         nw.build(out, "link", uniq(objects), implicit=[group["linker"]], variables={"ld": TOOLS["LD"], "ldflags": " ".join(USER_LDFLAGS), "linker": group["linker"]})
-
-    system_group = OUTPUT_GROUPS["system"]
-    for main in sorted([src for src in top_sources if src.endswith("_kmain.c")], key=rel):
-        app = Path(main).name[:-len("_kmain.c")]
-        obj = nw.compile_obj(main, obj_for(obj_root, main), cflags=USER_CFLAGS, label=rel(main))
-        out = norm(Path(system_group["output"]) / f"{app}.elf")
-        outputs.append(out)
-        nw.build(out, "link", [obj], implicit=[system_group["linker"]], variables={"ld": TOOLS["LD"], "ldflags": " ".join(USER_LDFLAGS), "linker": system_group["linker"]})
 
     nw.build("userapps", "phony", outputs)
     return outputs
@@ -550,17 +537,25 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     ramdisk = r("build/x86_64/cleonos_ramdisk.tar")
     shell_outputs = " ".join(q(p) for p in user_outputs)
     ramdisk_cmd = (
-        f"rm -rf {q(ramdisk_root)} && mkdir -p {q(ramdisk_root)} {q(ramdisk_root + '/system')} {q(ramdisk_root + '/system/install')} "
-        f"{q(ramdisk_root + '/system/tcc')} {q(ramdisk_root + '/shell')} {q(ramdisk_root + '/shell/uwm')} {q(ramdisk_root + '/shell/inputm')} {q(ramdisk_root + '/driver')}"
+        f"rm -rf {q(ramdisk_root)} && mkdir -p {q(ramdisk_root)} {q(ramdisk_root + '/system/configs')} "
+        f"{q(ramdisk_root + '/system/cache')} {q(ramdisk_root + '/system/databases')} {q(ramdisk_root + '/system/others/install')} "
+        f"{q(ramdisk_root + '/system/others/fonts')} {q(ramdisk_root + '/system/others/tcc')} {q(ramdisk_root + '/system/drivers')} "
+        f"{q(ramdisk_root + '/shell/apps')} {q(ramdisk_root + '/shell/apps/uwm')} {q(ramdisk_root + '/shell/apps/inputm')} "
+        f"{q(ramdisk_root + '/shell/data')} {q(ramdisk_root + '/inputm')} {q(ramdisk_root + '/temp')} {q(ramdisk_root + '/tests')}"
         f" && cp -R {q(str(ROOT) + '/ramdisk/.')} {q(ramdisk_root + '/')}"
         f" && {TOOLS['PYTHON']} {q(ROOT / 'scripts/gen_os_version.py')} {q(ROOT)} {q(ramdisk_root + '/etc')}"
-        f" && cp -R {q(str(ROOT / 'build/x86_64/tccroot') + '/.')} {q(ramdisk_root + '/system/tcc/')}"
-        f" && cp {q(sym)} {q(ramdisk_root + '/system/kernel.sym')}"
-        f" && cp {q(clboot_kernel)} {q(ramdisk_root + '/system/install/clks_kernel.elf')}"
-        f" && cp {q(clboot_efi)} {q(ramdisk_root + '/system/install/BOOTX64.EFI')}"
-        f" && cp {q(clboot_font)} {q(ramdisk_root + '/system/install/clboot.psf')}"
-        f" && cp {q(ROOT / 'configs/clboot-harddisk.conf')} {q(ramdisk_root + '/system/install/clboot-harddisk.conf')}"
-        f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/inputm/')} ;; */driver/*.elf) cp \"$f\" {q(ramdisk_root + '/driver/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/')} ;; esac; done"
+        f" && cp -R {q(str(ROOT / 'build/x86_64/tccroot') + '/.')} {q(ramdisk_root + '/system/others/tcc/')}"
+        f" && cp {q(sym)} {q(ramdisk_root + '/system/others/kernel.sym')}"
+        f" && cp {q(clboot_kernel)} {q(ramdisk_root + '/system/others/install/clks_kernel.elf')}"
+        f" && cp {q(clboot_efi)} {q(ramdisk_root + '/system/others/install/BOOTX64.EFI')}"
+        f" && cp {q(clboot_font)} {q(ramdisk_root + '/system/others/install/clboot.psf')}"
+        f" && cp {q(ROOT / 'configs/clboot-harddisk.conf')} {q(ramdisk_root + '/system/others/install/clboot-harddisk.conf')}"
+        f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/inputm/')} ;; */system/drivers/*.elf) cp \"$f\" {q(ramdisk_root + '/system/drivers/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/')} ;; esac; done"
+        f" && printf 'path=/shell/apps/shell.elf\\nargs=\\nenv=LAUNCHER=/shell/apps/shell.elf\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.conf')}"
+        f" && printf 'path=/shell/apps/install2disk.elf\\nargs=install\\nenv=LAUNCHER=/shell/apps/install2disk.elf;CLKS_INSTALLER_AUTO=1\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.install.conf')}"
+        f" && printf 'path=/shell/apps/install2disk.elf\\nargs=repair\\nenv=LAUNCHER=/shell/apps/install2disk.elf;CLKS_INSTALLER_AUTO=1\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.repair.conf')}"
+        f" && printf 'path=/shell/apps/install2disk.elf\\nargs=update-kernel\\nenv=LAUNCHER=/shell/apps/install2disk.elf;CLKS_INSTALLER_AUTO=1\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.update-kernel.conf')}"
+        f" && printf 'path=/shell/apps/install2disk.elf\\nargs=verify\\nenv=LAUNCHER=/shell/apps/install2disk.elf;CLKS_INSTALLER_AUTO=1\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.verify.conf')}"
         f" && touch {q(ramdisk_stamp)}"
     )
     nw.build(ramdisk_stamp, "run", [clboot_kernel, clboot_efi, clboot_font, r("configs/clboot-harddisk.conf"), sym, tcc_stamp] + user_outputs, variables={"cmd": ramdisk_cmd, "desc": "ramdisk-root"})
@@ -697,3 +692,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

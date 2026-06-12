@@ -231,8 +231,8 @@ static void ush_linenoise_complete_elf_dir(const char *dir, const char *token, u
 }
 
 static void ush_linenoise_complete_external_commands(const char *token, ush_linenoise_match_list *matches) {
-    ush_linenoise_complete_elf_dir("/shell", token, matches);
-    ush_linenoise_complete_elf_dir("/shell/uwm", token, matches);
+    ush_linenoise_complete_elf_dir("/shell/apps", token, matches);
+    ush_linenoise_complete_elf_dir("/shell/apps/uwm", token, matches);
 }
 
 static int ush_linenoise_split_path_token(const ush_state *sh, const char *token, char *out_dir, u64 out_dir_size,
@@ -479,7 +479,7 @@ const char *ush_linenoise_hint(const ush_state *sh) {
     } else if (ush_streq(cmd, "cd") != 0 && arg[0] == '\0') {
         ush_copy(hint, (u64)sizeof(hint), " /system /shell /home /temp");
     } else if ((ush_streq(cmd, "exec") != 0 || ush_streq(cmd, "run") != 0) && arg[0] == '\0') {
-        ush_copy(hint, (u64)sizeof(hint), " /shell/<app>.elf");
+        ush_copy(hint, (u64)sizeof(hint), " /shell/apps/<app>.elf");
     } else if (ush_streq(cmd, "browser") != 0 && arg[0] == '\0') {
         ush_copy(hint, (u64)sizeof(hint), " http://example.com");
     } else if (ush_streq(cmd, "wget") != 0 && arg[0] == '\0') {

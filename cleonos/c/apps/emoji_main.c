@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define EMOJI_DICT_PATH "/system/inputm/emoji.db"
+#define EMOJI_DICT_PATH "/inputm/emoji.db"
 
 static void emoji_usage(void) {
     puts("usage: emoji [list|use <index>|status <text>|test <key>]");
@@ -85,7 +85,7 @@ int cleonos_app_main(void) {
     u64 ai;
     u64 idx;
 
-    (void)cleonos_sys_inputm_register_rule("Emoji", "/shell/inputm/emoji.elf", EMOJI_DICT_PATH, "EMOJI:",
+    (void)cleonos_sys_inputm_register_rule("Emoji", "/shell/apps/inputm/emoji.elf", EMOJI_DICT_PATH, "EMOJI:",
                                            CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
                                                CLEONOS_INPUTM_FLAG_RULE_COMMIT_RAW);
 

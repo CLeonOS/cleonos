@@ -26,10 +26,10 @@ static const char *ush_sysstat_name_for_id(u64 id) {
         return "SERVICE_READY";
     case CLEONOS_SYSCALL_CONTEXT_SWITCHES:
         return "CONTEXT_SWITCH";
-    case CLEONOS_SYSCALL_KELF_COUNT:
-        return "KELF_COUNT";
-    case CLEONOS_SYSCALL_KELF_RUNS:
-        return "KELF_RUNS";
+    case CLEONOS_SYSCALL_RESERVED_7:
+        return "RESERVED_7";
+    case CLEONOS_SYSCALL_RESERVED_8:
+        return "RESERVED_8";
     case CLEONOS_SYSCALL_FS_NODE_COUNT:
         return "FS_NODE_COUNT";
     case CLEONOS_SYSCALL_FS_CHILD_COUNT:

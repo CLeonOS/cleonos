@@ -18,20 +18,20 @@
 #define INSTALL_OS_RELEASE_SOURCE "/etc/os-release"
 #define INSTALL_OS_VERSION_TARGET INSTALL_MOUNT_PATH "/etc/os-version"
 #define INSTALL_OS_RELEASE_TARGET INSTALL_MOUNT_PATH "/etc/os-release"
-#define INSTALL_KERNEL_SOURCE "/system/install/clks_kernel.elf"
+#define INSTALL_KERNEL_SOURCE "/system/others/install/clks_kernel.elf"
 #define INSTALL_KERNEL_TARGET INSTALL_MOUNT_PATH "/boot/clks_kernel.elf"
-#define INSTALL_CLBOOT_EFI_SOURCE "/system/install/BOOTX64.EFI"
-#define INSTALL_CLBOOT_CONF_SOURCE "/system/install/clboot-harddisk.conf"
-#define INSTALL_CLBOOT_FONT_SOURCE "/system/install/clboot.psf"
+#define INSTALL_CLBOOT_EFI_SOURCE "/system/others/install/BOOTX64.EFI"
+#define INSTALL_CLBOOT_CONF_SOURCE "/system/others/install/clboot-harddisk.conf"
+#define INSTALL_CLBOOT_FONT_SOURCE "/system/others/install/clboot.psf"
 #define INSTALL_CLBOOT_EFI_TARGET INSTALL_MOUNT_PATH "/EFI/BOOT/BOOTX64.EFI"
 #define INSTALL_CLBOOT_CONF_TARGET INSTALL_MOUNT_PATH "/EFI/CLEONOS/clboot.conf"
 #define INSTALL_CLBOOT_FONT_TARGET INSTALL_MOUNT_PATH "/EFI/CLEONOS/clboot.psf"
-#define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/users.db"
-#define INSTALL_MANIFEST_SOURCE "/system/install_manifest.db"
-#define INSTALL_MANIFEST_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.db"
-#define INSTALL_MANIFEST_NEW_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.new"
-#define INSTALL_MANIFEST_PREV_TARGET INSTALL_MOUNT_PATH "/system/install_manifest.prev"
-#define INSTALL_UPDATE_STATE_TARGET INSTALL_MOUNT_PATH "/system/update_state.db"
+#define INSTALL_USER_DB_TARGET INSTALL_MOUNT_PATH "/system/databases/users.db"
+#define INSTALL_MANIFEST_SOURCE "/system/databases/install_manifest.db"
+#define INSTALL_MANIFEST_TARGET INSTALL_MOUNT_PATH "/system/databases/install_manifest.db"
+#define INSTALL_MANIFEST_NEW_TARGET INSTALL_MOUNT_PATH "/system/databases/install_manifest.new"
+#define INSTALL_MANIFEST_PREV_TARGET INSTALL_MOUNT_PATH "/system/databases/install_manifest.prev"
+#define INSTALL_UPDATE_STATE_TARGET INSTALL_MOUNT_PATH "/system/databases/update_state.db"
 #define INSTALL_DRYRUN_MANIFEST "/temp/install2disk_manifest.new"
 #define INSTALL_HOME_TARGET INSTALL_MOUNT_PATH "/home"
 #define INSTALL_ROOT_HOME_TARGET INSTALL_MOUNT_PATH "/home/root"
@@ -1264,15 +1264,15 @@ static int install_manifest_path_included(const char *logical_path) {
     }
 
     if (strcmp(logical_path, INSTALL_MANIFEST_SOURCE) == 0 ||
-        strcmp(logical_path, "/system/install_manifest.new") == 0 ||
-        strcmp(logical_path, "/system/install_manifest.prev") == 0 ||
-        strcmp(logical_path, "/system/update_state.db") == 0 || strcmp(logical_path, "/system/users.db") == 0 ||
+        strcmp(logical_path, "/system/databases/install_manifest.new") == 0 ||
+        strcmp(logical_path, "/system/databases/install_manifest.prev") == 0 ||
+        strcmp(logical_path, "/system/databases/update_state.db") == 0 || strcmp(logical_path, "/system/databases/users.db") == 0 ||
         strcmp(logical_path, "/kernel.elf") == 0 || strcmp(logical_path, "/limine.conf") == 0 ||
         strcmp(logical_path, "/limine-bios.sys") == 0 || install_path_is_under(logical_path, "/limine") != 0) {
         return 0;
     }
 
-    if (install_path_is_under(logical_path, "/system/pkg") != 0 ||
+    if (install_path_is_under(logical_path, "/system/databases/pkg") != 0 ||
         install_path_is_under(logical_path, "/home") != 0 || install_path_is_under(logical_path, "/temp") != 0 ||
         install_path_is_under(logical_path, "/dev") != 0 || install_path_is_under(logical_path, "/proc") != 0) {
         return 0;
@@ -1280,7 +1280,7 @@ static int install_manifest_path_included(const char *logical_path) {
 
     if (install_path_is_under(logical_path, "/EFI") != 0 || install_path_is_under(logical_path, "/boot") != 0 ||
         install_path_is_under(logical_path, "/system") != 0 ||
-        install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/driver") != 0 ||
+        install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/system/drivers") != 0 ||
         install_path_is_under(logical_path, "/efi") != 0) {
         return 1;
     }
@@ -1293,7 +1293,7 @@ static int install_update_shell_path_included(const char *logical_path) {
         return 0;
     }
 
-    if (strcmp(logical_path, "/shell/install2disk.elf") == 0) {
+    if (strcmp(logical_path, "/shell/apps/install2disk.elf") == 0) {
         return 0;
     }
 
@@ -1301,7 +1301,7 @@ static int install_update_shell_path_included(const char *logical_path) {
         return 0;
     }
 
-    if (install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/driver") != 0 ||
+    if (install_path_is_under(logical_path, "/shell") != 0 || install_path_is_under(logical_path, "/system/drivers") != 0 ||
         install_path_is_under(logical_path, "/system") != 0) {
         return 1;
     }
@@ -1387,7 +1387,7 @@ static int install_manifest_scan_tree_filtered(const char *real_path, const char
         strcmp(logical_path, "/dev") == 0 || install_path_is_under(logical_path, "/dev") != 0 ||
         strcmp(logical_path, "/temp") == 0 || install_path_is_under(logical_path, "/temp") != 0 ||
         strcmp(logical_path, "/home") == 0 || install_path_is_under(logical_path, "/home") != 0 ||
-        strcmp(logical_path, "/system/pkg") == 0 || install_path_is_under(logical_path, "/system/pkg") != 0) {
+        strcmp(logical_path, "/system/databases/pkg") == 0 || install_path_is_under(logical_path, "/system/databases/pkg") != 0) {
         return 1;
     }
 
@@ -1892,8 +1892,8 @@ static int install_verify_manifest(install_verify_result *result) {
 
     size = cleonos_sys_fs_stat_size(manifest_path);
     if (size == (u64)-1) {
-        install_puts_i18n("install2disk verify: missing /system/install_manifest.db",
-                          "install2disk verify: 缺少 /system/install_manifest.db");
+        install_puts_i18n("install2disk verify: missing /system/databases/install_manifest.db",
+                          "install2disk verify: 缺少 /system/databases/install_manifest.db");
         result->missing++;
         return 0;
     }
@@ -1960,9 +1960,9 @@ static int install_verify_run(void) {
                                            "/EFI/CLEONOS/clboot.conf",
                                            "/EFI/CLEONOS/clboot.psf",
                                            "/boot/clks_kernel.elf",
-                                           "/system/users.db",
-                                           "/system/tty.ttf",
-                                           "/shell/shell.elf"};
+                                           "/system/databases/users.db",
+                                           "/system/others/fonts/tty.ttf",
+                                           "/shell/apps/shell.elf"};
     install_verify_result result;
     char mount_path[USH_PATH_MAX];
     u64 i;
@@ -2425,7 +2425,7 @@ static int install_repair_component(const char *kind, const char *name) {
     }
 
     if (strcmp(kind, "shell") == 0 || strcmp(kind, "app") == 0) {
-        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell", name) == 0) {
+        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell/apps", name) == 0) {
             install_puts_i18n("install2disk: invalid shell component name",
                               "install2disk: 无效 shell 组件名");
             return 0;
@@ -2437,7 +2437,7 @@ static int install_repair_component(const char *kind, const char *name) {
     }
 
     if (strcmp(kind, "uwm") == 0) {
-        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell/uwm", name) == 0) {
+        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/shell/apps/uwm", name) == 0) {
             install_puts_i18n("install2disk: invalid uwm component name",
                               "install2disk: 无效 uwm 组件名");
             return 0;
@@ -2449,7 +2449,7 @@ static int install_repair_component(const char *kind, const char *name) {
     }
 
     if (strcmp(kind, "driver") == 0 || strcmp(kind, "drv") == 0) {
-        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/driver", name) == 0) {
+        if (install_build_component_path(src_path, (u64)sizeof(src_path), "/system/drivers", name) == 0) {
             install_puts_i18n("install2disk: invalid driver component name",
                               "install2disk: 无效 driver 组件名");
             return 0;
@@ -2492,9 +2492,9 @@ static int install_repair_interactive(void) {
     install_puts_i18n("  [c] CLBoot config file", "  [c] CLBoot 配置文件");
     install_puts_i18n("  [s] CLBoot EFI file", "  [s] CLBoot EFI 文件");
     install_puts_i18n("  [o] os-version / os-release", "  [o] os-version / os-release");
-    install_puts_i18n("  [a] /shell app ELF", "  [a] /shell 应用 ELF");
-    install_puts_i18n("  [u] /shell/uwm app ELF", "  [u] /shell/uwm 应用 ELF");
-    install_puts_i18n("  [d] /driver ELF", "  [d] /driver ELF");
+    install_puts_i18n("  [a] /shell/apps app ELF", "  [a] /shell/apps 应用 ELF");
+    install_puts_i18n("  [u] /shell/apps/uwm app ELF", "  [u] /shell/apps/uwm 应用 ELF");
+    install_puts_i18n("  [d] /system/drivers ELF", "  [d] /system/drivers ELF");
     install_puts_i18n("  [y] /system ELF", "  [y] /system ELF");
     install_puts_i18n("  [p] absolute path", "  [p] 绝对路径");
     choice = install_prompt_choice(INSTALL_TEXT("install2disk: choose repair target [l/b/m/c/s/o/a/u/d/y/p, q cancel]: ",
@@ -3230,8 +3230,8 @@ static int install_update_shell(int dry_run) {
                               "install2disk: 外壳已更新: 已复制=%llu 文件 %llu 字节, 已删除=%llu\n"),
                  (unsigned long long)result.copied_files, (unsigned long long)result.copied_bytes,
                  (unsigned long long)result.deleted);
-    install_puts_i18n("install2disk: preserved /home, /system/users.db, /system/pkg and untracked files",
-                      "install2disk: 已保留 /home、/system/users.db、/system/pkg 和未跟踪文件");
+    install_puts_i18n("install2disk: preserved /home, /system/databases/users.db, /system/databases/pkg and untracked files",
+                      "install2disk: 已保留 /home、/system/databases/users.db、/system/databases/pkg 和未跟踪文件");
     return 1;
 }
 

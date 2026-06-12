@@ -501,7 +501,7 @@ static void fx_ui_load(void) {
     }
     fx_ui_loaded = 1;
 
-    handle = dlopen("/shell/uwm/uwm_uilib.elf", 0);
+    handle = dlopen("/shell/apps/uwm/uwm_uilib.elf", 0);
     if (handle == (void *)0) {
         return;
     }
@@ -662,7 +662,7 @@ static void fx_render(fx_app *app) {
     fx_u32 title_bg;
     fx_u32 title_fg;
     const char *quick_names[] = {"ROOT", "SYSTEM", "SHELL", "UWM", "TEMP", "DRIVER", "DEV"};
-    const char *quick_paths[] = {"/", "/system", "/shell", "/shell/uwm", "/temp", "/driver", "/dev"};
+    const char *quick_paths[] = {"/", "/system", "/shell", "/shell/apps/uwm", "/temp", "/system/drivers", "/dev"};
 
     title_bg = (app->focused != 0) ? FX_COLOR_WIN_BLUE : FX_COLOR_TITLE_INACTIVE;
     title_fg = (app->focused != 0) ? FX_COLOR_WHITE : FX_COLOR_TEXT;
@@ -848,7 +848,7 @@ static void fx_handle_key(fx_app *app, u64 key) {
 }
 
 static void fx_handle_mouse_button(fx_app *app, const cleonos_wm_event *event) {
-    static const char *quick_paths[] = {"/", "/system", "/shell", "/shell/uwm", "/temp", "/driver", "/dev"};
+    static const char *quick_paths[] = {"/", "/system", "/shell", "/shell/apps/uwm", "/temp", "/system/drivers", "/dev"};
     u64 buttons = event->arg0;
     u64 changed = event->arg1;
     int local_x = fx_u64_as_i32(event->arg2);

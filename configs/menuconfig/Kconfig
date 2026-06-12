@@ -28,15 +28,6 @@ config DRIVER_MANAGER
     help
       Initialize kernel ELF driver manager.
 
-config KELF
-    bool "KELF Executor"
-    default y
-    depends on DRIVER_MANAGER && ELFRUNNER_INIT
-    imply ELFRUNNER_PROBE
-    imply USER_SYSTEM_APP_PROBE
-    help
-      Enable kernel ELF app dispatcher and kelfd task.
-
 config HEAP_SELFTEST
     bool "Heap Selftest"
     default y
@@ -70,13 +61,6 @@ config BOOT_VIDEO_LOG
     default y
     help
       Print framebuffer width/height/pitch/bpp logs at boot.
-
-config SHELL_MODE_LOG
-    tristate "Shell Mode Log"
-    default y
-    help
-      Print whether boot default mode is user shell or kernel shell.
-
 
 endmenu
 
@@ -130,7 +114,7 @@ config USRD_TASK
     bool "Scheduler Task: usrd"
     default y
     help
-      Enable user/runtime dispatch task (shell tick, tty tick, exec tick).
+      Enable user/runtime dispatch task (userland tick, tty tick, exec tick).
 
 config SCHED_TASK_COUNT_LOG
     tristate "Scheduler Task Count Log"
@@ -154,30 +138,27 @@ config IDLE_DEBUG_LOG
 endmenu
 
 menu "Userland"
-config USERLAND_AUTO_EXEC
-    bool "Auto Enter User Shell"
+config USER_SPACE_ENTER
+    bool "Config Driven User Space Entry"
     default y
     select USRD_TASK
     select KEYBOARD
-    imply USER_INIT_SCRIPT_PROBE
-    imply SHELL_MODE_LOG
     help
-      Auto-exec /shell/shell.elf after kernel boot.
+      Start the first user program from /system/configs/user_space_enter.conf after kernel boot.
 
-
-config USER_INIT_SCRIPT_PROBE
-    bool "User Init Script Probe"
+config USER_SPACE_ENTER_CONFIG
+    bool "Boot Mode User Entry Config Selection"
     default y
-    depends on USERLAND_AUTO_EXEC
+    depends on USER_SPACE_ENTER
     help
-      Probe and log /shell/init.cmd presence during userland init.
+      Select user_space_enter install/repair/update/verify configs from boot mode.
 
-config USER_SYSTEM_APP_PROBE
-    bool "User System App Probe"
+config USER_SPACE_ENTER_STRICT_PANIC
+    bool "Panic On Invalid User Entry"
     default y
-    depends on KELF
+    depends on USER_SPACE_ENTER
     help
-      Probe /system/elfrunner.elf and /system/memc.elf during userland init.
+      Panic instead of continuing when user_space_enter config or entry ELF is invalid.
 
 endmenu
 
@@ -227,19 +208,6 @@ config USER_BOOT_LOG
 endmenu
 
 menu "Runtime / ELF"
-config ELFRUNNER_INIT
-    bool "ELFRUNNER Init"
-    default y
-    help
-      Initialize ELFRUNNER framework in kernel boot path.
-
-config ELFRUNNER_PROBE
-    bool "ELFRUNNER Probe"
-    default y
-    depends on ELFRUNNER_INIT && KELF
-    help
-      Probe kernel ELF runtime metadata after ELFRUNNER init.
-
 config EXEC_SERIAL_LOG
     tristate "EXEC Serial Logs"
     default y

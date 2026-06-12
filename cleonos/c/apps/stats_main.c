@@ -3,8 +3,6 @@ static int ush_cmd_memstat(void) {
     ush_writeln_i18n("memstat (user ABI limited):", "内存/服务统计:");
     ush_print_kv_hex_i18n("  SERVICE_COUNT", "  服务数", cleonos_sys_service_count());
     ush_print_kv_hex_i18n("  SERVICE_READY_COUNT", "  就绪服务数", cleonos_sys_service_ready_count());
-    ush_print_kv_hex_i18n("  KELF_COUNT", "  KELF 数量", cleonos_sys_kelf_count());
-    ush_print_kv_hex_i18n("  KELF_RUNS", "  KELF 运行次数", cleonos_sys_kelf_runs());
     return 1;
 }
 
@@ -15,7 +13,7 @@ static int ush_cmd_fsstat(void) {
     ush_print_kv_hex_i18n("  SYSTEM_CHILDREN", "  系统目录子项", cleonos_sys_fs_child_count("/system"));
     ush_print_kv_hex_i18n("  SHELL_CHILDREN", "  外壳目录子项", cleonos_sys_fs_child_count("/shell"));
     ush_print_kv_hex_i18n("  TEMP_CHILDREN", "  临时目录子项", cleonos_sys_fs_child_count("/temp"));
-    ush_print_kv_hex_i18n("  DRIVER_CHILDREN", "  驱动目录子项", cleonos_sys_fs_child_count("/driver"));
+    ush_print_kv_hex_i18n("  DRIVER_CHILDREN", "  驱动目录子项", cleonos_sys_fs_child_count("/system/drivers"));
     ush_print_kv_hex_i18n("  DEV_CHILDREN", "  设备目录子项", cleonos_sys_fs_child_count("/dev"));
     return 1;
 }

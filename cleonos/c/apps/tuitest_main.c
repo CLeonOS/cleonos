@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "cmd_runtime.h"
 
-#define TUITEST_LIB_PATH "/shell/tui.elf"
+#define TUITEST_LIB_PATH "/shell/apps/tui.elf"
 
 typedef void (*tui_void_fn)(void);
 typedef void (*tui_style_fn)(cleonos_tui_style);

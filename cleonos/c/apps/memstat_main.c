@@ -4,8 +4,6 @@ static int ush_cmd_memstat(void) {
     ush_print_kv_hex_i18n("  SERVICE_COUNT", "  服务数", cleonos_sys_service_count());
     ush_print_kv_hex_i18n("  SERVICE_READY_COUNT", "  就绪服务数",
                           cleonos_sys_service_ready_count());
-    ush_print_kv_hex_i18n("  KELF_COUNT", "  KELF 数量", cleonos_sys_kelf_count());
-    ush_print_kv_hex_i18n("  KELF_RUNS", "  KELF 运行次数", cleonos_sys_kelf_runs());
     return 1;
 }
 

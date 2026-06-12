@@ -6,7 +6,7 @@ language = zh-CN
 
 [target.build]
 type = command
-command = /shell/tcc.elf /c-example/main.c -o /temp/c-example.elf
+command = /shell/apps/tcc.elf /c-example/main.c -o /temp/c-example.elf
 cache = false
 
 [target.run]

@@ -1495,7 +1495,7 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     }
 
     if (ush_path_is_under_system(path) != 0) {
-        ush_writeln("exec: /system/*.elf is kernel-mode (KELF), not user-exec");
+        ush_writeln("exec: /system/*.elf is reserved for system files, not user-exec");
         return 0;
     }
 
@@ -1569,7 +1569,7 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     }
 
     if (ush_path_is_under_system(path) != 0) {
-        ush_writeln("spawn: /system/*.elf is kernel-mode (KELF), not user-exec");
+        ush_writeln("spawn: /system/*.elf is reserved for system files, not user-exec");
         return 0;
     }
 
@@ -1969,15 +1969,13 @@ static int ush_cmd_fastfetch(const char *arg) {
     ush_write_char('\n');
 
     ush_fastfetch_print_text(plain, "OS", "CLeonOS x86_64");
-    ush_fastfetch_print_text(plain, "Shell", "User Shell (/shell/shell.elf)");
+    ush_fastfetch_print_text(plain, "Shell", "User Shell (/shell/apps/shell.elf)");
     ush_fastfetch_print_u64(plain, "PID", cleonos_sys_getpid());
     ush_fastfetch_print_u64(plain, "UptimeTicks", cleonos_sys_timer_ticks());
     ush_fastfetch_print_u64(plain, "Tasks", cleonos_sys_task_count());
     ush_fastfetch_print_u64(plain, "Services", cleonos_sys_service_count());
     ush_fastfetch_print_u64(plain, "SvcReady", cleonos_sys_service_ready_count());
     ush_fastfetch_print_u64(plain, "CtxSwitches", cleonos_sys_context_switches());
-    ush_fastfetch_print_u64(plain, "KELFApps", cleonos_sys_kelf_count());
-    ush_fastfetch_print_u64(plain, "KELFRuns", cleonos_sys_kelf_runs());
     ush_fastfetch_print_u64(plain, "FSNodes", cleonos_sys_fs_node_count());
     ush_fastfetch_print_u64(plain, "RootChildren", cleonos_sys_fs_child_count("/"));
 
@@ -2084,8 +2082,6 @@ static int ush_cmd_memstat(void) {
     ush_writeln("memstat (user ABI limited):");
     ush_print_kv_hex("  SERVICE_COUNT", cleonos_sys_service_count());
     ush_print_kv_hex("  SERVICE_READY_COUNT", cleonos_sys_service_ready_count());
-    ush_print_kv_hex("  KELF_COUNT", cleonos_sys_kelf_count());
-    ush_print_kv_hex("  KELF_RUNS", cleonos_sys_kelf_runs());
     return 1;
 }
 
@@ -2096,7 +2092,7 @@ static int ush_cmd_fsstat(void) {
     ush_print_kv_hex("  SYSTEM_CHILDREN", cleonos_sys_fs_child_count("/system"));
     ush_print_kv_hex("  SHELL_CHILDREN", cleonos_sys_fs_child_count("/shell"));
     ush_print_kv_hex("  TEMP_CHILDREN", cleonos_sys_fs_child_count("/temp"));
-    ush_print_kv_hex("  DRIVER_CHILDREN", cleonos_sys_fs_child_count("/driver"));
+    ush_print_kv_hex("  DRIVER_CHILDREN", cleonos_sys_fs_child_count("/system/drivers"));
     ush_print_kv_hex("  DEV_CHILDREN", cleonos_sys_fs_child_count("/dev"));
     return 1;
 }

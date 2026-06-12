@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define ROMAJI_DICT_PATH "/system/inputm/romaji.db"
+#define ROMAJI_DICT_PATH "/inputm/romaji.db"
 
 typedef struct romaji_pair {
     const char *key;
@@ -94,7 +94,7 @@ int cleonos_app_main(void) {
     u64 ai;
     u64 idx;
 
-    (void)cleonos_sys_inputm_register_rule("RomajiJP", "/shell/inputm/romaji.elf", ROMAJI_DICT_PATH, "ROMAJI:",
+    (void)cleonos_sys_inputm_register_rule("RomajiJP", "/shell/apps/inputm/romaji.elf", ROMAJI_DICT_PATH, "ROMAJI:",
                                            CLEONOS_INPUTM_FLAG_JAPANESE_ROMAJI |
                                                CLEONOS_INPUTM_FLAG_RULE_LOWERCASE |
                                                CLEONOS_INPUTM_FLAG_RULE_SPLIT |

@@ -7,7 +7,7 @@ typedef u64 (*dl_math2_fn)(u64, u64);
 typedef u64 (*dl_void_fn)(void);
 
 int cleonos_app_main(int argc, char **argv, char **envp) {
-    const char *lib_path = "/shell/libdemo.elf";
+    const char *lib_path = "/shell/apps/libdemo.elf";
     void *handle;
     dl_math2_fn add_fn;
     dl_math2_fn mul_fn;
