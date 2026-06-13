@@ -277,11 +277,68 @@ void ush_write_hex_u64(u64 value) {
     }
 }
 
+void ush_write_u64_dec(u64 value) {
+    char buf[32];
+    u64 pos = 0ULL;
+
+    if (value == 0ULL) {
+        ush_write_char('0');
+        return;
+    }
+
+    while (value != 0ULL && pos < (u64)sizeof(buf)) {
+        buf[pos++] = (char)('0' + (char)(value % 10ULL));
+        value /= 10ULL;
+    }
+
+    while (pos > 0ULL) {
+        pos--;
+        ush_write_char(buf[pos]);
+    }
+}
+
+void ush_write_human_bytes(u64 bytes) {
+    static const char *units[] = {"B", "KiB", "MiB", "GiB"};
+    u64 whole = bytes;
+    u64 frac = 0ULL;
+    u64 unit = 0ULL;
+
+    while (whole >= 1024ULL && unit + 1ULL < (u64)(sizeof(units) / sizeof(units[0]))) {
+        frac = ((whole % 1024ULL) * 10ULL) / 1024ULL;
+        whole /= 1024ULL;
+        unit++;
+    }
+
+    ush_write_u64_dec(whole);
+    if (unit != 0ULL && frac != 0ULL) {
+        ush_write_char('.');
+        ush_write_u64_dec(frac);
+    }
+    ush_write_char(' ');
+    ush_write(units[unit]);
+}
+
 void ush_print_kv_hex(const char *label, u64 value) {
     ush_write(label);
     ush_write(": ");
     ush_write_hex_u64(value);
     ush_write_char('\n');
+}
+
+void ush_print_kv_dec(const char *label, u64 value) {
+    ush_write(label);
+    ush_write(": ");
+    ush_write_u64_dec(value);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_bytes(const char *label, u64 bytes) {
+    ush_write(label);
+    ush_write(": ");
+    ush_write_human_bytes(bytes);
+    ush_write(" (");
+    ush_write_u64_dec(bytes);
+    ush_writeln(" bytes)");
 }
 
 int ush_locale_is_zh(void) {
@@ -337,6 +394,135 @@ void ush_print_kv_hex_i18n(const char *en, const char *zh, u64 value) {
     ush_write_i18n_label(en, zh);
     ush_write(": ");
     ush_write_hex_u64(value);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_dec_i18n(const char *en, const char *zh, u64 value) {
+    ush_write_i18n_label(en, zh);
+    ush_write(": ");
+    ush_write_u64_dec(value);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_bytes_i18n(const char *en, const char *zh, u64 bytes) {
+    ush_write_i18n_label(en, zh);
+    ush_write(": ");
+    ush_write_human_bytes(bytes);
+    ush_write(" (");
+    ush_write_u64_dec(bytes);
+    ush_writeln(" bytes)");
+}
+
+const char *ush_proc_state_name(u64 state) {
+    if (state == CLEONOS_PROC_STATE_PENDING) {
+        return "pending";
+    }
+    if (state == CLEONOS_PROC_STATE_RUNNING) {
+        return "running";
+    }
+    if (state == CLEONOS_PROC_STATE_STOPPED) {
+        return "stopped";
+    }
+    if (state == CLEONOS_PROC_STATE_EXITED) {
+        return "exited";
+    }
+    if (state == CLEONOS_PROC_STATE_UNUSED) {
+        return "unused";
+    }
+    return "unknown";
+}
+
+const char *ush_thread_state_name(u64 state) {
+    if (state == CLEONOS_THREAD_STATE_READY) {
+        return "ready";
+    }
+    if (state == CLEONOS_THREAD_STATE_RUNNING) {
+        return "running";
+    }
+    if (state == CLEONOS_THREAD_STATE_BLOCKED) {
+        return "blocked";
+    }
+    if (state == CLEONOS_THREAD_STATE_SLEEPING) {
+        return "sleeping";
+    }
+    if (state == CLEONOS_THREAD_STATE_STOPPED) {
+        return "stopped";
+    }
+    if (state == CLEONOS_THREAD_STATE_ZOMBIE) {
+        return "zombie";
+    }
+    return "none";
+}
+
+const char *ush_block_reason_name(u64 reason) {
+    if (reason == CLEONOS_BLOCK_TTY_INPUT) {
+        return "waiting for tty input";
+    }
+    if (reason == CLEONOS_BLOCK_PTY_INPUT) {
+        return "waiting for pty input";
+    }
+    if (reason == CLEONOS_BLOCK_SLEEP) {
+        return "sleeping";
+    }
+    if (reason == CLEONOS_BLOCK_WAIT_CHILD) {
+        return "waiting for child process";
+    }
+    if (reason == CLEONOS_BLOCK_YIELD) {
+        return "yielded";
+    }
+    if (reason == CLEONOS_BLOCK_IO) {
+        return "waiting for I/O";
+    }
+    return "not blocked";
+}
+
+const char *ush_signal_name(u64 signal) {
+    if (signal == CLEONOS_SIGKILL) {
+        return "KILL";
+    }
+    if (signal == CLEONOS_SIGTERM) {
+        return "TERM";
+    }
+    if (signal == CLEONOS_SIGCONT) {
+        return "CONT";
+    }
+    if (signal == CLEONOS_SIGSTOP) {
+        return "STOP";
+    }
+    return "UNKNOWN";
+}
+
+void ush_print_exit_status_i18n(const char *prefix_en, const char *prefix_zh, u64 status) {
+    if (prefix_en != (const char *)0 || prefix_zh != (const char *)0) {
+        ush_write_i18n_label(prefix_en != (const char *)0 ? prefix_en : "", prefix_zh);
+        ush_write(": ");
+    }
+
+    if ((status & (1ULL << 63)) != 0ULL) {
+        u64 signal = status & 0xFFULL;
+        u64 vector = (status >> 8) & 0xFFULL;
+        u64 error = (status >> 16) & 0xFFFFULL;
+
+        ush_write_i18n_label("terminated by signal", "被信号终止");
+        ush_write(" ");
+        ush_write(ush_signal_name(signal));
+        ush_write(" (");
+        ush_write_u64_dec(signal);
+        ush_write("), ");
+        ush_write_i18n_label("exception vector", "异常向量");
+        ush_write(" ");
+        ush_write_u64_dec(vector);
+        ush_write(", ");
+        ush_write_i18n_label("error", "错误码");
+        ush_write(" ");
+        ush_write_u64_dec(error);
+        ush_write_char('\n');
+        return;
+    }
+
+    ush_write_i18n_label("exit code", "退出码");
+    ush_write(" ");
+    ush_write_u64_dec(status);
     ush_write_char('\n');
 }
 

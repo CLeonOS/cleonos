@@ -82,16 +82,10 @@ static int ush_fg_wait_pid(u64 pid) {
 
         if (wait_ret == 1ULL) {
             ush_write_i18n_label("fg: done", "fg: 已结束");
-            ush_write(" [");
-            ush_write_hex_u64(pid);
-            ush_writeln("]");
-            if ((status & (1ULL << 63)) != 0ULL) {
-                ush_print_kv_hex_i18n("  SIGNAL", "  信号", status & 0xFFULL);
-                ush_print_kv_hex_i18n("  VECTOR", "  向量", (status >> 8) & 0xFFULL);
-                ush_print_kv_hex_i18n("  ERROR", "  错误码", (status >> 16) & 0xFFFFULL);
-            } else {
-                ush_print_kv_hex_i18n("  STATUS", "  状态", status);
-            }
+            ush_write(" pid=");
+            ush_write_u64_dec(pid);
+            ush_write_char('\n');
+            ush_print_exit_status_i18n("  result", "  结果", status);
             return 1;
         }
 
@@ -135,9 +129,9 @@ static int ush_cmd_fg(const char *arg) {
     }
 
     ush_write_i18n_label("fg: waiting", "fg: 正在等待");
-    ush_write(" [");
-    ush_write_hex_u64(pid);
-    ush_writeln("]");
+    ush_write(" pid=");
+    ush_write_u64_dec(pid);
+    ush_write_char('\n');
     return ush_fg_wait_pid(pid);
 }
 

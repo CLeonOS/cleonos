@@ -241,13 +241,9 @@ int ush_try_exec_external_with_fds(ush_state *sh, const char *cmd, const char *a
 
     if (status != 0ULL) {
         if ((status & (1ULL << 63)) != 0ULL) {
-            ush_writeln("exec: terminated by signal");
-            ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-            ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-            ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+            ush_print_exit_status("exec", status);
         } else {
-            ush_writeln("exec: returned non-zero status");
-            ush_print_kv_hex("  STATUS", status);
+            ush_print_exit_status("exec returned non-zero status", status);
         }
 
         if (out_success != (int *)0) {

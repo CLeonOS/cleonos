@@ -128,7 +128,13 @@ u64 ush_linenoise_hint_visible_len(const char *hint);
 int ush_linenoise_complete(ush_state *sh);
 void ush_linenoise_reverse_search(ush_state *sh);
 void ush_write_hex_u64(u64 value);
+void ush_write_u64_dec(u64 value);
+void ush_write_human_bytes(u64 bytes);
 void ush_print_kv_hex(const char *label, u64 value);
+void ush_print_kv_dec(const char *label, u64 value);
+void ush_print_kv_bytes(const char *label, u64 bytes);
+const char *ush_signal_name(u64 signal);
+void ush_print_exit_status(const char *label, u64 status);
 int ush_login_if_needed(ush_state *sh);
 
 int ush_resolve_path(const ush_state *sh, const char *arg, char *out_path, u64 out_size);

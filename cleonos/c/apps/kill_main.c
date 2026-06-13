@@ -133,11 +133,16 @@ static int ush_cmd_kill(const char *arg) {
 
     ush_write_i18n_label("kill: sent signal", "kill: 已发送信号");
     ush_write(" ");
-    ush_write_hex_u64(signal);
+    ush_write(ush_signal_name(signal));
+    ush_write(" (");
+    ush_write_u64_dec(signal);
+    ush_write(")");
     ush_write(" ");
     ush_write_i18n_label("to", "到");
     ush_write(" ");
-    ush_write_hex_u64(pid);
+    ush_write_i18n_label("pid", "进程");
+    ush_write(" ");
+    ush_write_u64_dec(pid);
     ush_write_char('\n');
     return 1;
 }

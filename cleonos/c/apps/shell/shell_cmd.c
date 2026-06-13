@@ -262,7 +262,7 @@ static void ush_ls_print_one(const char *name, u64 type, u64 size, int long_mode
 
     if (type == 1ULL) {
         ush_write("  size=");
-        ush_write_hex_u64(size);
+        ush_write_human_bytes(size);
     } else if (type == 2ULL) {
         ush_write("  <DIR>");
     } else {
@@ -1523,20 +1523,16 @@ static int ush_cmd_exec(const ush_state *sh, const char *arg) {
     }
 
     if ((status & (1ULL << 63)) != 0ULL) {
-        ush_writeln("exec: terminated by signal");
-        ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-        ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-        ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
+        ush_print_exit_status("exec", status);
     } else {
-        ush_writeln("exec: returned non-zero status");
-        ush_print_kv_hex("  STATUS", status);
+        ush_print_exit_status("exec returned non-zero status", status);
     }
 
     return 0;
 }
 
 static int ush_cmd_pid(void) {
-    ush_print_kv_hex("PID", cleonos_sys_getpid());
+    ush_print_kv_dec("pid", cleonos_sys_getpid());
     return 1;
 }
 
@@ -1592,7 +1588,7 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     }
 
     ush_writeln("spawn: completed");
-    ush_print_kv_hex("  PID", pid);
+    ush_print_kv_dec("  pid", pid);
     return 1;
 }
 
@@ -1624,13 +1620,7 @@ static int ush_cmd_wait(const char *arg) {
     }
 
     ush_writeln("wait: exited");
-    if ((status & (1ULL << 63)) != 0ULL) {
-        ush_print_kv_hex("  SIGNAL", status & 0xFFULL);
-        ush_print_kv_hex("  VECTOR", (status >> 8) & 0xFFULL);
-        ush_print_kv_hex("  ERROR", (status >> 16) & 0xFFFFULL);
-    } else {
-        ush_print_kv_hex("  STATUS", status);
-    }
+    ush_print_exit_status("  result", status);
     return 1;
 }
 
@@ -1649,12 +1639,12 @@ static int ush_cmd_sleep(const char *arg) {
     }
 
     elapsed = cleonos_sys_sleep_ticks(ticks);
-    ush_print_kv_hex("SLEPT_TICKS", elapsed);
+    ush_print_kv_dec("slept ticks", elapsed);
     return 1;
 }
 
 static int ush_cmd_yield(void) {
-    ush_print_kv_hex("YIELD_TICK", cleonos_sys_yield());
+    ush_print_kv_dec("yield tick", cleonos_sys_yield());
     return 1;
 }
 
@@ -2018,20 +2008,20 @@ static int ush_uname_show_sysinfo(void) {
     ush_writeln(info.build_time);
     ush_write("  BootMode: ");
     ush_writeln(info.boot_mode);
-    ush_print_kv_hex("  UPTIME_MS", info.uptime_ms);
-    ush_print_kv_hex("  TIMER_TICKS", info.timer_ticks);
-    ush_print_kv_hex("  TIMER_HZ", info.timer_hz);
-    ush_print_kv_hex("  MANAGED_PAGES", info.managed_pages);
-    ush_print_kv_hex("  FREE_PAGES", info.free_pages);
-    ush_print_kv_hex("  USED_PAGES", info.used_pages);
-    ush_print_kv_hex("  DROPPED_PAGES", info.dropped_pages);
-    ush_print_kv_hex("  HEAP_TOTAL_BYTES", info.heap_total_bytes);
-    ush_print_kv_hex("  HEAP_USED_BYTES", info.heap_used_bytes);
-    ush_print_kv_hex("  HEAP_FREE_BYTES", info.heap_free_bytes);
-    ush_print_kv_hex("  FS_NODES", info.fs_nodes);
-    ush_print_kv_hex("  TASKS", info.task_count);
-    ush_print_kv_hex("  SERVICES", info.service_count);
-    ush_print_kv_hex("  SERVICES_READY", info.service_ready_count);
+    ush_print_kv_dec("  uptime ms", info.uptime_ms);
+    ush_print_kv_dec("  timer ticks", info.timer_ticks);
+    ush_print_kv_dec("  timer hz", info.timer_hz);
+    ush_print_kv_dec("  managed pages", info.managed_pages);
+    ush_print_kv_dec("  free pages", info.free_pages);
+    ush_print_kv_dec("  used pages", info.used_pages);
+    ush_print_kv_dec("  dropped pages", info.dropped_pages);
+    ush_print_kv_bytes("  heap total", info.heap_total_bytes);
+    ush_print_kv_bytes("  heap used", info.heap_used_bytes);
+    ush_print_kv_bytes("  heap free", info.heap_free_bytes);
+    ush_print_kv_dec("  fs nodes", info.fs_nodes);
+    ush_print_kv_dec("  tasks", info.task_count);
+    ush_print_kv_dec("  services", info.service_count);
+    ush_print_kv_dec("  services ready", info.service_ready_count);
     return 1;
 }
 
@@ -2070,64 +2060,64 @@ static int ush_cmd_uname(const char *arg) {
 
 static int ush_cmd_kbdstat(void) {
     ush_writeln("kbdstat:");
-    ush_print_kv_hex("  BUFFERED", cleonos_sys_kbd_buffered());
-    ush_print_kv_hex("  PUSHED", cleonos_sys_kbd_pushed());
-    ush_print_kv_hex("  POPPED", cleonos_sys_kbd_popped());
-    ush_print_kv_hex("  DROPPED", cleonos_sys_kbd_dropped());
-    ush_print_kv_hex("  HOTKEY_SWITCHES", cleonos_sys_kbd_hotkey_switches());
+    ush_print_kv_dec("  buffered", cleonos_sys_kbd_buffered());
+    ush_print_kv_dec("  pushed", cleonos_sys_kbd_pushed());
+    ush_print_kv_dec("  popped", cleonos_sys_kbd_popped());
+    ush_print_kv_dec("  dropped", cleonos_sys_kbd_dropped());
+    ush_print_kv_dec("  hotkey switches", cleonos_sys_kbd_hotkey_switches());
     return 1;
 }
 
 static int ush_cmd_memstat(void) {
     ush_writeln("memstat (user ABI limited):");
-    ush_print_kv_hex("  SERVICE_COUNT", cleonos_sys_service_count());
-    ush_print_kv_hex("  SERVICE_READY_COUNT", cleonos_sys_service_ready_count());
+    ush_print_kv_dec("  service count", cleonos_sys_service_count());
+    ush_print_kv_dec("  service ready count", cleonos_sys_service_ready_count());
     return 1;
 }
 
 static int ush_cmd_fsstat(void) {
     ush_writeln("fsstat:");
-    ush_print_kv_hex("  NODE_COUNT", cleonos_sys_fs_node_count());
-    ush_print_kv_hex("  ROOT_CHILDREN", cleonos_sys_fs_child_count("/"));
-    ush_print_kv_hex("  SYSTEM_CHILDREN", cleonos_sys_fs_child_count("/system"));
-    ush_print_kv_hex("  SHELL_CHILDREN", cleonos_sys_fs_child_count("/shell"));
-    ush_print_kv_hex("  TEMP_CHILDREN", cleonos_sys_fs_child_count("/temp"));
-    ush_print_kv_hex("  DRIVER_CHILDREN", cleonos_sys_fs_child_count("/system/drivers"));
-    ush_print_kv_hex("  DEV_CHILDREN", cleonos_sys_fs_child_count("/dev"));
+    ush_print_kv_dec("  node count", cleonos_sys_fs_node_count());
+    ush_print_kv_dec("  root children", cleonos_sys_fs_child_count("/"));
+    ush_print_kv_dec("  system children", cleonos_sys_fs_child_count("/system"));
+    ush_print_kv_dec("  shell children", cleonos_sys_fs_child_count("/shell"));
+    ush_print_kv_dec("  temp children", cleonos_sys_fs_child_count("/temp"));
+    ush_print_kv_dec("  driver children", cleonos_sys_fs_child_count("/system/drivers"));
+    ush_print_kv_dec("  dev children", cleonos_sys_fs_child_count("/dev"));
     return 1;
 }
 
 static int ush_cmd_taskstat(void) {
     ush_writeln("taskstat:");
-    ush_print_kv_hex("  TASK_COUNT", cleonos_sys_task_count());
-    ush_print_kv_hex("  CURRENT_TASK", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
-    ush_print_kv_hex("  TIMER_TICKS", cleonos_sys_timer_ticks());
-    ush_print_kv_hex("  CONTEXT_SWITCHES", cleonos_sys_context_switches());
+    ush_print_kv_dec("  task count", cleonos_sys_task_count());
+    ush_print_kv_dec("  current task", cleonos_syscall(CLEONOS_SYSCALL_CUR_TASK, 0ULL, 0ULL, 0ULL));
+    ush_print_kv_dec("  timer ticks", cleonos_sys_timer_ticks());
+    ush_print_kv_dec("  context switches", cleonos_sys_context_switches());
     return 1;
 }
 
 static int ush_cmd_userstat(void) {
     ush_writeln("userstat:");
-    ush_print_kv_hex("  USER_SHELL_READY", cleonos_sys_user_shell_ready());
-    ush_print_kv_hex("  USER_EXEC_REQUESTED", cleonos_sys_user_exec_requested());
-    ush_print_kv_hex("  USER_LAUNCH_TRIES", cleonos_sys_user_launch_tries());
-    ush_print_kv_hex("  USER_LAUNCH_OK", cleonos_sys_user_launch_ok());
-    ush_print_kv_hex("  USER_LAUNCH_FAIL", cleonos_sys_user_launch_fail());
-    ush_print_kv_hex("  EXEC_REQUESTS", cleonos_sys_exec_request_count());
-    ush_print_kv_hex("  EXEC_SUCCESS", cleonos_sys_exec_success_count());
-    ush_print_kv_hex("  TTY_COUNT", cleonos_sys_tty_count());
-    ush_print_kv_hex("  TTY_ACTIVE", cleonos_sys_tty_active());
+    ush_print_kv_dec("  user shell ready", cleonos_sys_user_shell_ready());
+    ush_print_kv_dec("  user exec requested", cleonos_sys_user_exec_requested());
+    ush_print_kv_dec("  user launch tries", cleonos_sys_user_launch_tries());
+    ush_print_kv_dec("  user launch ok", cleonos_sys_user_launch_ok());
+    ush_print_kv_dec("  user launch fail", cleonos_sys_user_launch_fail());
+    ush_print_kv_dec("  exec requests", cleonos_sys_exec_request_count());
+    ush_print_kv_dec("  exec success", cleonos_sys_exec_success_count());
+    ush_print_kv_dec("  tty count", cleonos_sys_tty_count());
+    ush_print_kv_dec("  tty active", cleonos_sys_tty_active());
     return 1;
 }
 
 static int ush_cmd_shstat(const ush_state *sh) {
     ush_writeln("shstat:");
-    ush_print_kv_hex("  CMD_TOTAL", sh->cmd_total);
-    ush_print_kv_hex("  CMD_OK", sh->cmd_ok);
-    ush_print_kv_hex("  CMD_FAIL", sh->cmd_fail);
-    ush_print_kv_hex("  CMD_UNKNOWN", sh->cmd_unknown);
-    ush_print_kv_hex("  EXIT_REQUESTED", (sh->exit_requested != 0) ? 1ULL : 0ULL);
-    ush_print_kv_hex("  EXIT_CODE", sh->exit_code);
+    ush_print_kv_dec("  command total", sh->cmd_total);
+    ush_print_kv_dec("  command ok", sh->cmd_ok);
+    ush_print_kv_dec("  command failed", sh->cmd_fail);
+    ush_print_kv_dec("  command unknown", sh->cmd_unknown);
+    ush_print_kv_dec("  exit requested", (sh->exit_requested != 0) ? 1ULL : 0ULL);
+    ush_print_kv_dec("  exit code", sh->exit_code);
     return 1;
 }
 
@@ -2136,8 +2126,8 @@ static int ush_cmd_tty(const char *arg) {
     u64 active = cleonos_sys_tty_active();
 
     if (arg == (const char *)0 || arg[0] == '\0') {
-        ush_print_kv_hex("TTY_COUNT", tty_count);
-        ush_print_kv_hex("TTY_ACTIVE", active);
+        ush_print_kv_dec("tty count", tty_count);
+        ush_print_kv_dec("tty active", active);
         return 1;
     }
 
@@ -2160,7 +2150,7 @@ static int ush_cmd_tty(const char *arg) {
         }
 
         ush_writeln("tty: switched");
-        ush_print_kv_hex("TTY_ACTIVE", cleonos_sys_tty_active());
+        ush_print_kv_dec("tty active", cleonos_sys_tty_active());
         return 1;
     }
 }

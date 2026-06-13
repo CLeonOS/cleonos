@@ -45,7 +45,7 @@ static int ush_cmd_spawn(const ush_state *sh, const char *arg) {
     }
 
     ush_writeln_i18n("spawn: completed", "spawn: 已完成");
-    ush_print_kv_hex_i18n("  PID", "  进程号", pid);
+    ush_print_kv_dec_i18n("  pid", "  进程号", pid);
     return 1;
 }
 

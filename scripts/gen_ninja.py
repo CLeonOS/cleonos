@@ -258,6 +258,7 @@ KERNEL_COMMON_C_SOURCES = [
     "clks/kernel/memory/heap.c",
     "clks/kernel/memory/pmm.c",
     "clks/kernel/memory/vm.c",
+    "clks/kernel/runtime/config.c",
     "clks/kernel/runtime/driver.c",
     "clks/kernel/runtime/elf64.c",
     "clks/kernel/runtime/exec.c",
@@ -424,7 +425,11 @@ def add_kernel(nw, phony_name, boot_source, obj_root, output):
             objs.append(nw.compile_obj(src, obj, cflags=KERNEL_CFLAGS, tool=TOOLS["CC"], implicit=implicit, label=source_rel))
 
     rust_out = r("build/x86_64/libclks_kernel_rust.a")
-    nw.build(rust_out, "rust_staticlib", [r("clks/rust/src/lib.rs")], variables={"rustc": TOOLS["RUSTC"], "flags": "--crate-type staticlib -C panic=abort -O"})
+    rust_sources = collect("clks/rust/src", recursive=True, suffixes=(".rs",))
+    rust_main = r("clks/rust/src/lib.rs")
+    rust_implicit = [src for src in rust_sources if src != rust_main]
+    nw.build(rust_out, "rust_staticlib", [rust_main], implicit=rust_implicit,
+             variables={"rustc": TOOLS["RUSTC"], "flags": "--crate-type staticlib -C panic=abort -O"})
     objs.append(rust_out)
     nw.build(output, "link", objs, implicit=[r("clks/arch/x86_64/linker.ld")], variables={"ld": TOOLS["LD"], "ldflags": " ".join(KERNEL_LDFLAGS), "linker": r("clks/arch/x86_64/linker.ld")})
     nw.build(phony_name, "phony", [output])

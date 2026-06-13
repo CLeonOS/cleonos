@@ -1,21 +1,5 @@
 #include "cmd_runtime.h"
 
-static const char *ush_top_state_name(u64 state) {
-    if (state == CLEONOS_PROC_STATE_PENDING) {
-        return "PEND";
-    }
-    if (state == CLEONOS_PROC_STATE_RUNNING) {
-        return "RUN ";
-    }
-    if (state == CLEONOS_PROC_STATE_STOPPED) {
-        return "STOP";
-    }
-    if (state == CLEONOS_PROC_STATE_EXITED) {
-        return "EXIT";
-    }
-    return "UNKN";
-}
-
 static int ush_top_next_token(const char **io_cursor, char *out, u64 out_size) {
     const char *p;
     u64 n = 0ULL;
@@ -98,18 +82,18 @@ static void ush_top_render_frame(u64 frame_index, u64 delay_ticks) {
     ush_write("\x1B[2J\x1B[H");
     ush_write_i18n_label("top frame", "top 帧");
     ush_write("=");
-    ush_write_hex_u64(frame_index);
+    ush_write_u64_dec(frame_index);
     ush_write(" ");
     ush_write_i18n_label("ticks", "Tick");
     ush_write("=");
-    ush_write_hex_u64(cleonos_sys_timer_ticks());
+    ush_write_u64_dec(cleonos_sys_timer_ticks());
     ush_write(" ");
     ush_write_i18n_label("delay", "延迟");
     ush_write("=");
-    ush_write_hex_u64(delay_ticks);
+    ush_write_u64_dec(delay_ticks);
     ush_write_char('\n');
-    ush_writeln_i18n("PID      ST   TTY    RTICKS           MEM              PATH",
-                     "PID      ST   TTY    RTICKS           MEM              PATH");
+    ush_writeln_i18n("PID    STATE      TTY  RUNTIME   MEMORY       PATH",
+                     "PID    状态       终端 运行Tick  内存         路径");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;
@@ -128,15 +112,15 @@ static void ush_top_render_frame(u64 frame_index, u64 delay_ticks) {
             continue;
         }
 
-        ush_write_hex_u64(snap.pid);
+        ush_write_u64_dec(snap.pid);
         ush_write(" ");
-        ush_write(ush_top_state_name(snap.state));
+        ush_write(ush_proc_state_name(snap.state));
         ush_write(" ");
-        ush_write_hex_u64(snap.tty_index);
+        ush_write_u64_dec(snap.tty_index);
         ush_write(" ");
-        ush_write_hex_u64(snap.runtime_ticks);
+        ush_write_u64_dec(snap.runtime_ticks);
         ush_write(" ");
-        ush_write_hex_u64(snap.mem_bytes);
+        ush_write_human_bytes(snap.mem_bytes);
         ush_write(" ");
         ush_writeln(snap.path);
         shown++;

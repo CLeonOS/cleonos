@@ -39,7 +39,59 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - 实际实现已经按分类拆分到 `clks/kernel/runtime/syscall/**/*.inc`
 - `clks/kernel/runtime/syscall.c` 现在是聚合入口，包含分类实现和 dispatch
 
-## 2. 全局返回规则
+## 2. Syscall 边界层结构
+
+当前 syscall ABI 仍保持稳定：编号、寄存器传参、返回值语义均不因为内部重构改变。内核侧统一 metadata 表作为 syscall 边界层的索引来源，并已经迁移为 Rust 静态表：
+
+- Rust metadata 表位置：`clks/rust/src/syscall_meta.rs`
+- C wrapper 位置：`clks/kernel/runtime/syscall/core/metadata.inc`
+- dispatch 位置：`clks/kernel/runtime/syscall/core/dispatch.inc`
+- 日志/名称位置：`clks/kernel/runtime/syscall/core/trace_names.inc`
+- 统计位置：`clks/kernel/runtime/syscall/core/stats.inc`
+- USC C glue 位置：`clks/kernel/runtime/syscall/security/usc.inc`
+
+metadata 表记录每个 syscall 的：
+
+- `id`：必须与 `clks/include/clks/syscall.h` 和 `cleonos/c/include/cleonos_syscall.h` 完全一致。
+- `name`：用于 syscall trace、USC 提示、后续调试输出。
+- `category`：用于把 syscall 归类到 core/fs/exec/tty/net/wm/driver 等子系统。
+- `argc`：当前作为边界层文档化参数数量，后续可用于统一参数校验。
+- `flags`：标记 reserved、trace 抑制、USC 高风险、文件系统修改、进程控制、裸磁盘访问、配置修改等属性。
+- `usc_gate`：用于审计/兼容旧 USC 开关，实际危险 syscall 判断仍由 `usc.inc` 处理。
+
+当前 metadata 已接管：
+
+- syscall 名称查询：`clks_syscall_name()` 不再维护独立大 switch。
+- trace 策略：例如 driver 枚举/加载类 syscall 通过 `TRACE_SUPPRESS` 抑制刷屏，`FD_READ` 通过 `TRACE_RETURN_ONLY` 和 `TRACE_SKIP_ZERO_RET` 避免空轮询日志。
+- stats 上限：`CLKS_SYSCALL_STATS_MAX_ID` 来自 `CLKS_SYSCALL_META_MAX_ID`。
+- USC 审计信息：metadata 可标记高风险、文件系统修改、进程控制、裸磁盘访问、配置修改等属性。
+
+Rust 对外导出 `clks_rust_syscall_meta_max_id()` 和 `clks_rust_syscall_meta_fill()`。C 侧 `clks_syscall_meta_by_id()` 只负责按 ID 缓存 Rust 查询结果，并继续给 trace/stats/USC 返回稳定的 `struct clks_syscall_meta *`。
+
+注意：metadata 只是内核内部边界层，不是新的用户态 ABI。用户态仍只依赖 `CLEONOS_SYSCALL_*` 编号和 `cleonos_syscall(id,arg0,arg1,arg2)`。
+
+## 3. 内核路径规范化和路径策略
+
+CLKS 内核路径规范化已经迁移到 Rust：
+
+- Rust 位置：`clks/rust/src/path.rs`
+- C FFI 声明：`clks/include/clks/rust.h`
+- 内存 FS 使用：`clks/kernel/storage/fs.c`
+- FAT32 磁盘路径使用：`clks/kernel/storage/disk/path.inc`
+- exec 用户程序路径判断：`clks/kernel/runtime/exec/path_util.inc`
+- 用户读写策略判断：`clks/kernel/runtime/user.c`
+
+当前规则：
+
+- 绝对路径必须以 `/` 开头。
+- 重复 `/` 会被折叠。
+- `.` 组件会被跳过。
+- `..` 组件被拒绝，不做父目录回退。
+- 内存 FS 内部路径继续使用无前导 `/` 的 normalized 形式。
+- FAT32 mount 路径继续使用带前导 `/` 的 normalized 形式。
+- 普通用户读写策略使用 Rust 统一判断 `/temp`、`/home`、当前用户 home、`/system/databases/users.db` 等路径。
+
+## 4. 全局返回规则
 
 - 成功时通常返回非负值（如长度、计数、状态）。
 - 失败时多数接口返回 `0xFFFFFFFFFFFFFFFF`（即 `u64` 的 `-1`）。
@@ -88,7 +140,7 @@ u64 cleonos_syscall(u64 id, u64 arg0, u64 arg1, u64 arg2);
 - `SIGCONT` = `18`
 - `SIGSTOP` = `19`
 
-## 3. 当前实现中的长度/路径限制
+## 5. 当前实现中的长度/路径限制
 
 以下限制由内核 `clks/kernel/runtime/syscall/**/*.inc` 当前实现决定：
 
@@ -123,7 +175,7 @@ UserSafeController（USC）危险 syscall 确认：
 - `/proc/<pid>`：指定 PID 快照文本
 - `/proc` 为只读；写入类 syscall 不支持。
 
-## 4. Syscall 列表（0~159）
+## 6. Syscall 列表（0~159）
 
 ### 0 `CLEONOS_SYSCALL_LOG_WRITE`
 
@@ -1535,7 +1587,7 @@ u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 - 当前用户 ELF 执行器仍是 CPL0 直接调用模型，ELF image/运行栈仍位于共享的内核高半区映射，不是完整 ring3 安全进程。
 - 真正“页表隔离”还需要后续补 GDT/TSS 用户段、ring3 入口/返回、每进程 CR3、用户指针跨页表拷贝与 ELF 按段映射。
 
-## 4.1 `/dev` 设备文件
+## 6.1 `/dev` 设备文件
 
 - `/dev/fb0`：`FD_READ` 返回 framebuffer 信息；`FD_WRITE` 支持 `clear RRGGBB` 或写入整屏 RGBA buffer。
 - `/dev/input/kbd`：`FD_READ` 从当前 TTY 键盘队列读取字节，非阻塞。
@@ -1544,7 +1596,7 @@ u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 - `/dev/disk0`：`FD_READ` 返回 present/bytes/sectors/fat32/mounted 文本快照。
 - `/dev/tty0`：固定访问 TTY0；`/dev/tty` 仍表示当前进程所在 TTY。
 
-## 5. 用户态封装函数
+## 7. 用户态封装函数
 
 用户态封装位于：
 
@@ -1596,15 +1648,26 @@ u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 - `cleonos_sys_user_current()` / `cleonos_sys_user_login()` / `cleonos_sys_user_logout()`
 - `cleonos_sys_user_count()` / `cleonos_sys_user_at()` / `cleonos_sys_user_add()`
 - `cleonos_sys_user_passwd()` / `cleonos_sys_user_set_role()` / `cleonos_sys_user_remove()` / `cleonos_sys_user_is_admin()`
-
-## 6. 开发注意事项
+## 8. 开发注意事项
 
 - 传入的字符串/缓冲指针目前仍按“同地址空间可直接访问”模型处理；`VM_ALLOC` 区域已经纳入进程指针校验，但完整用户/内核地址隔离还需要后续每进程 CR3 与 copyin/copyout。
 - `FS_READ` 不保证文本终止符；读取文本请预留 1 字节并手动 `buf[n] = '\0'`。
 - `FS_WRITE`/`FS_APPEND` 不再限制到 `/temp`；大数据写入由内核自动分块处理。
 - `/proc` 由 syscall 层虚拟导出，不占用 RAMDISK 节点，也不能通过写入类 syscall 修改。
 
-## 7. Wine 兼容说明
+新增或修改 syscall 时必须同步检查：
+
+- 不允许重排旧 syscall 编号。`7` 和 `8` 是 ABI 保留空洞，必须继续保留。
+- `clks/include/clks/syscall.h` 与 `cleonos/c/include/cleonos_syscall.h` 的编号必须一致。
+- `clks/kernel/runtime/syscall/core/metadata.inc` 必须新增同 ID、同顺序的 metadata 行。
+- `dispatch.inc` 必须新增实际分发逻辑。
+- 如果 syscall 读写用户指针，必须使用 `clks_syscall_user_ptr_readable()` / `clks_syscall_user_ptr_writable()` 或基于它们的字符串/文本 copy helper。
+- 如果 syscall 会修改文件系统、杀进程、关机重启、写裸磁盘或修改系统配置，必须在 metadata flags 中标记，并在 `clks/kernel/runtime/syscall/security/usc.inc` 中同步危险 syscall 判断。
+- 用户态 wrapper 应优先放在 `cleonos/c/src/syscall.c`，并在 `cleonos/c/include/cleonos_syscall.h` 声明。
+- 文档必须补充参数、返回值、失败语义和权限/USC 行为。
+- Wine 兼容层如果覆盖该 syscall 编号，也要同步占位或实现，避免用户程序在 Wine 下行为失配。
+
+## 9. Wine 兼容说明
 
 - `wine/cleonos_wine_lib/runner.py` 当前已覆盖到 `0..146`（含 `DL_*`、`FB_*`、`KERNEL_VERSION`、`DISK_*`、`NET_*`、`MOUSE_STATE`、`WM_*`、`PTY_OPEN`、`USER_HEAP_ALLOC`、`VM_*`、`MMAP`、`USER_*`、`DRIVER_*`、`SYSINFO`、`LOCALE_*`）。
 - `DL_*`（`77..79`）在 Wine 中为“可运行兼容”实现：
@@ -1638,5 +1701,3 @@ u64 cleonos_sys_net_tcp_accept(const cleonos_net_tcp_accept_req *req);
 - Wine 在运行时崩溃场景下会生成与内核一致格式的“信号编码退出状态”，可通过 `WAITPID` 读取。
 - Wine 当前音频 syscall 为占位实现：`AUDIO_AVAILABLE=0`，`AUDIO_PLAY_TONE=0`，`AUDIO_STOP=1`。
 - Wine 版本号策略固定为 `85.0.0-wine`（历史兼容号；不会随 syscall 扩展继续增长）。
-
-

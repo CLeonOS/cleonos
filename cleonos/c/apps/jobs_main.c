@@ -18,22 +18,6 @@ static int ush_jobs_is_user_path(const char *path) {
     return 1;
 }
 
-static const char *ush_jobs_state_name(u64 state) {
-    if (state == CLEONOS_PROC_STATE_PENDING) {
-        return "PENDING";
-    }
-    if (state == CLEONOS_PROC_STATE_RUNNING) {
-        return "RUNNING";
-    }
-    if (state == CLEONOS_PROC_STATE_STOPPED) {
-        return "STOPPED";
-    }
-    if (state == CLEONOS_PROC_STATE_EXITED) {
-        return "EXITED ";
-    }
-    return "UNUSED ";
-}
-
 static int ush_cmd_jobs(const char *arg) {
     u64 proc_count;
     u64 tty_active = cleonos_sys_tty_active();
@@ -56,8 +40,6 @@ static int ush_cmd_jobs(const char *arg) {
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;
         cleonos_proc_snapshot snap;
-        const char *state_name;
-
         if (cleonos_sys_proc_pid_at(i, &pid) == 0ULL || pid == 0ULL) {
             continue;
         }
@@ -78,20 +60,18 @@ static int ush_cmd_jobs(const char *arg) {
             continue;
         }
 
-        state_name = ush_jobs_state_name(snap.state);
-        ush_write("[");
-        ush_write_hex_u64(snap.pid);
-        ush_write("] ");
-        ush_write(state_name);
+        ush_write("pid=");
+        ush_write_u64_dec(snap.pid);
+        ush_write(" state=");
+        ush_write(ush_proc_state_name(snap.state));
         ush_write("  ");
         ush_write(snap.path);
         if (snap.state == CLEONOS_PROC_STATE_EXITED) {
             ush_write("  ");
-            ush_write_i18n_label("status", "状态");
-            ush_write("=");
-            ush_write_hex_u64(snap.exit_status);
+            ush_print_exit_status_i18n("status", "状态", snap.exit_status);
+        } else {
+            ush_write_char('\n');
         }
-        ush_write_char('\n');
         shown++;
     }
 

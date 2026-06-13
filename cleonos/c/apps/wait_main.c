@@ -27,13 +27,7 @@ static int ush_cmd_wait(const char *arg) {
     }
 
     ush_writeln_i18n("wait: exited", "wait: 已退出");
-    if ((status & (1ULL << 63)) != 0ULL) {
-        ush_print_kv_hex_i18n("  SIGNAL", "  信号", status & 0xFFULL);
-        ush_print_kv_hex_i18n("  VECTOR", "  向量", (status >> 8) & 0xFFULL);
-        ush_print_kv_hex_i18n("  ERROR", "  错误码", (status >> 16) & 0xFFFFULL);
-    } else {
-        ush_print_kv_hex_i18n("  STATUS", "  状态", status);
-    }
+    ush_print_exit_status_i18n("  result", "  结果", status);
     return 1;
 }
 

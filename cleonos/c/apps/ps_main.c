@@ -18,22 +18,6 @@ static int ush_ps_is_user_path(const char *path) {
     return 1;
 }
 
-static const char *ush_ps_state_name(u64 state) {
-    if (state == CLEONOS_PROC_STATE_PENDING) {
-        return "PEND";
-    }
-    if (state == CLEONOS_PROC_STATE_RUNNING) {
-        return "RUN ";
-    }
-    if (state == CLEONOS_PROC_STATE_STOPPED) {
-        return "STOP";
-    }
-    if (state == CLEONOS_PROC_STATE_EXITED) {
-        return "EXIT";
-    }
-    return "UNKN";
-}
-
 static int ush_ps_next_token(const char **io_cursor, char *out, u64 out_size) {
     const char *p;
     u64 n = 0ULL;
@@ -75,24 +59,31 @@ static void ush_ps_print_one(const cleonos_proc_snapshot *snap) {
         return;
     }
 
-    ush_write("PID=");
-    ush_write_hex_u64(snap->pid);
-    ush_write(" PPID=");
-    ush_write_hex_u64(snap->ppid);
-    ush_write(" ST=");
-    ush_write(ush_ps_state_name(snap->state));
-    ush_write(" TTY=");
-    ush_write_hex_u64(snap->tty_index);
-    ush_write(" RT=");
-    ush_write_hex_u64(snap->runtime_ticks);
-    ush_write(" MEM=");
-    ush_write_hex_u64(snap->mem_bytes);
-    if (snap->state == CLEONOS_PROC_STATE_EXITED) {
-        ush_write(" EXIT=");
-        ush_write_hex_u64(snap->exit_status);
+    ush_write("pid=");
+    ush_write_u64_dec(snap->pid);
+    ush_write(" parent=");
+    ush_write_u64_dec(snap->ppid);
+    ush_write(" state=");
+    ush_write(ush_proc_state_name(snap->state));
+    if (snap->blocked_reason != CLEONOS_BLOCK_NONE) {
+        ush_write(" block=\"");
+        ush_write(ush_block_reason_name(snap->blocked_reason));
+        ush_write("\"");
     }
-    ush_write(" PATH=");
-    ush_writeln(snap->path);
+    ush_write(" tty=");
+    ush_write_u64_dec(snap->tty_index);
+    ush_write(" runtime=");
+    ush_write_u64_dec(snap->runtime_ticks);
+    ush_write(" ticks mem=");
+    ush_write_human_bytes(snap->mem_bytes);
+    ush_write(" path=");
+    ush_write(snap->path);
+    if (snap->state == CLEONOS_PROC_STATE_EXITED) {
+        ush_write(" ");
+        ush_print_exit_status_i18n("exit", "退出", snap->exit_status);
+    } else {
+        ush_write_char('\n');
+    }
 }
 
 static int ush_cmd_ps(const char *arg) {
@@ -116,7 +107,7 @@ static int ush_cmd_ps(const char *arg) {
     }
 
     proc_count = cleonos_sys_proc_count();
-    ush_writeln_i18n("ps:", "进程:");
+    ush_writeln_i18n("processes:", "进程:");
 
     for (i = 0ULL; i < proc_count; i++) {
         u64 pid = 0ULL;

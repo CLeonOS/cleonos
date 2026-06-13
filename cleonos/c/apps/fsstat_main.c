@@ -1,17 +1,17 @@
 #include "cmd_runtime.h"
 static int ush_cmd_fsstat(void) {
     ush_writeln_i18n("fsstat:", "文件系统统计:");
-    ush_print_kv_hex_i18n("  NODE_COUNT", "  节点数", cleonos_sys_fs_node_count());
-    ush_print_kv_hex_i18n("  ROOT_CHILDREN", "  根目录子项", cleonos_sys_fs_child_count("/"));
-    ush_print_kv_hex_i18n("  SYSTEM_CHILDREN", "  系统目录子项",
+    ush_print_kv_dec_i18n("  node count", "  节点数", cleonos_sys_fs_node_count());
+    ush_print_kv_dec_i18n("  root children", "  根目录子项", cleonos_sys_fs_child_count("/"));
+    ush_print_kv_dec_i18n("  system children", "  系统目录子项",
                           cleonos_sys_fs_child_count("/system"));
-    ush_print_kv_hex_i18n("  SHELL_CHILDREN", "  外壳目录子项",
+    ush_print_kv_dec_i18n("  shell children", "  外壳目录子项",
                           cleonos_sys_fs_child_count("/shell"));
-    ush_print_kv_hex_i18n("  TEMP_CHILDREN", "  临时目录子项",
+    ush_print_kv_dec_i18n("  temp children", "  临时目录子项",
                           cleonos_sys_fs_child_count("/temp"));
-    ush_print_kv_hex_i18n("  DRIVER_CHILDREN", "  驱动目录子项",
+    ush_print_kv_dec_i18n("  driver children", "  驱动目录子项",
                           cleonos_sys_fs_child_count("/system/drivers"));
-    ush_print_kv_hex_i18n("  DEV_CHILDREN", "  设备目录子项", cleonos_sys_fs_child_count("/dev"));
+    ush_print_kv_dec_i18n("  dev children", "  设备目录子项", cleonos_sys_fs_child_count("/dev"));
     return 1;
 }
 

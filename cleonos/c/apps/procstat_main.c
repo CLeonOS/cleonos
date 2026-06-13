@@ -1,65 +1,5 @@
 #include "cmd_runtime.h"
 
-static const char *ush_procstat_state_name(u64 state) {
-    if (state == CLEONOS_PROC_STATE_PENDING) {
-        return "PEND";
-    }
-    if (state == CLEONOS_PROC_STATE_RUNNING) {
-        return "RUN ";
-    }
-    if (state == CLEONOS_PROC_STATE_STOPPED) {
-        return "STOP";
-    }
-    if (state == CLEONOS_PROC_STATE_EXITED) {
-        return "EXIT";
-    }
-    return "UNKN";
-}
-
-static const char *ush_procstat_thread_state_name(u64 state) {
-    if (state == CLEONOS_THREAD_STATE_READY) {
-        return "READY";
-    }
-    if (state == CLEONOS_THREAD_STATE_RUNNING) {
-        return "RUNNING";
-    }
-    if (state == CLEONOS_THREAD_STATE_BLOCKED) {
-        return "BLOCKED";
-    }
-    if (state == CLEONOS_THREAD_STATE_SLEEPING) {
-        return "SLEEPING";
-    }
-    if (state == CLEONOS_THREAD_STATE_STOPPED) {
-        return "STOPPED";
-    }
-    if (state == CLEONOS_THREAD_STATE_ZOMBIE) {
-        return "ZOMBIE";
-    }
-    return "NONE";
-}
-
-static const char *ush_procstat_block_name(u64 reason) {
-    if (reason == CLEONOS_BLOCK_TTY_INPUT) {
-        return "TTY_INPUT";
-    }
-    if (reason == CLEONOS_BLOCK_PTY_INPUT) {
-        return "PTY_INPUT";
-    }
-    if (reason == CLEONOS_BLOCK_SLEEP) {
-        return "SLEEP";
-    }
-    if (reason == CLEONOS_BLOCK_WAIT_CHILD) {
-        return "WAIT_CHILD";
-    }
-    if (reason == CLEONOS_BLOCK_YIELD) {
-        return "YIELD";
-    }
-    if (reason == CLEONOS_BLOCK_IO) {
-        return "IO";
-    }
-    return "NONE";
-}
-
 static int ush_procstat_next_token(const char **io_cursor, char *out, u64 out_size) {
     const char *p;
     u64 n = 0ULL;
@@ -101,25 +41,31 @@ static void ush_procstat_print_line(const cleonos_proc_snapshot *snap) {
         return;
     }
 
-    ush_write("PID=");
-    ush_write_hex_u64(snap->pid);
-    ush_write(" ST=");
-    ush_write(ush_procstat_state_name(snap->state));
-    ush_write(" TH=");
-    ush_write(ush_procstat_thread_state_name(snap->thread_state));
+    ush_write("pid=");
+    ush_write_u64_dec(snap->pid);
+    ush_write(" state=");
+    ush_write(ush_proc_state_name(snap->state));
+    ush_write(" thread=");
+    ush_write(ush_thread_state_name(snap->thread_state));
     if (snap->blocked_reason != CLEONOS_BLOCK_NONE) {
-        ush_write(" BLOCK=");
-        ush_write(ush_procstat_block_name(snap->blocked_reason));
+        ush_write(" block=\"");
+        ush_write(ush_block_reason_name(snap->blocked_reason));
+        ush_write("\"");
     }
-    ush_write(" TTY=");
-    ush_write_hex_u64(snap->tty_index);
-    ush_write(" RT=");
-    ush_write_hex_u64(snap->runtime_ticks);
-    ush_write(" MEM=");
-    ush_write_hex_u64(snap->mem_bytes);
-    ush_write(" SIG=");
-    ush_write_hex_u64(snap->last_signal);
-    ush_write(" PATH=");
+    ush_write(" tty=");
+    ush_write_u64_dec(snap->tty_index);
+    ush_write(" runtime=");
+    ush_write_u64_dec(snap->runtime_ticks);
+    ush_write(" ticks mem=");
+    ush_write_human_bytes(snap->mem_bytes);
+    if (snap->last_signal != 0ULL) {
+        ush_write(" last_signal=");
+        ush_write(ush_signal_name(snap->last_signal));
+        ush_write("(");
+        ush_write_u64_dec(snap->last_signal);
+        ush_write(")");
+    }
+    ush_write(" path=");
     ush_writeln(snap->path);
 }
 
@@ -128,40 +74,42 @@ static void ush_procstat_print_detail(const cleonos_proc_snapshot *snap) {
         return;
     }
 
-    ush_writeln_i18n("procstat:", "进程状态:");
-    ush_print_kv_hex_i18n("  PID", "  进程号", snap->pid);
-    ush_print_kv_hex_i18n("  PPID", "  父进程号", snap->ppid);
-    ush_write_i18n_label("  STATE", "  状态");
+    ush_writeln_i18n("process detail:", "进程详情:");
+    ush_print_kv_dec_i18n("  pid", "  进程号", snap->pid);
+    ush_print_kv_dec_i18n("  parent pid", "  父进程号", snap->ppid);
+    ush_write_i18n_label("  process state", "  进程状态");
     ush_write(": ");
-    ush_write(ush_procstat_state_name(snap->state));
+    ush_write(ush_proc_state_name(snap->state));
     ush_write_char('\n');
-    ush_print_kv_hex_i18n("  STATE_ID", "  状态ID", snap->state);
-    ush_write_i18n_label("  THREAD_STATE", "  线程状态");
+    ush_write_i18n_label("  thread state", "  线程状态");
     ush_write(": ");
-    ush_write(ush_procstat_thread_state_name(snap->thread_state));
+    ush_write(ush_thread_state_name(snap->thread_state));
     ush_write_char('\n');
-    ush_print_kv_hex_i18n("  THREAD_STATE_ID", "  线程状态ID", snap->thread_state);
-    ush_write_i18n_label("  BLOCKED_REASON", "  阻塞原因");
+    ush_write_i18n_label("  blocked reason", "  阻塞原因");
     ush_write(": ");
-    ush_write(ush_procstat_block_name(snap->blocked_reason));
+    ush_write(ush_block_reason_name(snap->blocked_reason));
     ush_write_char('\n');
-    ush_print_kv_hex_i18n("  BLOCKED_REASON_ID", "  阻塞原因ID", snap->blocked_reason);
-    ush_print_kv_hex_i18n("  MAIN_THREAD_ID", "  主线程ID", snap->main_thread_id);
-    ush_print_kv_hex_i18n("  SCHEDULER_TASK_ID", "  调度任务ID", snap->scheduler_task_id);
-    ush_print_kv_hex_i18n("  WAKE_TICK", "  唤醒Tick", snap->wake_tick);
-    ush_print_kv_hex_i18n("  WAIT_TARGET_PID", "  等待目标PID", snap->wait_target_pid);
-    ush_print_kv_hex_i18n("  PARENT_WAITING", "  父进程等待中", snap->parent_waiting);
-    ush_print_kv_hex_i18n("  TTY", "  终端", snap->tty_index);
-    ush_print_kv_hex_i18n("  STARTED_TICK", "  启动Tick", snap->started_tick);
-    ush_print_kv_hex_i18n("  EXITED_TICK", "  退出Tick", snap->exited_tick);
-    ush_print_kv_hex_i18n("  RUNTIME_TICKS", "  运行Ticks", snap->runtime_ticks);
-    ush_print_kv_hex_i18n("  MEM_BYTES", "  内存字节", snap->mem_bytes);
-    ush_print_kv_hex_i18n("  EXIT_STATUS", "  退出状态", snap->exit_status);
-    ush_print_kv_hex_i18n("  LAST_SIGNAL", "  最后信号", snap->last_signal);
-    ush_print_kv_hex_i18n("  LAST_FAULT_VECTOR", "  最后异常向量", snap->last_fault_vector);
-    ush_print_kv_hex_i18n("  LAST_FAULT_ERROR", "  最后异常错误码", snap->last_fault_error);
+    ush_print_kv_dec_i18n("  main thread", "  主线程", snap->main_thread_id);
+    ush_print_kv_dec_i18n("  scheduler task", "  调度任务", snap->scheduler_task_id);
+    ush_print_kv_dec_i18n("  wake tick", "  唤醒Tick", snap->wake_tick);
+    ush_print_kv_dec_i18n("  waiting for pid", "  等待进程号", snap->wait_target_pid);
+    ush_print_kv_dec_i18n("  parent waiting", "  父进程等待中", snap->parent_waiting);
+    ush_print_kv_dec_i18n("  tty", "  终端", snap->tty_index);
+    ush_print_kv_dec_i18n("  started tick", "  启动Tick", snap->started_tick);
+    ush_print_kv_dec_i18n("  exited tick", "  退出Tick", snap->exited_tick);
+    ush_print_kv_dec_i18n("  runtime ticks", "  运行Ticks", snap->runtime_ticks);
+    ush_print_kv_bytes_i18n("  memory", "  内存", snap->mem_bytes);
+    ush_print_exit_status_i18n("  exit status", "  退出状态", snap->exit_status);
+    ush_write_i18n_label("  last signal", "  最后信号");
+    ush_write(": ");
+    ush_write(ush_signal_name(snap->last_signal));
+    ush_write(" (");
+    ush_write_u64_dec(snap->last_signal);
+    ush_write(")\n");
+    ush_print_kv_dec_i18n("  last fault vector", "  最后异常向量", snap->last_fault_vector);
+    ush_print_kv_dec_i18n("  last fault error", "  最后异常错误码", snap->last_fault_error);
     ush_print_kv_hex_i18n("  LAST_FAULT_RIP", "  最后异常RIP", snap->last_fault_rip);
-    ush_write_i18n_label("  PATH", "  路径");
+    ush_write_i18n_label("  path", "  路径");
     ush_write(": ");
     ush_writeln(snap->path);
 }
@@ -237,7 +185,7 @@ static int ush_cmd_procstat(const char *arg) {
         u64 i;
         u64 shown = 0ULL;
 
-        ush_writeln_i18n("procstat:", "进程状态:");
+        ush_writeln_i18n("processes:", "进程:");
 
         for (i = 0ULL; i < proc_count; i++) {
             u64 pid = 0ULL;

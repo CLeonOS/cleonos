@@ -1,6 +1,6 @@
 #include "cmd_runtime.h"
 static int ush_cmd_pid(void) {
-    ush_print_kv_hex_i18n("PID", "进程号", cleonos_sys_getpid());
+    ush_print_kv_dec_i18n("pid", "进程号", cleonos_sys_getpid());
     return 1;
 }
 

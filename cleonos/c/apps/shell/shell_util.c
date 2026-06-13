@@ -337,9 +337,110 @@ void ush_write_hex_u64(u64 value) {
     }
 }
 
+void ush_write_u64_dec(u64 value) {
+    char buf[32];
+    u64 pos = 0ULL;
+
+    if (value == 0ULL) {
+        ush_write_char('0');
+        return;
+    }
+
+    while (value != 0ULL && pos < (u64)sizeof(buf)) {
+        buf[pos++] = (char)('0' + (char)(value % 10ULL));
+        value /= 10ULL;
+    }
+
+    while (pos > 0ULL) {
+        pos--;
+        ush_write_char(buf[pos]);
+    }
+}
+
+void ush_write_human_bytes(u64 bytes) {
+    static const char *units[] = {"B", "KiB", "MiB", "GiB"};
+    u64 whole = bytes;
+    u64 frac = 0ULL;
+    u64 unit = 0ULL;
+
+    while (whole >= 1024ULL && unit + 1ULL < (u64)(sizeof(units) / sizeof(units[0]))) {
+        frac = ((whole % 1024ULL) * 10ULL) / 1024ULL;
+        whole /= 1024ULL;
+        unit++;
+    }
+
+    ush_write_u64_dec(whole);
+    if (unit != 0ULL && frac != 0ULL) {
+        ush_write_char('.');
+        ush_write_u64_dec(frac);
+    }
+    ush_write_char(' ');
+    ush_write(units[unit]);
+}
+
 void ush_print_kv_hex(const char *label, u64 value) {
     ush_write(label);
     ush_write(": ");
     ush_write_hex_u64(value);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_dec(const char *label, u64 value) {
+    ush_write(label);
+    ush_write(": ");
+    ush_write_u64_dec(value);
+    ush_write_char('\n');
+}
+
+void ush_print_kv_bytes(const char *label, u64 bytes) {
+    ush_write(label);
+    ush_write(": ");
+    ush_write_human_bytes(bytes);
+    ush_write(" (");
+    ush_write_u64_dec(bytes);
+    ush_writeln(" bytes)");
+}
+
+const char *ush_signal_name(u64 signal) {
+    if (signal == CLEONOS_SIGKILL) {
+        return "KILL";
+    }
+    if (signal == CLEONOS_SIGTERM) {
+        return "TERM";
+    }
+    if (signal == CLEONOS_SIGCONT) {
+        return "CONT";
+    }
+    if (signal == CLEONOS_SIGSTOP) {
+        return "STOP";
+    }
+    return "UNKNOWN";
+}
+
+void ush_print_exit_status(const char *label, u64 status) {
+    if (label != (const char *)0 && label[0] != '\0') {
+        ush_write(label);
+        ush_write(": ");
+    }
+
+    if ((status & (1ULL << 63)) != 0ULL) {
+        u64 signal = status & 0xFFULL;
+        u64 vector = (status >> 8) & 0xFFULL;
+        u64 error = (status >> 16) & 0xFFFFULL;
+
+        ush_write("terminated by signal ");
+        ush_write(ush_signal_name(signal));
+        ush_write(" (");
+        ush_write_u64_dec(signal);
+        ush_write("), exception vector ");
+        ush_write_u64_dec(vector);
+        ush_write(", error ");
+        ush_write_u64_dec(error);
+        ush_write_char('\n');
+        return;
+    }
+
+    ush_write("exit code ");
+    ush_write_u64_dec(status);
     ush_write_char('\n');
 }

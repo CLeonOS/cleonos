@@ -856,7 +856,7 @@ char ush_input_read_char_blocking(void) {
             return ch;
         }
 
-        __asm__ volatile("pause");
+        (void)cleonos_sys_yield();
     }
 }
 
