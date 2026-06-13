@@ -229,7 +229,6 @@ linker_script = {root}/cleonos/c/user.ld
 cflags = {USER_CFLAGS}
 ldflags = {USER_LDFLAGS}
 app.shell.include_runtime = false
-app.shell.exclude_sources = shell_auth.c,shell_cmd.c,shell_external.c,shell_input.c,shell_linenoise.c,shell_path.c,shell_script.c,shell_util.c
 app.browser.cflags = {USER_TLS_CFLAGS},{USER_GUMBO_CFLAGS}
 app.browser.sources = {USER_TLS_SOURCES}
 app.browser.source_dirs = {root}/cleonos/third-party/litehtml/src/gumbo

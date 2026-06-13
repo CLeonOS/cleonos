@@ -523,7 +523,7 @@ build /mnt/d/Projects/C/cleonos/build/x86_64/clks_kernel_clboot.elf: link /mnt/d
 
 build clboot-kernel: phony /mnt/d/Projects/C/cleonos/build/x86_64/clks_kernel_clboot.elf
 
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/lib/libcleonos_user_rust.a: rust_staticlib /mnt/d/Projects/C/cleonos/cleonos/rust/src/lib.rs | /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell.rs
+build /mnt/d/Projects/C/cleonos/build/x86_64/user/lib/libcleonos_user_rust.a: rust_staticlib /mnt/d/Projects/C/cleonos/cleonos/rust/src/lib.rs | /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/auth.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/builtin.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/completion.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/constants.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/editing.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/exec.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/history.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/input.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/io.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/mod.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/path.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/pipeline.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/render.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/runner.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/script.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/sys.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/types.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/utf8.rs /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell/util.rs
   rustc = rustc
   flags = --crate-type staticlib -C panic=abort -O
 
