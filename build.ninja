@@ -523,6 +523,10 @@ build /mnt/d/Projects/C/cleonos/build/x86_64/clks_kernel_clboot.elf: link /mnt/d
 
 build clboot-kernel: phony /mnt/d/Projects/C/cleonos/build/x86_64/clks_kernel_clboot.elf
 
+build /mnt/d/Projects/C/cleonos/build/x86_64/user/lib/libcleonos_user_rust.a: rust_staticlib /mnt/d/Projects/C/cleonos/cleonos/rust/src/lib.rs | /mnt/d/Projects/C/cleonos/cleonos/rust/src/shell.rs
+  rustc = rustc
+  flags = --crate-type staticlib -C panic=abort -O
+
 build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/dlfcn.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/src/dlfcn.c
   cc = gcc
   cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
@@ -3358,47 +3362,7 @@ build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/app
   cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
   label = cleonos/c/apps/user/cleonos_user.c
 
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_auth.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_auth.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_auth.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_cmd.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_cmd.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_cmd.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_external.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_external.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_external.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_input.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_input.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_input.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_linenoise.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_linenoise.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_linenoise.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_path.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_path.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_path.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_script.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_script.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_script.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_util.o: cc /mnt/d/Projects/C/cleonos/cleonos/c/apps/shell/shell_util.c
-  cc = gcc
-  cflags = -std=c11 -ffreestanding -fno-stack-protector -fno-builtin -Wall -Wextra -I/mnt/d/Projects/C/cleonos/cleonos/c/include -I/mnt/d/Projects/C/cleonos/cleonos/c/apps
-  label = cleonos/c/apps/shell/shell_util.c
-
-build /mnt/d/Projects/C/cleonos/build/x86_64/user/apps/shell.elf: link /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/dlfcn.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_ctype.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_stdlib.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_string.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_strings.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/mman.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/posix.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/runtime.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/stdio.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/syscall.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/time.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell_main.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/user/cleonos_user.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_auth.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_cmd.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_external.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_input.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_linenoise.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_path.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_script.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell/shell_util.o | /mnt/d/Projects/C/cleonos/cleonos/c/user.ld
+build /mnt/d/Projects/C/cleonos/build/x86_64/user/apps/shell.elf: link /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/dlfcn.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_ctype.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_stdlib.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_string.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/libc_strings.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/mman.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/posix.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/runtime.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/stdio.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/syscall.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/cleonos/c/src/time.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/shell_main.o /mnt/d/Projects/C/cleonos/build/x86_64/user/obj/__apps/shell/cleonos/c/apps/user/cleonos_user.o /mnt/d/Projects/C/cleonos/build/x86_64/user/lib/libcleonos_user_rust.a | /mnt/d/Projects/C/cleonos/cleonos/c/user.ld
   ld = ld
   ldflags = -nostdlib -z max-page-size=0x1000 --gc-sections
   linker = /mnt/d/Projects/C/cleonos/cleonos/c/user.ld

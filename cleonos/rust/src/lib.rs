@@ -2,6 +2,8 @@
 
 use core::panic::PanicInfo;
 
+mod shell;
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {

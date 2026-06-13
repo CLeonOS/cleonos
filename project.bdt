@@ -207,7 +207,7 @@ command = sh "{root}/scripts/build_tcc_runtime.sh" "{root}" "{CC}" ar
 cache = false
 
 [target.userapps]
-deps = setup-tools
+deps = setup-tools, user-rust
 type = c-apps
 tool = {CC}
 cxxflags = {USER_CXXFLAGS}
@@ -229,6 +229,7 @@ linker_script = {root}/cleonos/c/user.ld
 cflags = {USER_CFLAGS}
 ldflags = {USER_LDFLAGS}
 app.shell.include_runtime = false
+app.shell.exclude_sources = shell_auth.c,shell_cmd.c,shell_external.c,shell_input.c,shell_linenoise.c,shell_path.c,shell_script.c,shell_util.c
 app.browser.cflags = {USER_TLS_CFLAGS},{USER_GUMBO_CFLAGS}
 app.browser.sources = {USER_TLS_SOURCES}
 app.browser.source_dirs = {root}/cleonos/third-party/litehtml/src/gumbo
@@ -269,6 +270,7 @@ app.stardust_helloworld.cflags = -DSTARDUSTUI_CLEONOS
 app.stardust_layout.sources = {USER_STARDUSTUI_SOURCES},{root}/cleonos/third-party/StardustUI/examples/layout/layout.cpp
 app.stardust_layout.cflags = -DSTARDUSTUI_CLEONOS
 app.shell.sources = {root}/cleonos/c/apps/user/cleonos_user.c
+app.shell.objects = {root}/build/x86_64/user/lib/libcleonos_user_rust.a
 app.install2disk.sources = {root}/cleonos/c/apps/user/cleonos_user.c
 app.leonfetch.sources = {root}/cleonos/c/apps/user/cleonos_user.c
 app.fastfetch.cflags = {USER_FASTFETCH_CFLAGS}

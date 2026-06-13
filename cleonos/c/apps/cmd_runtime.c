@@ -676,25 +676,61 @@ int ush_resolve_exec_path(const ush_state *sh, const char *arg, char *out_path, 
             return 0;
         }
     } else {
-        static const char prefix[] = "/shell/";
-        u64 prefix_len = (u64)(sizeof(prefix) - 1U);
+        static const char *const dirs[] = {"/shell/apps/", "/shell/apps/uwm/", "/shell/apps/inputm/"};
+        char candidate[USH_PATH_MAX];
+        char fallback[USH_PATH_MAX];
+        u64 dir_index;
 
-        if (prefix_len + 1ULL >= out_size) {
-            return 0;
-        }
+        fallback[0] = '\0';
 
-        for (i = 0ULL; i < prefix_len; i++) {
-            out_path[cursor++] = prefix[i];
-        }
+        for (dir_index = 0ULL; dir_index < (u64)(sizeof(dirs) / sizeof(dirs[0])); dir_index++) {
+            u64 prefix_len = ush_strlen(dirs[dir_index]);
 
-        for (i = 0ULL; arg[i] != '\0'; i++) {
-            if (cursor + 1ULL >= out_size) {
+            cursor = 0ULL;
+            candidate[0] = '\0';
+
+            if (prefix_len + 1ULL >= (u64)sizeof(candidate)) {
                 return 0;
             }
-            out_path[cursor++] = arg[i];
+
+            for (i = 0ULL; i < prefix_len; i++) {
+                candidate[cursor++] = dirs[dir_index][i];
+            }
+
+            for (i = 0ULL; arg[i] != '\0'; i++) {
+                if (cursor + 1ULL >= (u64)sizeof(candidate)) {
+                    return 0;
+                }
+                candidate[cursor++] = arg[i];
+            }
+
+            candidate[cursor] = '\0';
+
+            if (ush_has_suffix(candidate, ".elf") == 0) {
+                static const char suffix[] = ".elf";
+
+                for (i = 0ULL; suffix[i] != '\0'; i++) {
+                    if (cursor + 1ULL >= (u64)sizeof(candidate)) {
+                        return 0;
+                    }
+                    candidate[cursor++] = suffix[i];
+                }
+
+                candidate[cursor] = '\0';
+            }
+
+            if (dir_index == 0ULL) {
+                ush_copy(fallback, (u64)sizeof(fallback), candidate);
+            }
+
+            if (cleonos_sys_fs_stat_type(candidate) == 1ULL) {
+                ush_copy(out_path, out_size, candidate);
+                return 1;
+            }
         }
 
-        out_path[cursor] = '\0';
+        ush_copy(out_path, out_size, fallback);
+        return 1;
     }
 
     if (ush_has_suffix(out_path, ".elf") == 0) {

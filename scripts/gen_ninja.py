@@ -194,7 +194,12 @@ OUTPUT_GROUPS = {
 }
 
 APP_RULES = {
-    "shell": {"include_runtime": False, "sources": [r("cleonos/c/apps/user/cleonos_user.c")]},
+    "shell": {
+        "include_runtime": False,
+        "sources": [r("cleonos/c/apps/user/cleonos_user.c")],
+        "extra_objects": [r("build/x86_64/user/lib/libcleonos_user_rust.a")],
+        "skip_subdir": True,
+    },
     "browser": {"cflags": TLS_CFLAGS + GUMBO_CFLAGS, "sources": TLS_SOURCES, "source_dirs": [r("cleonos/third-party/litehtml/src/gumbo")]},
     "httpget": {"cflags": TLS_CFLAGS, "sources": TLS_SOURCES},
     "wget": {"cflags": TLS_CFLAGS, "sources": TLS_SOURCES},
@@ -454,12 +459,23 @@ def add_app_source(nw, source, app, obj_root, objects, extra_flags):
     objects.append(nw.compile_obj(source, obj, cflags=flags, cxxflags=flags, label=source_rel))
 
 
+def add_user_rust(nw):
+    rust_out = r("build/x86_64/user/lib/libcleonos_user_rust.a")
+    rust_sources = collect("cleonos/rust/src", recursive=True, suffixes=(".rs",))
+    rust_main = r("cleonos/rust/src/lib.rs")
+    rust_implicit = [src for src in rust_sources if src != rust_main]
+    nw.build(rust_out, "rust_staticlib", [rust_main], implicit=rust_implicit,
+             variables={"rustc": TOOLS["RUSTC"], "flags": "--crate-type staticlib -C panic=abort -O"})
+    return rust_out
+
+
 def add_userapps(nw):
     main_dir = r("cleonos/c/apps")
     obj_root = r("build/x86_64/user/obj")
     top_sources = collect(main_dir, recursive=False, suffixes=(".c", ".cpp", ".cc", ".cxx"))
     dirs = child_dirs("cleonos/c/apps")
     outputs = []
+    user_rust = add_user_rust(nw)
 
     shared_objs = []
     for src in collect("cleonos/c/src", recursive=True, suffixes=(".c",)):
@@ -484,6 +500,9 @@ def add_userapps(nw):
         for src in rule.get("sources", []):
             add_app_source(nw, src, app, obj_root, objects, extra_flags)
 
+        for obj in rule.get("extra_objects", []):
+            objects.append(obj)
+
         excludes = set(rule.get("exclude_sources", []))
         for directory in rule.get("source_dirs", []):
             for src in collect(directory, recursive=True, suffixes=(".c", ".cpp", ".cc", ".cxx"), exclude_names=excludes):
@@ -499,7 +518,7 @@ def add_userapps(nw):
                 continue
             add_app_source(nw, src, app, obj_root, objects, extra_flags)
 
-        subdir = dirs.get(app)
+        subdir = None if rule.get("skip_subdir", False) else dirs.get(app)
         if subdir:
             for src in collect(subdir, recursive=False, suffixes=(".c", ".cpp", ".cc", ".cxx")):
                 name = Path(src).name

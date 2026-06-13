@@ -80,6 +80,10 @@ int memcmp(const void *left, const void *right, size_t size) {
     return 0;
 }
 
+int bcmp(const void *left, const void *right, size_t size) {
+    return memcmp(left, right, size);
+}
+
 void *memchr(const void *src, int value, size_t size) {
     const unsigned char *s = (const unsigned char *)src;
     unsigned char needle = (unsigned char)value;
