@@ -5,14 +5,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NINJA = ROOT / "build.ninja"
+ROOT_ARG = "."
+_COLLECT_CACHE = {}
 
 
 def norm(path):
     return str(path).replace("\\", "/")
 
 
+def root_path(path):
+    p = Path(path)
+    return p if p.is_absolute() else ROOT / p
+
+
 def r(path):
-    return norm(ROOT / path)
+    p = Path(path)
+    if p.is_absolute():
+        try:
+            return norm(p.relative_to(ROOT))
+        except ValueError:
+            return norm(p)
+    return norm(p)
 
 
 def q(value):
@@ -39,30 +52,28 @@ def uniq(items):
 
 
 def collect(directory, recursive=True, suffixes=(".c", ".cpp", ".cc", ".cxx", ".S"), exclude_names=()):
-    base = ROOT / directory if not Path(directory).is_absolute() else Path(directory)
+    key = (r(directory), bool(recursive), tuple(suffixes), tuple(sorted(exclude_names)))
+    if key in _COLLECT_CACHE:
+        return list(_COLLECT_CACHE[key])
+    base = root_path(directory)
     if not base.exists():
         return []
     iterator = base.rglob("*") if recursive else base.glob("*")
     excluded = set(exclude_names)
-    return sorted(norm(p) for p in iterator if p.is_file() and p.suffix in suffixes and p.name not in excluded)
+    result = sorted(r(p) for p in iterator if p.is_file() and p.suffix in suffixes and p.name not in excluded)
+    _COLLECT_CACHE[key] = tuple(result)
+    return list(result)
 
 
 def child_dirs(directory):
-    base = ROOT / directory
+    base = root_path(directory)
     if not base.exists():
         return {}
-    return {p.name: norm(p) for p in base.iterdir() if p.is_dir()}
+    return {p.name: r(p) for p in base.iterdir() if p.is_dir()}
 
 
 def rel(path):
-    p = norm(path)
-    root = norm(ROOT)
-    if p == root:
-        return "."
-    prefix = root + "/"
-    if p.startswith(prefix):
-        return p[len(prefix):]
-    return p
+    return r(path)
 
 
 def obj_for(obj_root, source, scope=None):
@@ -270,7 +281,6 @@ KERNEL_COMMON_C_SOURCES = [
     "clks/kernel/runtime/locale.c",
     "clks/kernel/runtime/net.c",
     "clks/kernel/runtime/pty.c",
-    "clks/kernel/runtime/syscall.c",
     "clks/kernel/runtime/user.c",
     "clks/kernel/runtime/userland.c",
     "clks/kernel/storage/disk.c",
@@ -393,18 +403,18 @@ def add_setup(nw):
     assert_printf = " ".join(q(line) for line in assert_lines)
     assert_cmd = "mkdir -p " + q(Path(FREESTANDING_ASSERT).parent) + " && printf '%s\\n' " + assert_printf + " > " + q(FREESTANDING_ASSERT)
     nw.build(FREESTANDING_ASSERT, "run", variables={"cmd": assert_cmd, "desc": "freestanding-headers"})
-    defconfig_cmd = f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} defconfig --preset {q(MENUCONFIG_PRESET)}"
+    defconfig_cmd = f"{TOOLS['PYTHON']} {q(KCONFIG_SYNC)} defconfig --preset {q(MENUCONFIG_PRESET)}"
     if MENUCONFIG_ARGS.strip():
         defconfig_cmd += " " + MENUCONFIG_ARGS.strip()
     nw.build(KCONFIG_DOTCONFIG, "console", [KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": defconfig_cmd, "desc": "defconfig"})
     nw.build("defconfig", "phony", [KCONFIG_DOTCONFIG])
-    nw.build("olddefconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} olddefconfig", "desc": "olddefconfig"})
-    nw.build("menuconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} menuconfig", "desc": "menuconfig"})
+    nw.build("olddefconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(KCONFIG_SYNC)} olddefconfig", "desc": "olddefconfig"})
+    nw.build("menuconfig", "console", [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE], variables={"cmd": f"{TOOLS['PYTHON']} {q(KCONFIG_SYNC)} menuconfig", "desc": "menuconfig"})
     nw.build(
         [MENUCONFIG_HEADER, KCONFIG_BDT_CONFIG],
         "run",
         [KCONFIG_DOTCONFIG, KCONFIG_SYNC, KCONFIG_FILE],
-        variables={"cmd": f"{TOOLS['PYTHON']} {q(ROOT / KCONFIG_SYNC)} export", "desc": "menuconfig-headers"},
+        variables={"cmd": f"{TOOLS['PYTHON']} {q(KCONFIG_SYNC)} export", "desc": "menuconfig-headers"},
     )
 
 
@@ -434,7 +444,7 @@ def add_kernel(nw, phony_name, boot_source, obj_root, output):
     rust_main = r("clks/rust/src/lib.rs")
     rust_implicit = [src for src in rust_sources if src != rust_main]
     nw.build(rust_out, "rust_staticlib", [rust_main], implicit=rust_implicit,
-             variables={"rustc": TOOLS["RUSTC"], "flags": "--crate-type staticlib -C panic=abort -O"})
+             variables={"rustc": TOOLS["RUSTC"], "flags": "--crate-type staticlib -C panic=abort -C no-redzone=yes -O"})
     objs.append(rust_out)
     nw.build(output, "link", objs, implicit=[r("clks/arch/x86_64/linker.ld")], variables={"ld": TOOLS["LD"], "ldflags": " ".join(KERNEL_LDFLAGS), "linker": r("clks/arch/x86_64/linker.ld")})
     nw.build(phony_name, "phony", [output])
@@ -540,7 +550,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     clboot_efi = r("build/x86_64/clboot/BOOTX64.EFI")
     clboot_font = r("boot/clboot/fonts/clboot.psf")
     clboot_module_deps = [r("boot/clboot/uefi/clboot_uefi.h"), r("boot/clboot/include/clboot_protocol.h")]
-    clboot_module_deps += [r(rel(path)) for path in sorted((ROOT / "boot/clboot/uefi/modules").glob("*.inc"))]
+    clboot_module_deps += [r(path) for path in sorted(root_path("boot/clboot/uefi/modules").glob("*.inc"))]
     nw.build(clboot_efi, "uefi", [r("boot/clboot/uefi/main.c")], implicit=clboot_module_deps, variables={
         "uefi_cc": TOOLS["UEFI_CC"],
         "uefi_cflags": " ".join(["-ffreestanding", "-fno-stack-protector", "-fno-builtin", "-fcf-protection=none", "-fshort-wchar", "-mno-red-zone", "-Wall", "-Wextra", f"-I{r('boot/clboot/include')}", f"-I{r('boot/clboot/uefi')}"]),
@@ -553,7 +563,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
     nw.build("kernel-symbols", "phony", [sym])
 
     tcc_stamp = r("build/x86_64/tccroot/.stamp")
-    nw.build(tcc_stamp, "run", [r("scripts/build_tcc_runtime.sh")], variables={"cmd": f"sh {q(ROOT / 'scripts/build_tcc_runtime.sh')} {q(ROOT)} {q(TOOLS['CC'])} ar && touch {q(tcc_stamp)}", "desc": "tcc-runtime"})
+    nw.build(tcc_stamp, "run", [r("scripts/build_tcc_runtime.sh")], variables={"cmd": f"sh {q(r('scripts/build_tcc_runtime.sh'))} {q(ROOT_ARG)} {q(TOOLS['CC'])} ar && touch {q(tcc_stamp)}", "desc": "tcc-runtime"})
     nw.build("tcc-runtime", "phony", [tcc_stamp])
 
     ramdisk_root = r("build/x86_64/ramdisk_root")
@@ -566,14 +576,14 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f"{q(ramdisk_root + '/system/others/fonts')} {q(ramdisk_root + '/system/others/tcc')} {q(ramdisk_root + '/system/drivers')} "
         f"{q(ramdisk_root + '/shell/apps')} {q(ramdisk_root + '/shell/apps/uwm')} {q(ramdisk_root + '/shell/apps/inputm')} "
         f"{q(ramdisk_root + '/shell/data')} {q(ramdisk_root + '/inputm')} {q(ramdisk_root + '/temp')} {q(ramdisk_root + '/tests')}"
-        f" && cp -R {q(str(ROOT) + '/ramdisk/.')} {q(ramdisk_root + '/')}"
-        f" && {TOOLS['PYTHON']} {q(ROOT / 'scripts/gen_os_version.py')} {q(ROOT)} {q(ramdisk_root + '/etc')}"
-        f" && cp -R {q(str(ROOT / 'build/x86_64/tccroot') + '/.')} {q(ramdisk_root + '/system/others/tcc/')}"
+        f" && cp -R {q('ramdisk/.')} {q(ramdisk_root + '/')}"
+        f" && {TOOLS['PYTHON']} {q(r('scripts/gen_os_version.py'))} {q(ROOT_ARG)} {q(ramdisk_root + '/etc')}"
+        f" && cp -R {q('build/x86_64/tccroot/.')} {q(ramdisk_root + '/system/others/tcc/')}"
         f" && cp {q(sym)} {q(ramdisk_root + '/system/others/kernel.sym')}"
         f" && cp {q(clboot_kernel)} {q(ramdisk_root + '/system/others/install/clks_kernel.elf')}"
         f" && cp {q(clboot_efi)} {q(ramdisk_root + '/system/others/install/BOOTX64.EFI')}"
         f" && cp {q(clboot_font)} {q(ramdisk_root + '/system/others/install/clboot.psf')}"
-        f" && cp {q(ROOT / 'configs/clboot-harddisk.conf')} {q(ramdisk_root + '/system/others/install/clboot-harddisk.conf')}"
+        f" && cp {q(r('configs/clboot-harddisk.conf'))} {q(ramdisk_root + '/system/others/install/clboot-harddisk.conf')}"
         f" && for f in {shell_outputs}; do case \"$f\" in */uwm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/uwm/')} ;; */inputm/*.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/inputm/')} ;; */system/drivers/*.elf) cp \"$f\" {q(ramdisk_root + '/system/drivers/')} ;; */system/*.elf) cp \"$f\" {q(ramdisk_root + '/system/')} ;; *.elf) cp \"$f\" {q(ramdisk_root + '/shell/apps/')} ;; esac; done"
         f" && printf 'path=/shell/apps/shell.elf\\nargs=\\nenv=LAUNCHER=/shell/apps/shell.elf\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.conf')}"
         f" && printf 'path=/shell/apps/install2disk.elf\\nargs=install\\nenv=LAUNCHER=/shell/apps/install2disk.elf;CLKS_INSTALLER_AUTO=1\\n' > {q(ramdisk_root + '/system/configs/user_space_enter.install.conf')}"
@@ -606,7 +616,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mformat -i {q(efi_img + '@@' + str(efi_offset))} -F ::"
         f" && mmd -i {q(efi_img + '@@' + str(efi_offset))} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
-        f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(r('configs/clboot.conf'))} ::/EFI/CLEONOS/CLBOOT.CONF"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(efi_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
@@ -623,7 +633,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mformat -i {q(iso_efi_img)} -F ::"
         f" && mmd -i {q(iso_efi_img)} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot"
         f" && mcopy -i {q(iso_efi_img)} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
-        f" && mcopy -i {q(iso_efi_img)} {q(ROOT / 'configs/clboot.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(iso_efi_img)} {q(r('configs/clboot.conf'))} ::/EFI/CLEONOS/CLBOOT.CONF"
         f" && mcopy -i {q(iso_efi_img)} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(iso_efi_img)} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(iso_efi_img)} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
@@ -638,7 +648,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && cp {q(clboot_kernel)} {q(iso_root + '/boot/clks_kernel.elf')}"
         f" && cp {q(ramdisk)} {q(iso_root + '/boot/cleonos_ramdisk.tar')}"
         f" && cp {q(clboot_efi)} {q(iso_root + '/EFI/BOOT/BOOTX64.EFI')}"
-        f" && cp {q(ROOT / 'configs/clboot.conf')} {q(iso_root + '/EFI/CLEONOS/clboot.conf')}"
+        f" && cp {q(r('configs/clboot.conf'))} {q(iso_root + '/EFI/CLEONOS/clboot.conf')}"
         f" && cp {q(clboot_font)} {q(iso_root + '/EFI/CLEONOS/clboot.psf')}"
         f" && cp {q(startup_nsh)} {q(iso_root + '/startup.nsh')}"
         f" && cp {q(iso_efi_img)} {q(iso_root + '/efi.img')}"
@@ -656,7 +666,7 @@ def add_misc(nw, normal_kernel, clboot_kernel, user_outputs):
         f" && mformat -i {q(harddisk_img + '@@' + str(efi_offset))} -F ::"
         f" && mmd -i {q(harddisk_img + '@@' + str(efi_offset))} ::/EFI ::/EFI/BOOT ::/EFI/CLEONOS ::/boot ::/boot/kernels"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_efi)} ::/EFI/BOOT/BOOTX64.EFI"
-        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(ROOT / 'configs/clboot-harddisk.conf')} ::/EFI/CLEONOS/CLBOOT.CONF"
+        f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(r('configs/clboot-harddisk.conf'))} ::/EFI/CLEONOS/CLBOOT.CONF"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_font)} ::/EFI/CLEONOS/CLBOOT.PSF"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(startup_nsh)} ::/STARTUP.NSH"
         f" && mcopy -i {q(harddisk_img + '@@' + str(efi_offset))} {q(clboot_kernel)} ::/boot/clks_kernel.elf"
